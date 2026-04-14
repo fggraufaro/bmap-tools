@@ -8,61 +8,51 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --navy:#1a2332;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;
-  --blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;
-  --gray:#F5F5F2;--border:#E0DED8;--text:#1a2332;--muted:#777;--white:#fff;
-}
-html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color:var(--text);font-size:14px}
-
+:root{--navy:#1a2332;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;--blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;--gray:#F5F5F2;--border:#E0DED8;--text:#1a2332;--muted:#777;--white:#fff}
+html,body{font-family:'Syne',sans-serif;background:var(--gray);color:var(--text);font-size:14px}
 .header{background:var(--navy);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:10px}
 .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
 .logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'DM Mono',monospace}
 .live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:12px}
-
 .wrap{max-width:860px;margin:0 auto;padding:18px 16px}
-
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
 .card-pad{padding:18px 20px}
 .label{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
-
-.row{display:flex;gap:8px}
-.inp{flex:1;border:1.5px solid var(--border);border-radius:7px;padding:9px 13px;font-family:'Syne',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;background:var(--white)}
+.search-row{display:flex;gap:8px}
+.inp-wrap{flex:1;position:relative}
+.inp{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:9px 13px;font-family:'Syne',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;background:var(--white)}
 .inp:focus{border-color:var(--navy)}
 .btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px 18px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .2s}
 .btn:hover{opacity:.85}
 .btn:disabled{opacity:.35;cursor:not-allowed}
-.btn-amber{background:var(--amber);color:var(--navy)}
-.btn-green{background:var(--green);color:#fff}
-
-.results{display:flex;flex-direction:column;gap:5px;margin-top:10px;max-height:180px;overflow-y:auto}
-.res-item{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border:1px solid var(--border);border-radius:7px;cursor:pointer;transition:all .15s}
-.res-item:hover,.res-item.sel{border-color:var(--amber);background:#FFFBF2}
-.res-name{font-size:13px;font-weight:600}
-.res-meta{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted)}
-
+.dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--navy);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;overflow:hidden;display:none}
+.dd.open{display:block}
+.dd-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.dd-item:last-child{border-bottom:none}
+.dd-item:hover,.dd-item.hi{background:#FFFBF2}
+.dd-name{font-size:13px;font-weight:600;color:var(--text)}
+.dd-name mark{background:#FFF3CD;border-radius:2px;padding:0 2px;font-style:normal;color:var(--text);font-weight:700}
+.dd-meta{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);margin-top:2px}
+.dd-msg{padding:12px 14px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)}
 .bank-hdr{background:var(--navy);padding:14px 20px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between}
 .bank-hdr-name{color:#fff;font-size:15px;font-weight:700}
 .badges{display:flex;gap:6px}
 .bdg{font-size:10px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;font-weight:500;border:1px solid}
 .bdg-g{background:rgba(39,80,10,.25);color:#8fc45a;border-color:rgba(39,80,10,.35)}
 .bdg-a{background:rgba(245,166,35,.2);color:var(--amber);border-color:rgba(245,166,35,.3)}
-
 .stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)}
 .stat{padding:12px 16px;border-right:1px solid var(--border);text-align:center}
 .stat:last-child{border-right:none}
 .stat-v{font-size:18px;font-weight:800;color:var(--navy)}
 .stat-l{font-size:9px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace}
-
 .zones{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)}
 .zone{padding:10px;text-align:center;border-right:1px solid var(--border)}
 .zone:last-child{border-right:none}
 .zone-n{font-size:17px;font-weight:800}
 .zone-l{font-size:9px;font-family:'DM Mono',monospace;font-weight:600;margin-top:1px}
 .zi{color:var(--green)}.za{color:var(--blue)}.zd{color:#854F0B}.zj{color:var(--red)}
-
 .branches{padding:14px 18px}
 .sec-t{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .br-hdr,.br-row{display:grid;grid-template-columns:1fr 60px 70px 60px 80px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0ee;font-size:11px}
@@ -71,14 +61,11 @@ html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color
 .br-name{font-weight:600;line-height:1.2}
 .br-city{font-size:10px;color:var(--muted)}
 .spill{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:'DM Mono',monospace}
-.sp-i{background:var(--lgreen);color:var(--green)}.sp-a{background:var(--lblue);color:var(--blue)}
-.sp-d{background:#FFF3E0;color:#854F0B}.sp-j{background:var(--lred);color:var(--red)}
-
+.sp-i{background:var(--lgreen);color:var(--green)}.sp-a{background:var(--lblue);color:var(--blue)}.sp-d{background:#FFF3E0;color:#854F0B}.sp-j{background:var(--lred);color:var(--red)}
 .target-sec{padding:0 18px 14px}
 .target-box{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px}
 .target-name{font-size:13px;font-weight:700;color:var(--red)}
 .target-meta{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);margin-top:3px;line-height:1.5}
-
 .wf-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
 .wf{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .18s;position:relative}
 .wf::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:10px 0 0 10px;background:var(--border);transition:background .18s}
@@ -88,11 +75,9 @@ html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color
 .wf-t{font-size:13px;font-weight:700;margin-bottom:3px}
 .wf-d{font-size:11px;color:var(--muted);line-height:1.4}
 .wf-tag{display:inline-block;margin-top:6px;font-size:9px;font-family:'DM Mono',monospace;padding:2px 6px;border-radius:3px;background:var(--gray);color:var(--muted);border:1px solid var(--border)}
-
 .gen-btn{width:100%;background:var(--amber);color:var(--navy);border:none;border-radius:9px;padding:13px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:10px;transition:all .2s;letter-spacing:.01em}
 .gen-btn:hover{opacity:.9}
 .gen-btn:disabled{opacity:.35;cursor:not-allowed}
-
 .out-card{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .out-hdr{background:var(--gray);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
 .out-t{font-size:11px;font-weight:700;font-family:'DM Mono',monospace}
@@ -101,12 +86,10 @@ html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color
 .copy-btn.ok{background:var(--green)}
 .out-body{padding:16px;max-height:380px;overflow-y:auto}
 .out-txt{font-family:'DM Mono',monospace;font-size:10.5px;line-height:1.9;color:var(--text);white-space:pre-wrap;word-break:break-word}
-
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .loading{display:none;text-align:center;padding:16px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)}
 .loading.on{display:block}
-
 .dn{display:none}
 </style>
 </head>
@@ -117,33 +100,26 @@ html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color
     <div class="logo-dot"></div>
     <div>
       <div class="logo-text">BMAP Context Generator</div>
-      <div class="logo-sub">Faro Solutions · Princeton Partners</div>
+      <div class="logo-sub">Verlocity</div>
     </div>
   </div>
   <div class="live-badge">LIVE · Supabase</div>
 </div>
 
 <div class="wrap">
-
-  <!-- Search -->
   <div class="card card-pad">
     <div class="label">Search institution</div>
-    <div class="row">
-      <input class="inp" id="si" type="text" placeholder="Type bank name (e.g. Hancock Whitney, Carver Federal...)">
-      <button class="btn" id="sb" onclick="search()">Search</button>
+    <div class="search-row">
+      <div class="inp-wrap">
+        <input class="inp" id="si" type="text" placeholder="Start typing — e.g. Carver, Hancock, First National..." autocomplete="off">
+        <div class="dd" id="dd"></div>
+      </div>
+      <button class="btn" id="sb" onclick="doSearch(document.getElementById('si').value)">Search</button>
     </div>
-    <div class="results" id="rl"></div>
   </div>
 
-  <!-- Bank panel -->
   <div class="card dn" id="bp">
-    <div class="bank-hdr">
-      <div class="bank-hdr-name" id="bn">—</div>
-      <div class="badges">
-        <span class="bdg bdg-g" id="bb">—</span>
-        <span class="bdg bdg-a" id="db">—</span>
-      </div>
-    </div>
+    <div class="bank-hdr"><div class="bank-hdr-name" id="bn">—</div><div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div></div>
     <div class="stats">
       <div class="stat"><div class="stat-v" id="ss">—</div><div class="stat-l">avg opp score</div></div>
       <div class="stat"><div class="stat-v" id="sy">—</div><div class="stat-l">YoY vs peers</div></div>
@@ -163,165 +139,137 @@ html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color
     </div>
     <div class="target-sec">
       <div class="sec-t">Top network target</div>
-      <div class="target-box">
-        <div class="target-name" id="tn">—</div>
-        <div class="target-meta" id="tm">—</div>
-      </div>
+      <div class="target-box"><div class="target-name" id="tn">—</div><div class="target-meta" id="tm">—</div></div>
     </div>
   </div>
 
-  <!-- Workflows -->
   <div class="wf-grid dn" id="wg">
-    <div class="wf" id="w1" onclick="selWf(1)">
-      <div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div>
-      <div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div>
-      <span class="wf-tag">PITCH</span>
-    </div>
-    <div class="wf" id="w2" onclick="selWf(2)">
-      <div class="wf-n">02</div><div class="wf-t">Resonate Brief</div>
-      <div class="wf-d">Audience intelligence input for Pete Vazquez — personas, ZIPs, segments</div>
-      <span class="wf-tag">RESONATE</span>
-    </div>
-    <div class="wf" id="w3" onclick="selWf(3)">
-      <div class="wf-n">03</div><div class="wf-t">Financial Analysis</div>
-      <div class="wf-d">Executive financial health — ROA, efficiency, funding rates vs target</div>
-      <span class="wf-tag">FINANCIALS</span>
-    </div>
-    <div class="wf" id="w4" onclick="selWf(4)">
-      <div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div>
-      <div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div>
-      <span class="wf-tag">DEEP DIVE · $9K</span>
-    </div>
+    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div><div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div><span class="wf-tag">PITCH</span></div>
+    <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Resonate Brief</div><div class="wf-d">Audience intelligence input for Pete Vazquez — personas, ZIPs, segments</div><span class="wf-tag">RESONATE</span></div>
+    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Executive financial health — ROA, efficiency, funding rates vs target</div><span class="wf-tag">FINANCIALS</span></div>
+    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
   </div>
 
-  <!-- Branch select (deep dive only) -->
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch for deep dive</div>
-    <select class="inp" id="bselect" style="cursor:pointer">
-      <option value="">— select a branch —</option>
-    </select>
+    <select class="inp" id="bselect" style="cursor:pointer"><option value="">— select a branch —</option></select>
   </div>
 
   <button class="gen-btn dn" id="gb" onclick="generate()">Generate Context →</button>
-
   <div class="loading" id="ld"><span class="spin"></span>Pulling data from BMAP...</div>
-
   <div class="out-card dn" id="oc">
-    <div class="out-hdr">
-      <div class="out-t" id="ot">CONTEXT OUTPUT</div>
-      <button class="copy-btn" id="cb" onclick="copyOut()">Copy to clipboard</button>
-    </div>
+    <div class="out-hdr"><div class="out-t" id="ot">CONTEXT OUTPUT</div><button class="copy-btn" id="cb" onclick="copyOut()">Copy to clipboard</button></div>
     <div class="out-body"><div class="out-txt" id="otxt"></div></div>
   </div>
-
 </div>
 
 <script>
-const URL='https://tuiiywphoynbmkxpoyps.supabase.co';
+const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
-let selBank=null,selWfN=null,bankData=null,allBr=[];
+let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
 
-async function q(table,params=''){
-  const r=await fetch(`${URL}/rest/v1/${table}?${params}`,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
-  return r.json();
+async function api(table,params){
+  try{
+    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
+    if(!r.ok){console.error(table,r.status,await r.text());return[];}
+    return r.json();
+  }catch(e){console.error(e);return[];}
 }
-function show(id){document.getElementById(id).classList.remove('dn')}
-function hide(id){document.getElementById(id).classList.add('dn')}
-function val(id){return document.getElementById(id).value.trim()}
-function set(id,v){document.getElementById(id).textContent=v}
-function spill(z){const m={Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'};return`<span class="spill ${m[z]||'sp-a'}">${z}</span>`}
+const g=id=>document.getElementById(id);
+const show=id=>g(id).classList.remove('dn');
+const hide=id=>g(id).classList.add('dn');
+const set=(id,v)=>g(id).textContent=v;
+const spill=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
 
-let searchTimer=null;
-
-async function liveSearch(q2){
-  if(!q2||q2.length<2){document.getElementById('rl').innerHTML='';return;}
-  // Search each word independently and merge results
-  const words=q2.trim().split(/\s+/).filter(w=>w.length>1);
-  const allResults=new Map();
-  await Promise.all(words.map(async w=>{
-    const data=await q('dim_institutions',`institution_name=ilike.*${encodeURIComponent(w)}*&select=inst_key,institution_name,institution_type,hq_state&limit=20`);
-    if(Array.isArray(data))data.forEach(b=>allResults.set(b.inst_key,b));
-  }));
-  // Also do a full phrase search
-  const phrase=await q('dim_institutions',`institution_name=ilike.*${encodeURIComponent(q2.trim())}*&select=inst_key,institution_name,institution_type,hq_state&limit=20`);
-  if(Array.isArray(phrase))phrase.forEach(b=>allResults.set(b.inst_key,b));
-  // Score by how many query words appear in the name
-  const scored=[...allResults.values()].map(b=>{
-    const name=b.institution_name.toLowerCase();
-    const score=words.reduce((s,w)=>s+(name.includes(w.toLowerCase())?1:0),0);
-    return{...b,score};
-  }).sort((a,b)=>b.score-a.score).slice(0,8);
-  renderResults(scored);
-}
-
-async function search(){
-  const q2=val('si');if(!q2)return;
-  const sb=document.getElementById('sb');sb.disabled=true;sb.textContent='...';
-  await liveSearch(q2);
-  sb.disabled=false;sb.textContent='Search';
-}
-
-function highlight(name,q2){
-  const words=q2.trim().split(/\s+/).filter(w=>w.length>1);
-  let h=name;
+function hl(name,q){
+  const words=q.trim().split(/\s+/).filter(w=>w.length>0);
+  let h=name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
   words.forEach(w=>{
-    const re=new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
-    h=h.replace(re,'<mark style="background:#FFF3CD;border-radius:2px;padding:0 1px">$1</mark>');
+    const re=new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+    h=h.replace(re,'<mark>$1</mark>');
   });
   return h;
 }
 
-function renderResults(data){
-  const q2=val('si');
-  const rl=document.getElementById('rl');rl.innerHTML='';
-  if(!data||!data.length){rl.innerHTML='<div style="font-size:11px;color:#999;padding:8px;font-family:DM Mono,monospace">No results — try fewer words (e.g. "Carver Federal" or just "Carver")</div>';return;}
-  data.forEach(b=>{
-    const d=document.createElement('div');d.className='res-item';
-    d.innerHTML=`<div><div class="res-name">${highlight(b.institution_name,q2)}</div><div class="res-meta">${b.inst_key} · ${b.institution_type} · ${b.hq_state||'—'}</div></div><span style="font-size:10px;color:#999">Select →</span>`;
-    d.onclick=()=>{document.querySelectorAll('.res-item').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');selBank=b;loadBank(b.inst_key)};
-    rl.appendChild(d);
-  });
+async function doSearch(q){
+  if(!q||q.length<2){closeDd();return;}
+  const dd=g('dd');
+  dd.innerHTML='<div class="dd-msg"><span class="spin"></span>Searching...</div>';
+  dd.classList.add('open');
+  const words=q.trim().split(/\s+/).filter(w=>w.length>1);
+  const map=new Map();
+  // Search each word + full phrase
+  const promises=words.map(w=>api('dim_institutions',
+    `institution_name=ilike.*${encodeURIComponent(w)}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=30`));
+  promises.push(api('dim_institutions',
+    `institution_name=ilike.*${encodeURIComponent(q.trim())}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=30`));
+  const results=await Promise.all(promises);
+  results.forEach(arr=>{if(Array.isArray(arr))arr.forEach(b=>map.set(b.inst_key,b))});
+  const scored=[...map.values()].map(b=>{
+    const name=b.institution_name.toLowerCase();
+    const score=words.reduce((s,w)=>s+(name.includes(w.toLowerCase())?1:0),0);
+    return{...b,_score:score};
+  }).sort((a,b)=>b._score-a._score).slice(0,8);
+  ddItems=scored;ddIdx=-1;
+  if(!scored.length){dd.innerHTML='<div class="dd-msg">No results — try a shorter name</div>';return;}
+  dd.innerHTML=scored.map((b,i)=>`
+    <div class="dd-item" onmousedown="pick(${i})">
+      <div><div class="dd-name">${hl(b.institution_name,q)}</div>
+      <div class="dd-meta">${b.institution_type} · ${[b.city_hq,b.state_hq].filter(Boolean).join(', ')}</div></div>
+      <span style="font-size:10px;color:var(--muted)">→</span>
+    </div>`).join('');
 }
-document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Enter')search()});
-document.getElementById('si').addEventListener('input',e=>{
-  clearTimeout(searchTimer);
+
+function pick(i){
+  const b=ddItems[i];if(!b)return;
+  g('si').value=b.institution_name;
+  closeDd();selBank=b;loadBank(b.inst_key);
+}
+function closeDd(){g('dd').classList.remove('open');ddIdx=-1;}
+
+g('si').addEventListener('input',e=>{
+  clearTimeout(timer);
   const v=e.target.value.trim();
-  if(v.length<2){document.getElementById('rl').innerHTML='';return;}
-  searchTimer=setTimeout(()=>liveSearch(v),300);
+  if(v.length<2){closeDd();return;}
+  timer=setTimeout(()=>doSearch(v),250);
 });
+g('si').addEventListener('keydown',e=>{
+  const items=g('dd').querySelectorAll('.dd-item');
+  if(e.key==='ArrowDown'){e.preventDefault();ddIdx=Math.min(ddIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('hi',i===ddIdx));}
+  else if(e.key==='ArrowUp'){e.preventDefault();ddIdx=Math.max(ddIdx-1,0);items.forEach((el,i)=>el.classList.toggle('hi',i===ddIdx));}
+  else if(e.key==='Enter'){e.preventDefault();if(ddIdx>=0)pick(ddIdx);else doSearch(g('si').value);}
+  else if(e.key==='Escape')closeDd();
+});
+g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
-    q('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    q('branch_opportunity_base',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc&limit=50`),
-    q('network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=1`)
+    api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
+    api('branch_opportunity_base',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc&limit=50`),
+    api('network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=1`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt?.[0]||null,ik};
-  if(!rows||!rows.length)return;
+  if(!rows||!rows.length){set('bn','No branch data found');return;}
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
   set('bn',rows[0].namefull);set('bb',`${rows.length} branches`);set('db',`$${(tot/1e9).toFixed(1)}B`);
-  set('ss',(avg('opportunity_score')).toFixed(1));
+  set('ss',avg('opportunity_score').toFixed(1));
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);
-  set('sm',(avg('market_growth_score')).toFixed(1));
-  set('sd',(avg('inv_density_norm_winsor')).toFixed(1));
-  ['Invest','Analyze','Defend','Justify'].forEach((z,i)=>{
-    const ids=['zi','za','zd','zj'];
-    set(ids[i],rows.filter(r=>r.opportunity_zone===z).length);
-  });
-  document.getElementById('br').innerHTML=allBr.slice(0,5).map(b=>`
+  set('sm',avg('market_growth_score').toFixed(1));set('sd',avg('inv_density_norm_winsor').toFixed(1));
+  ['Invest','Analyze','Defend','Justify'].forEach((z,i)=>set(['zi','za','zd','zj'][i],rows.filter(r=>r.opportunity_zone===z).length));
+  g('br').innerHTML=allBr.slice(0,5).map(b=>`
     <div class="br-row">
       <span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span>
       <span style="font-family:DM Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span>
       <span style="font-family:DM Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span>
       <span style="font-family:DM Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span>
-      <span>${spill(b.opportunity_zone)}</span>
+      <span><span class="spill ${spill(b.opportunity_zone)}">${b.opportunity_zone}</span></span>
     </div>`).join('');
   const t=tgt?.[0];
   set('tn',t?t.target_institution:'No network targets computed yet');
   set('tm',t?`${t.branches_in_radius} branches exposed · Vuln ${t.avg_vuln_score} · YoY ${(+t.avg_yoy_pct).toFixed(1)}% · ROA ${t.target_roa}% · Efficiency ${t.target_efficiency_ratio}%`:'Run populate_network_top_targets for this institution');
-  const sel=document.getElementById('bselect');
+  const sel=g('bselect');
   sel.innerHTML='<option value="">— select a branch —</option>';
   allBr.forEach(b=>{const o=document.createElement('option');o.value=b.uninumbr;o.textContent=`${b.namebr} — ${b.citybr}, ${b.stalpbr} (${(+b.opportunity_score).toFixed(1)})`;sel.appendChild(o);});
   show('wg');hide('oc');hide('gb');hide('bsel');
@@ -330,14 +278,12 @@ async function loadBank(ik){
 
 function selWf(n){
   selWfN=n;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
-  document.getElementById(`w${n}`).classList.add('on');
-  show('gb');n===4?show('bsel'):hide('bsel');hide('oc');
+  g(`w${n}`).classList.add('on');show('gb');n===4?show('bsel'):hide('bsel');hide('oc');
 }
 
 async function generate(){
   if(!selBank||!selWfN)return;
-  document.getElementById('gb').disabled=true;
-  document.getElementById('ld').classList.add('on');hide('oc');
+  g('gb').disabled=true;g('ld').classList.add('on');hide('oc');
   const {rows,allBr:br,tgt,ik}=bankData;
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
@@ -347,80 +293,22 @@ async function generate(){
   const analyze=rows.filter(r=>r.opportunity_zone==='Analyze').length;
   const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
-  const top3=br.slice(0,3);
-  const t=tgt;
-
-  const net=`
-NETWORK SUMMARY
-Institution: ${rows[0]?.namefull}
-Total branches: ${rows.length}
-Total deposits: $${(tot/1e9).toFixed(2)}B
-Average opportunity score: ${avg('opportunity_score').toFixed(1)} / 100
-Deposit YoY (bank avg): ${avgYoY}%
-Competitor deposit YoY (avg): ${avgComp}%
-Gap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp
-
-ZONE DISTRIBUTION
-Invest:  ${invest} (${Math.round(invest/rows.length*100)}%)
-Analyze: ${analyze} (${Math.round(analyze/rows.length*100)}%)
-Defend:  ${defend} (${Math.round(defend/rows.length*100)}%)
-Justify: ${justify} (${Math.round(justify/rows.length*100)}%)
-
-TOP 3 BRANCHES
-${top3.map((b,i)=>`${i+1}. ${b.namebr} — ${b.citybr}, ${b.stalpbr}
-   Score: ${(+b.opportunity_score).toFixed(1)} | Zone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant}
-   Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Priority: ${b.priority_tier}`).join('\n\n')}
-
-TOP NETWORK TARGET
-${t?`${t.target_institution}
-Branches exposed: ${t.branches_in_radius} | Avg vulnerability: ${t.avg_vuln_score}
-Deposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}% | ROA: ${t.target_roa}% | Efficiency: ${t.target_efficiency_ratio}%
-Dominant zone: ${t.dominant_zone}`:'Not computed for this institution.'}`;
-
+  const top3=br.slice(0,3);const t=tgt;
+  const net=`\nNETWORK SUMMARY\nInstitution: ${rows[0]?.namefull}\nTotal branches: ${rows.length}\nTotal deposits: $${(tot/1e9).toFixed(2)}B\nAverage opportunity score: ${avg('opportunity_score').toFixed(1)} / 100\nDeposit YoY (bank avg): ${avgYoY}%\nCompetitor deposit YoY (avg): ${avgComp}%\nGap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp\n\nZONE DISTRIBUTION\nInvest:  ${invest} (${Math.round(invest/rows.length*100)}%)\nAnalyze: ${analyze} (${Math.round(analyze/rows.length*100)}%)\nDefend:  ${defend} (${Math.round(defend/rows.length*100)}%)\nJustify: ${justify} (${Math.round(justify/rows.length*100)}%)\n\nTOP 3 BRANCHES\n${top3.map((b,i)=>`${i+1}. ${b.namebr} — ${b.citybr}, ${b.stalpbr}\n   Score: ${(+b.opportunity_score).toFixed(1)} | Zone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant}\n   Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Priority: ${b.priority_tier}`).join('\n\n')}\n\nTOP NETWORK TARGET\n${t?`${t.target_institution}\nBranches exposed: ${t.branches_in_radius} | Avg vulnerability: ${t.avg_vuln_score}\nDeposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}% | ROA: ${t.target_roa}% | Efficiency: ${t.target_efficiency_ratio}%\nDominant zone: ${t.dominant_zone}`:'Not computed.'}`;
   let txt='',title='';
-  if(selWfN===1){
-    title='PITCH DECK CONTEXT';
-    txt=`BMAP PITCH DECK CONTEXT\nWorkflow: Executive Pitch Deck\nSource: BMAP · Community_Banks_Rates · Live\n${net}\n\nINSTRUCTION FOR AI:\nGenerate a 4-slide executive pitch deck using the BMAP data above.\nFollow the BMAP Executive Strategist prompt exactly.\nFrame all insights as growth opportunities.\nReference specific branch names and cities.\nNo tables, methodology, or follow-up questions.`;
-
-  }else if(selWfN===2){
-    title='RESONATE BRIEF';
-    const states={};rows.forEach(r=>{states[r.stalpbr]=(states[r.stalpbr]||0)+1});
-    const topSt=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const invBr=br.filter(r=>r.opportunity_zone==='Invest');
-    txt=`BMAP RESONATE BRIEF\nWorkflow: Audience Intelligence Input for Pete Vazquez\nSource: BMAP · Community_Banks_Rates · Live\n${net}\n\nGEOGRAPHIC PRIORITY\nTop states:\n${topSt.map(([s,c])=>`  ${s}: ${c} branches`).join('\n')}\n\nINVEST ZONE MARKETS:\n${invBr.slice(0,10).map(b=>`  ${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)}`).join('\n')}\n\nINSTRUCTION FOR AI:\nGenerate a structured Resonate audience brief.\nInclude: dominant customer personas by zone, geographic priority markets,\ndeposit product angle, messaging direction, and priority ZIP codes.\nFocus on Invest and Analyze zone markets only.`;
-
-  }else if(selWfN===3){
-    title='FINANCIAL ANALYSIS';
-    const fin=(await q('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
-    txt=`BMAP FINANCIAL ANALYSIS\nWorkflow: Executive Financial Assessment\nSource: BMAP · bank_financial_snapshot_latest · Q4 2025\n${net}\n\nFINANCIAL SNAPSHOT — ${rows[0]?.namefull}\nPeriod: ${fin.period||'Q4 2025'}\nTotal assets: $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':'—'}\nTotal deposits: $${fin.total_deposits?(fin.total_deposits/1e9).toFixed(2)+'B':'—'}\nNet income: $${fin.net_income?(fin.net_income/1e6).toFixed(1)+'M':'—'}\n\nPERFORMANCE\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}%\nEfficiency YoY: ${fin.efficiency_ratio_yoy_change||'—'}pp | Net income YoY: ${fin.net_income_yoy_pct||'—'}%\n\nDEPOSITS\nYoY: ${fin.dep_yoy_pct||'—'}% | QoQ: ${fin.dep_qoq_pct||'—'}% | Loans/Deposits: ${fin.loans_to_deposits_pct||'—'}%\n\nFUNDING RATES\nCost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY: ${fin.cof_yoy_change||'—'}pp\nSavings: ${fin.save_interest_pct||'—'}% | CD: ${fin.cd_interest_pct||'—'}%\nNoninterest income: ${fin.noninterest_income_pct||'—'}%\n\nCAPITAL & QUALITY\nTier 1: ${fin.tier1_capital_pct||'—'}% | Noncurrent: ${fin.noncurrent_assets_pct||'—'}% | Nonperforming: ${fin.nonperforming_pct||'—'}%\n\nTARGET COMPARISON\n${t?`${t.target_institution}: ROA ${t.target_roa}% vs ${fin.roa||'—'}% | Efficiency ${t.target_efficiency_ratio}% vs ${fin.efficiency_ratio||'—'}%`:'—'}\n\nINSTRUCTION FOR AI:\nProduce an executive financial health assessment.\nIdentify where the bank is strong and where exposed.\nCompare against the top network target.\nState the strategic implication for deposit growth capacity.\nBoardroom tone. No methodology. No tables.`;
-
-  }else if(selWfN===4){
-    title='BRANCH DEEP DIVE';
-    const uid=document.getElementById('bselect').value;
-    if(!uid){document.getElementById('ld').classList.remove('on');document.getElementById('gb').disabled=false;alert('Select a branch first.');return;}
-    const [cd,fin,bf]=await Promise.all([
-      q('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),
-      q('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),
-      q('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)
-    ]);
-    const b=bf?.[0]||{};const fn=fin?.[0]||{};
-    txt=`BMAP BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nMarket attractiveness: ${b.market_attractiveness||'—'} | Branch performance: ${b.branch_performance||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\nRelative growth (normalised): ${(+b.rel_growth_norm||0).toFixed(1)}\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nMarket growth score: ${(+b.market_growth_score||0).toFixed(1)}\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Branch: ${c.target_namebr} | Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}%\n  Vuln score: ${c.vuln_score} | Distance: ${c.target_dist_mi} mi | Zone: ${c.target_zone}\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed for this branch.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%\nTier 1: ${fn.tier1_capital_pct||'—'}% | Noncurrent: ${fn.noncurrent_assets_pct||'—'}%\n\nINSTRUCTION FOR AI:\nGenerate the full Verlocity Branch Deep Dive report — the $9K deliverable.\nInclude: branch strategic position, market opportunity, competitive landscape,\nrecommended growth play, 12-month priority action.\nConfident boardroom tone. Name specific competitors and markets.\nNo methodology. No generic language. No follow-up questions.`;
-  }
-
-  document.getElementById('ld').classList.remove('on');
-  document.getElementById('gb').disabled=false;
-  set('ot',title);
-  document.getElementById('otxt').textContent=txt;
-  show('oc');
-  document.getElementById('cb').textContent='Copy to clipboard';
-  document.getElementById('cb').classList.remove('ok');
+  if(selWfN===1){title='PITCH DECK CONTEXT';txt=`BMAP PITCH DECK CONTEXT\nWorkflow: Executive Pitch Deck\nSource: BMAP · Community_Banks_Rates · Live\n${net}\n\nINSTRUCTION FOR AI:\nGenerate a 4-slide executive pitch deck using the BMAP data above.\nFollow the BMAP Executive Strategist prompt exactly.\nFrame all insights as growth opportunities.\nReference specific branch names and cities.\nNo tables, methodology, or follow-up questions.`;}
+  else if(selWfN===2){title='RESONATE BRIEF';const states={};rows.forEach(r=>{states[r.stalpbr]=(states[r.stalpbr]||0)+1});const topSt=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,5);const invBr=br.filter(r=>r.opportunity_zone==='Invest');txt=`BMAP RESONATE BRIEF\nWorkflow: Audience Intelligence Input for Pete Vazquez\nSource: BMAP · Community_Banks_Rates · Live\n${net}\n\nGEOGRAPHIC PRIORITY\nTop states:\n${topSt.map(([s,c])=>`  ${s}: ${c} branches`).join('\n')}\n\nINVEST ZONE MARKETS:\n${invBr.slice(0,10).map(b=>`  ${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)}`).join('\n')}\n\nINSTRUCTION FOR AI:\nGenerate a structured Resonate audience brief.\nInclude: dominant customer personas by zone, geographic priority markets,\ndeposit product angle, messaging direction, and priority ZIP codes.\nFocus on Invest and Analyze zone markets only.`;}
+  else if(selWfN===3){title='FINANCIAL ANALYSIS';const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};txt=`BMAP FINANCIAL ANALYSIS\nWorkflow: Executive Financial Assessment\nSource: BMAP · bank_financial_snapshot_latest\n${net}\n\nFINANCIAL SNAPSHOT\nPeriod: ${fin.period||'Q4 2025'}\nTotal assets: $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':'—'}\nTotal deposits: $${fin.total_deposits?(fin.total_deposits/1e9).toFixed(2)+'B':'—'}\nNet income: $${fin.net_income?(fin.net_income/1e6).toFixed(1)+'M':'—'}\n\nPERFORMANCE\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}%\nEfficiency YoY: ${fin.efficiency_ratio_yoy_change||'—'}pp | Net income YoY: ${fin.net_income_yoy_pct||'—'}%\n\nDEPOSITS\nYoY: ${fin.dep_yoy_pct||'—'}% | QoQ: ${fin.dep_qoq_pct||'—'}% | Loans/Deposits: ${fin.loans_to_deposits_pct||'—'}%\n\nFUNDING RATES\nCost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY: ${fin.cof_yoy_change||'—'}pp\nSavings: ${fin.save_interest_pct||'—'}% | CD: ${fin.cd_interest_pct||'—'}%\nNoninterest income: ${fin.noninterest_income_pct||'—'}%\n\nCAPITAL & QUALITY\nTier 1: ${fin.tier1_capital_pct||'—'}% | Noncurrent: ${fin.noncurrent_assets_pct||'—'}% | Nonperforming: ${fin.nonperforming_pct||'—'}%\n\nINSTRUCTION FOR AI:\nProduce an executive financial health assessment.\nIdentify where the bank is strong and where exposed.\nState the strategic implication for deposit growth capacity.\nBoardroom tone. No methodology. No tables.`;}
+  else if(selWfN===4){title='BRANCH DEEP DIVE';const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}const [cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);const b=bf?.[0]||{};const fn=fin?.[0]||{};txt=`BMAP BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%\n\nINSTRUCTION FOR AI:\nGenerate the full Verlocity Branch Deep Dive report.\nInclude: branch strategic position, market opportunity, competitive landscape, recommended growth play, 12-month priority action.\nConfident boardroom tone. Name specific competitors and markets. No methodology. No follow-up questions.`;}
+  g('ld').classList.remove('on');g('gb').disabled=false;
+  set('ot',title);g('otxt').textContent=txt;show('oc');
+  g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');
 }
 
 function copyOut(){
-  navigator.clipboard.writeText(document.getElementById('otxt').textContent).then(()=>{
-    const cb=document.getElementById('cb');
-    cb.textContent='✓ Copied';cb.classList.add('ok');
-    setTimeout(()=>{cb.textContent='Copy to clipboard';cb.classList.remove('ok');},2000);
+  navigator.clipboard.writeText(g('otxt').textContent).then(()=>{
+    g('cb').textContent='✓ Copied';g('cb').classList.add('ok');
+    setTimeout(()=>{g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');},2000);
   });
 }
 </script>

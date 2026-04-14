@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BMAP Rate Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1a2332;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;
+  --blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;
+  --gray:#F5F5F2;--border:#E0DED8;--text:#1a2332;--muted:#777;--white:#fff;
+}
+html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color:var(--text);font-size:14px}
+
+.header{background:var(--navy);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
+.logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'DM Mono',monospace}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:12px}
+.run-info{color:rgba(255,255,255,.4);font-size:10px;font-family:'DM Mono',monospace}
+
+.wrap{max-width:1000px;margin:0 auto;padding:18px 16px}
+
+.toolbar{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.inp{border:1.5px solid var(--border);border-radius:7px;padding:8px 12px;font-family:'Syne',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;background:var(--white)}
+.inp:focus{border-color:var(--navy)}
+.inp-s{width:220px}
+.inp-sel{cursor:pointer}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;white-space:nowrap}
+.btn:hover{opacity:.85}
+.btn-amber{background:var(--amber);color:var(--navy)}
+.sep{flex:1}
+.result-count{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.metric{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.metric-v{font-size:20px;font-weight:800;color:var(--navy)}
+.metric-l{font-size:10px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace}
+
+.table-card{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.tbl-hdr{background:var(--gray);border-bottom:1px solid var(--border);padding:10px 16px}
+.tbl-hdr-t{font-size:11px;font-weight:700;font-family:'DM Mono',monospace}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:var(--navy);color:#fff;padding:9px 12px;text-align:left;font-weight:700;font-size:10px;letter-spacing:.04em;white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{background:#243042}
+thead th.sort-asc::after{content:' ↑'}
+thead th.sort-desc::after{content:' ↓'}
+tbody tr{border-bottom:1px solid #f0f0ee;transition:background .1s}
+tbody tr:hover{background:#fafaf8}
+tbody tr:last-child{border-bottom:none}
+td{padding:8px 12px;vertical-align:middle}
+.bank-name{font-weight:600;color:var(--text)}
+.bank-url{font-size:10px;font-family:'DM Mono',monospace;color:var(--blue);margin-top:2px}
+.bank-url a{color:inherit;text-decoration:none}
+.bank-url a:hover{text-decoration:underline}
+
+.rate{font-family:'DM Mono',monospace;font-weight:700}
+.rate-h{color:var(--green)}.rate-m{color:#854F0B}.rate-l{color:var(--muted)}
+.rate-sub{font-size:9px;color:var(--muted);display:block;font-weight:400;margin-top:1px}
+.dash{color:#ccc;font-family:'DM Mono',monospace}
+
+.badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;font-family:'DM Mono',monospace}
+.b-found{background:var(--lgreen);color:var(--green)}
+.b-partial{background:#FFF3E0;color:#854F0B}
+.b-np{background:var(--gray);color:var(--muted);border:1px solid var(--border)}
+
+.note-cell{font-size:10px;color:var(--muted);line-height:1.4;max-width:200px}
+.run-date{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted)}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:36px;opacity:.2;margin-bottom:12px}
+.empty-t{font-size:13px;font-weight:600;margin-bottom:6px}
+.empty-s{font-size:11px;font-family:'DM Mono',monospace}
+
+.no-data-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:40px;text-align:center}
+.no-data-title{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px}
+.no-data-sub{font-size:12px;color:var(--muted);line-height:1.6;max-width:420px;margin:0 auto 20px}
+.code-block{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:14px 18px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);text-align:left;line-height:1.8;max-width:500px;margin:0 auto}
+
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <div class="logo-text">BMAP Rate Radar</div>
+      <div class="logo-sub">Faro Solutions · Advertised deposit rates</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="run-info" id="runInfo">Loading...</div>
+    <div class="live-badge">LIVE · Supabase</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="toolbar">
+    <input class="inp inp-s" id="searchInp" type="text" placeholder="Search bank name...">
+    <select class="inp inp-sel" id="stateFilter">
+      <option value="">All states</option>
+    </select>
+    <select class="inp inp-sel" id="statusFilter">
+      <option value="">All statuses</option>
+      <option value="Found">Found</option>
+      <option value="Partial">Partial</option>
+      <option value="Not public">Not public</option>
+    </select>
+    <div class="sep"></div>
+    <div class="result-count" id="rc">—</div>
+  </div>
+
+  <div class="metrics" id="metricsRow">
+    <div class="metric"><div class="metric-v" id="m1">—</div><div class="metric-l">Banks in database</div></div>
+    <div class="metric"><div class="metric-v" id="m2">—</div><div class="metric-l">Rates found</div></div>
+    <div class="metric"><div class="metric-v" id="m3">—</div><div class="metric-l">Best CD APY</div></div>
+    <div class="metric"><div class="metric-v" id="m4">—</div><div class="metric-l">Best savings APY</div></div>
+  </div>
+
+  <div class="table-card">
+    <div class="tbl-hdr">
+      <div class="tbl-hdr-t">Advertised rates — latest scrape per institution</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sort('bank_name')">Bank</th>
+            <th onclick="sort('state')">State</th>
+            <th onclick="sort('cd_apy')">CD APY</th>
+            <th onclick="sort('savings_apy')">Savings APY</th>
+            <th onclick="sort('money_market_apy')">Money Mkt</th>
+            <th onclick="sort('checking_apy')">Checking APY</th>
+            <th>Min Balance</th>
+            <th onclick="sort('status')">Status</th>
+            <th>Note</th>
+            <th onclick="sort('run_at')">Last Scraped</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const URL='https://tuiiywphoynbmkxpoyps.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
+let all=[],sortField=null,sortDir=1;
+
+async function load(){
+  const r=await fetch(`${URL}/rest/v1/vw_rate_radar_latest?select=*&limit=2000`,{
+    headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
+  all=await r.json();
+  if(!Array.isArray(all)||all.length===0){showEmpty();return;}
+  populateFilters();updateMetrics();render();
+  const latest=all.reduce((a,b)=>new Date(b.run_at)>new Date(a.run_at)?b:a,all[0]);
+  document.getElementById('runInfo').textContent='Last run: '+new Date(latest.run_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function showEmpty(){
+  document.getElementById('tbody').innerHTML=`
+    <tr><td colspan="10" style="padding:0">
+      <div style="text-align:center;padding:50px 20px">
+        <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:8px">No Rate Radar data yet</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+          Run Rate Radar locally, then save results to Supabase.<br>
+          Add this to your rate_radar.py export function:
+        </div>
+        <div style="background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:14px 18px;font-family:DM Mono,monospace;font-size:11px;color:var(--text);text-align:left;line-height:1.9;max-width:560px;margin:0 auto">
+import requests, json<br><br>
+SUPABASE_URL = "https://tuiiywphoynbmkxpoyps.supabase.co"<br>
+SUPABASE_KEY = "your_service_role_key"<br><br>
+def save_to_supabase(results):<br>
+&nbsp;&nbsp;rows = [{"bank_name": r["bank_name"],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"bank_url": r.get("bank_url"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"state": r.get("state"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"cd_apy": r.get("cd_apy"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"cd_term": r.get("cd_term"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"savings_apy": r.get("savings_apy"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"checking_apy": r.get("checking_apy"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"money_market_apy": r.get("money_market_apy"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"min_balance": r.get("min_balance"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"status": r.get("status"),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"note": r.get("note")} for r in results]<br>
+&nbsp;&nbsp;requests.post(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;f"{SUPABASE_URL}/rest/v1/raw_rate_radar",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;headers={"apikey": SUPABASE_KEY,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Authorization": f"Bearer {SUPABASE_KEY}",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Content-Type": "application/json"},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;data=json.dumps(rows))
+        </div>
+      </div>
+    </td></tr>`;
+  document.getElementById('runInfo').textContent='No data yet';
+  document.getElementById('m1').textContent='0';
+}
+
+function populateFilters(){
+  const states=[...new Set(all.map(r=>r.state).filter(Boolean))].sort();
+  const sel=document.getElementById('stateFilter');
+  states.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+}
+
+function updateMetrics(){
+  const found=all.filter(r=>r.status!=='Not public');
+  const cds=all.filter(r=>r.cd_apy).map(r=>+r.cd_apy);
+  const savs=all.filter(r=>r.savings_apy).map(r=>+r.savings_apy);
+  document.getElementById('m1').textContent=all.length;
+  document.getElementById('m2').textContent=`${found.length}/${all.length}`;
+  document.getElementById('m3').textContent=cds.length?Math.max(...cds).toFixed(2)+'%':'—';
+  document.getElementById('m4').textContent=savs.length?Math.max(...savs).toFixed(2)+'%':'—';
+}
+
+function filtered(){
+  const search=document.getElementById('searchInp').value.toLowerCase();
+  const state=document.getElementById('stateFilter').value;
+  const status=document.getElementById('statusFilter').value;
+  return all.filter(r=>{
+    if(search&&!r.bank_name.toLowerCase().includes(search))return false;
+    if(state&&r.state!==state)return false;
+    if(status&&r.status!==status)return false;
+    return true;
+  });
+}
+
+function rateCell(v,sub){
+  if(!v)return'<span class="dash">—</span>';
+  const n=parseFloat(v);
+  const cls=n>=4?'rate-h':n>=1.5?'rate-m':'rate-l';
+  const sub2=sub&&sub!=='best found'?`<span class="rate-sub">${sub}</span>`:'';
+  return`<span class="rate ${cls}">${n.toFixed(2)}%${sub2}</span>`;
+}
+function bdg(s){
+  if(s==='Found')return'<span class="badge b-found">Found</span>';
+  if(s==='Partial')return'<span class="badge b-partial">Partial</span>';
+  return'<span class="badge b-np">Not public</span>';
+}
+function fdate(d){
+  if(!d)return'—';
+  return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+}
+
+function render(){
+  let rows=filtered();
+  if(sortField){
+    rows.sort((a,b)=>{
+      if(sortField==='bank_name'||sortField==='state'||sortField==='status')
+        return(a[sortField]||'').localeCompare(b[sortField]||'')*sortDir;
+      if(sortField==='run_at')return(new Date(a.run_at)-new Date(b.run_at))*sortDir;
+      return((+a[sortField]||0)-(+b[sortField]||0))*sortDir;
+    });
+  }
+  document.getElementById('rc').textContent=`${rows.length} institutions`;
+  if(!rows.length){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted);font-size:12px">No results match your filters</td></tr>';
+    return;
+  }
+  document.getElementById('tbody').innerHTML=rows.map(r=>`
+    <tr>
+      <td><div class="bank-name">${r.bank_name}</div>${r.bank_url?`<div class="bank-url"><a href="${r.bank_url}" target="_blank">${r.bank_url.replace(/^https?:\/\//,'')}</a></div>`:''}</td>
+      <td style="font-family:DM Mono,monospace;font-size:11px">${r.state||'—'}</td>
+      <td>${rateCell(r.cd_apy,r.cd_term)}</td>
+      <td>${rateCell(r.savings_apy,null)}</td>
+      <td>${rateCell(r.money_market_apy,null)}</td>
+      <td>${rateCell(r.checking_apy,null)}</td>
+      <td style="font-size:11px;font-family:DM Mono,monospace">${r.min_balance||'—'}</td>
+      <td>${bdg(r.status)}</td>
+      <td><div class="note-cell">${r.note||''}</div></td>
+      <td class="run-date">${fdate(r.run_at)}</td>
+    </tr>`).join('');
+}
+
+function sort(f){
+  if(sortField===f)sortDir*=-1;else{sortField=f;sortDir=1;}
+  document.querySelectorAll('thead th').forEach(th=>{th.classList.remove('sort-asc','sort-desc')});
+  event.target.classList.add(sortDir===1?'sort-asc':'sort-desc');
+  render();
+}
+
+['searchInp','stateFilter','statusFilter'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',render);
+});
+
+load();
+</script>
+</body>
+</html>

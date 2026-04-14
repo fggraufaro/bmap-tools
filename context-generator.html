@@ -231,21 +231,64 @@ function val(id){return document.getElementById(id).value.trim()}
 function set(id,v){document.getElementById(id).textContent=v}
 function spill(z){const m={Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'};return`<span class="spill ${m[z]||'sp-a'}">${z}</span>`}
 
+let searchTimer=null;
+
+async function liveSearch(q2){
+  if(!q2||q2.length<2){document.getElementById('rl').innerHTML='';return;}
+  // Search each word independently and merge results
+  const words=q2.trim().split(/\s+/).filter(w=>w.length>1);
+  const allResults=new Map();
+  await Promise.all(words.map(async w=>{
+    const data=await q('dim_institutions',`institution_name=ilike.*${encodeURIComponent(w)}*&select=inst_key,institution_name,institution_type,hq_state&limit=20`);
+    if(Array.isArray(data))data.forEach(b=>allResults.set(b.inst_key,b));
+  }));
+  // Also do a full phrase search
+  const phrase=await q('dim_institutions',`institution_name=ilike.*${encodeURIComponent(q2.trim())}*&select=inst_key,institution_name,institution_type,hq_state&limit=20`);
+  if(Array.isArray(phrase))phrase.forEach(b=>allResults.set(b.inst_key,b));
+  // Score by how many query words appear in the name
+  const scored=[...allResults.values()].map(b=>{
+    const name=b.institution_name.toLowerCase();
+    const score=words.reduce((s,w)=>s+(name.includes(w.toLowerCase())?1:0),0);
+    return{...b,score};
+  }).sort((a,b)=>b.score-a.score).slice(0,8);
+  renderResults(scored);
+}
+
 async function search(){
   const q2=val('si');if(!q2)return;
   const sb=document.getElementById('sb');sb.disabled=true;sb.textContent='...';
-  const data=await q('dim_institutions',`institution_name=ilike.*${encodeURIComponent(q2)}*&select=inst_key,institution_name,institution_type,hq_state&limit=8`);
+  await liveSearch(q2);
   sb.disabled=false;sb.textContent='Search';
+}
+
+function highlight(name,q2){
+  const words=q2.trim().split(/\s+/).filter(w=>w.length>1);
+  let h=name;
+  words.forEach(w=>{
+    const re=new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    h=h.replace(re,'<mark style="background:#FFF3CD;border-radius:2px;padding:0 1px">$1</mark>');
+  });
+  return h;
+}
+
+function renderResults(data){
+  const q2=val('si');
   const rl=document.getElementById('rl');rl.innerHTML='';
-  if(!data||!data.length){rl.innerHTML='<div style="font-size:11px;color:#999;padding:8px;font-family:DM Mono,monospace">No results</div>';return;}
+  if(!data||!data.length){rl.innerHTML='<div style="font-size:11px;color:#999;padding:8px;font-family:DM Mono,monospace">No results — try fewer words (e.g. "Carver Federal" or just "Carver")</div>';return;}
   data.forEach(b=>{
     const d=document.createElement('div');d.className='res-item';
-    d.innerHTML=`<div><div class="res-name">${b.institution_name}</div><div class="res-meta">${b.inst_key} · ${b.institution_type} · ${b.hq_state||'—'}</div></div><span style="font-size:10px;color:#999">Select →</span>`;
+    d.innerHTML=`<div><div class="res-name">${highlight(b.institution_name,q2)}</div><div class="res-meta">${b.inst_key} · ${b.institution_type} · ${b.hq_state||'—'}</div></div><span style="font-size:10px;color:#999">Select →</span>`;
     d.onclick=()=>{document.querySelectorAll('.res-item').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');selBank=b;loadBank(b.inst_key)};
     rl.appendChild(d);
   });
 }
 document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Enter')search()});
+document.getElementById('si').addEventListener('input',e=>{
+  clearTimeout(searchTimer);
+  const v=e.target.value.trim();
+  if(v.length<2){document.getElementById('rl').innerHTML='';return;}
+  searchTimer=setTimeout(()=>liveSearch(v),300);
+});
 
 async function loadBank(ik){
   show('bp');set('bn','Loading...');

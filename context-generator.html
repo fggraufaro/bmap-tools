@@ -1,6 +1,3 @@
-Context generator · HTML
-Copy
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -97,7 +94,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 </style>
 </head>
 <body>
- 
+
 <div class="header">
   <div class="logo">
     <div class="logo-dot"></div>
@@ -108,7 +105,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
   </div>
   <div class="live-badge">LIVE · Supabase</div>
 </div>
- 
+
 <div class="wrap">
   <div class="card card-pad">
     <div class="label">Search institution</div>
@@ -120,7 +117,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <button class="btn" id="sb" onclick="doSearch(document.getElementById('si').value)">Search</button>
     </div>
   </div>
- 
+
   <div class="card dn" id="bp">
     <div class="bank-hdr"><div class="bank-hdr-name" id="bn">—</div><div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div></div>
     <div class="stats">
@@ -145,19 +142,19 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <div class="target-box"><div class="target-name" id="tn">—</div><div class="target-meta" id="tm">—</div></div>
     </div>
   </div>
- 
+
   <div class="wf-grid dn" id="wg">
     <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div><div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div><span class="wf-tag">PITCH</span></div>
     <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Resonate Brief</div><div class="wf-d">Audience intelligence input for Pete Vazquez — personas, ZIPs, segments</div><span class="wf-tag">RESONATE</span></div>
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Executive financial health — ROA, efficiency, funding rates vs target</div><span class="wf-tag">FINANCIALS</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
   </div>
- 
+
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch for deep dive</div>
     <select class="inp" id="bselect" style="cursor:pointer"><option value="">— select a branch —</option></select>
   </div>
- 
+
   <button class="gen-btn dn" id="gb" onclick="generate()">Generate Context →</button>
   <div class="loading" id="ld"><span class="spin"></span>Pulling data from BMAP...</div>
   <div class="out-card dn" id="oc">
@@ -165,12 +162,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="out-body"><div class="out-txt" id="otxt"></div></div>
   </div>
 </div>
- 
+
 <script>
 const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
 let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
- 
+
 async function api(table,params){
   try{
     const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
@@ -183,7 +180,7 @@ const show=id=>g(id).classList.remove('dn');
 const hide=id=>g(id).classList.add('dn');
 const set=(id,v)=>g(id).textContent=v;
 const spill=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
- 
+
 function hl(name,q){
   const words=q.trim().split(/\s+/).filter(w=>w.length>0);
   let h=name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -193,7 +190,7 @@ function hl(name,q){
   });
   return h;
 }
- 
+
 async function doSearch(q){
   if(!q||q.length<2){closeDd();return;}
   const dd=g('dd');
@@ -222,14 +219,14 @@ async function doSearch(q){
       <span style="font-size:10px;color:var(--muted)">→</span>
     </div>`).join('');
 }
- 
+
 function pick(i){
   const b=ddItems[i];if(!b)return;
   g('si').value=b.institution_name;
   closeDd();selBank=b;loadBank(b.inst_key);
 }
 function closeDd(){g('dd').classList.remove('open');ddIdx=-1;}
- 
+
 g('si').addEventListener('input',e=>{
   clearTimeout(timer);
   const v=e.target.value.trim();
@@ -244,7 +241,7 @@ g('si').addEventListener('keydown',e=>{
   else if(e.key==='Escape')closeDd();
 });
 g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
- 
+
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
@@ -278,12 +275,12 @@ async function loadBank(ik){
   show('wg');hide('oc');hide('gb');hide('bsel');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
 }
- 
+
 function selWf(n){
   selWfN=n;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');show('gb');n===4?show('bsel'):hide('bsel');hide('oc');
 }
- 
+
 async function generate(){
   if(!selBank||!selWfN)return;
   g('gb').disabled=true;g('ld').classList.add('on');hide('oc');
@@ -296,10 +293,112 @@ async function generate(){
   const analyze=rows.filter(r=>r.opportunity_zone==='Analyze').length;
   const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
-  const top3=br.slice(0,3);const t=tgt;
-  const net=`\nNETWORK SUMMARY\nInstitution: ${rows[0]?.namefull}\nTotal branches: ${rows.length}\nTotal deposits: $${(tot/1e9).toFixed(2)}B\nAverage opportunity score: ${avg('opportunity_score').toFixed(1)} / 100\nDeposit YoY (bank avg): ${avgYoY}%\nCompetitor deposit YoY (avg): ${avgComp}%\nGap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp\n\nZONE DISTRIBUTION\nInvest:  ${invest} (${Math.round(invest/rows.length*100)}%)\nAnalyze: ${analyze} (${Math.round(analyze/rows.length*100)}%)\nDefend:  ${defend} (${Math.round(defend/rows.length*100)}%)\nJustify: ${justify} (${Math.round(justify/rows.length*100)}%)\n\nTOP 3 BRANCHES\n${top3.map((b,i)=>`${i+1}. ${b.namebr} — ${b.citybr}, ${b.stalpbr}\n   Score: ${(+b.opportunity_score).toFixed(1)} | Zone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant}\n   Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Priority: ${b.priority_tier}`).join('\n\n')}\n\nTOP NETWORK TARGET\n${t?`${t.target_institution}\nBranches exposed: ${t.branches_in_radius} | Avg vulnerability: ${t.avg_vuln_score}\nDeposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}% | ROA: ${t.target_roa}% | Efficiency: ${t.target_efficiency_ratio}%\nDominant zone: ${t.dominant_zone}`:'Not computed.'}`;
+  const t=tgt;
+
+  // Branch helpers
+  const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}`;
+
+  // Top 3 by opportunity score
+  const top3Score = br.slice(0,3);
+
+  // Top 3 Invest zone branches by score
+  const top3Invest = br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
+
+  // Top 3 Q2 matrix (Invest & Protect) by score
+  const top3Q2 = br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
+
+  // Top 3 Priority Tier 1 by score
+  const top3P1 = br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
+
+  // Justify zone — biggest risk branches by deposits
+  const topJustify = br.filter(b=>b.opportunity_zone==='Justify').sort((a,b2)=>b2.latest_dep-a.latest_dep).slice(0,3);
+
+  const net=`\nNETWORK SUMMARY\nInstitution: ${rows[0]?.namefull}\nTotal branches: ${rows.length}\nTotal deposits: $${(tot/1e9).toFixed(2)}B\nAverage opportunity score: ${avg('opportunity_score').toFixed(1)} / 100\nDeposit YoY (bank avg): ${avgYoY}%\nCompetitor deposit YoY (avg): ${avgComp}%\nGap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp\n\nZONE DISTRIBUTION\nInvest:  ${invest} (${Math.round(invest/rows.length*100)}%)\nAnalyze: ${analyze} (${Math.round(analyze/rows.length*100)}%)\nDefend:  ${defend} (${Math.round(defend/rows.length*100)}%)\nJustify: ${justify} (${Math.round(justify/rows.length*100)}%)\n\nTOP 3 BRANCHES BY OPPORTUNITY SCORE\n${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n')}\n\nTOP 3 INVEST ZONE BRANCHES\n${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'None in Invest zone.'}\n\nTOP 3 Q2 — INVEST AND PROTECT (High market + High performance)\n${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Q2 branches found.'}\n\nTOP 3 PRIORITY TIER 1 BRANCHES\n${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Tier 1 branches found.'}\n\nBIGGEST RISK — JUSTIFY ZONE (by deposit size)\n${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Justify zone branches.'}\n\nTOP NETWORK TARGET\n${t?`${t.target_institution}\nBranches exposed: ${t.branches_in_radius} | Avg vulnerability: ${t.avg_vuln_score}\nDeposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}% | ROA: ${t.target_roa}% | Efficiency: ${t.target_efficiency_ratio}%\nDominant zone: ${t.dominant_zone}`:'Not computed.'}`;
   let txt='',title='';
-  if(selWfN===1){title='PITCH DECK CONTEXT';txt=`BMAP PITCH DECK CONTEXT\nWorkflow: Executive Pitch Deck\nSource: BMAP · Community_Banks_Rates · Live\n${net}\n\nINSTRUCTION FOR AI:\nGenerate a 4-slide executive pitch deck using the BMAP data above.\nFollow the BMAP Executive Strategist prompt exactly.\nFrame all insights as growth opportunities.\nReference specific branch names and cities.\nNo tables, methodology, or follow-up questions.`;}
+  if(selWfN===1){
+    title='PITCH DECK CONTEXT';
+    // Pull financial snapshot for the client bank
+    const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
+    // State breakdown
+    const states={};rows.forEach(r=>{states[r.stalpbr]=(states[r.stalpbr]||0)+1});
+    const stateLines=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,6)
+      .map(([s,c])=>{
+        const inv=br.filter(b=>b.stalpbr===s&&b.opportunity_zone==='Invest').length;
+        const q2=br.filter(b=>b.stalpbr===s&&b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).length;
+        return`  ${s}: ${c} branches | Invest: ${inv} | Q2: ${q2}`;
+      }).join('\n');
+    // Total market share
+    const totalMkt=rows.reduce((a,r)=>a+(+r.total_deposits_10mi||0),0);
+    const mktShare=totalMkt>0?((tot/totalMkt)*100).toFixed(1):'—';
+    txt=`BMAP PITCH DECK CONTEXT
+Workflow: Executive Pitch Deck
+Source: BMAP · Community_Banks_Rates · Live
+
+━━━ NETWORK SUMMARY ━━━
+Institution: ${rows[0]?.namefull}
+Total branches: ${rows.length}
+Total deposits: $${(tot/1e9).toFixed(2)}B
+Total addressable market (10mi radius): $${(totalMkt/1e9).toFixed(0)}B
+Estimated market share: ${mktShare}%
+Average opportunity score: ${avg('opportunity_score').toFixed(1)} / 100
+Deposit YoY (bank avg): ${avgYoY}%
+Competitor deposit YoY (avg): ${avgComp}%
+Gap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp
+
+━━━ ZONE DISTRIBUTION ━━━
+Invest:  ${invest} branches (${Math.round(invest/rows.length*100)}%) — concentrate growth here
+Analyze: ${analyze} branches (${Math.round(analyze/rows.length*100)}%) — monitor and develop
+Defend:  ${defend} branches (${Math.round(defend/rows.length*100)}%) — protect share
+Justify: ${justify} branches (${Math.round(justify/rows.length*100)}%) — review investment case
+
+━━━ STATE BREAKDOWN ━━━
+${stateLines}
+
+━━━ TOP 3 BY OPPORTUNITY SCORE ━━━
+${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n')}
+
+━━━ TOP 3 INVEST ZONE ━━━
+${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'None in Invest zone.'}
+
+━━━ TOP 3 Q2 — INVEST AND PROTECT (High market + High performance) ━━━
+${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Q2 branches found.'}
+
+━━━ TOP 3 PRIORITY TIER 1 ━━━
+${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Tier 1 branches found.'}
+
+━━━ BIGGEST RISK — JUSTIFY ZONE (by deposit size) ━━━
+${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Justify zone branches.'}
+
+━━━ CLIENT FINANCIAL HEALTH ━━━
+Period: ${fin.period||'Q4 2025'}
+ROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency ratio: ${fin.efficiency_ratio||'—'}%
+Net income YoY: ${fin.net_income_yoy_pct||'—'}%
+Cost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY change: ${fin.cof_yoy_change||'—'}pp
+Deposit YoY: ${fin.dep_yoy_pct||'—'}% | Deposit QoQ: ${fin.dep_qoq_pct||'—'}%
+Tier 1 capital: ${fin.tier1_capital_pct||'—'}% | Noncurrent assets: ${fin.noncurrent_assets_pct||'—'}%
+
+━━━ TOP NETWORK TARGET ━━━
+${t?`Institution: ${t.target_institution}
+${t.branches_in_radius} client branches have this competitor within 10 miles
+Average vulnerability score: ${t.avg_vuln_score} | Deposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}%
+ROA: ${t.target_roa}% | Efficiency ratio: ${t.target_efficiency_ratio}%
+Dominant zone: ${t.dominant_zone}`:'Not computed — run populate_network_top_targets.'}
+
+━━━ INSTRUCTION FOR AI ━━━
+Generate a 4-slide executive pitch deck using all BMAP data above.
+Follow the BMAP Executive Strategist prompt exactly.
+
+Use the data as follows:
+SLIDE 1 — The growth opportunity: use network summary, market share, zone distribution, and competitor gap to frame where deposit growth is concentrated vs equally distributed.
+SLIDE 2 — What BMAP reveals: use the Invest zone and Q2 branches to name the top 2-3 specific locations with the strongest growth case. Always include branch name and city.
+SLIDE 3 — Strategic insight: use the client financial health, the competitor gap, and the top network target to show what the data implies about competitive positioning.
+SLIDE 4 — What leadership could do next: use Priority Tier 1 branches and the Justify zone risk to frame the prioritisation and resource allocation decision.
+
+Never prioritise more than 3 branches total.
+Frame all insights as growth opportunities.
+No tables, methodology, or follow-up questions.
+Write as if this will be read aloud in a boardroom.`;
+  }
   else if(selWfN===2){title='RESONATE BRIEF';const states={};rows.forEach(r=>{states[r.stalpbr]=(states[r.stalpbr]||0)+1});const topSt=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,5);const invBr=br.filter(r=>r.opportunity_zone==='Invest');txt=`BMAP RESONATE BRIEF\nWorkflow: Audience Intelligence Input for Pete Vazquez\nSource: BMAP · Community_Banks_Rates · Live\n${net}\n\nGEOGRAPHIC PRIORITY\nTop states:\n${topSt.map(([s,c])=>`  ${s}: ${c} branches`).join('\n')}\n\nINVEST ZONE MARKETS:\n${invBr.slice(0,10).map(b=>`  ${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)}`).join('\n')}\n\nINSTRUCTION FOR AI:\nGenerate a structured Resonate audience brief.\nInclude: dominant customer personas by zone, geographic priority markets,\ndeposit product angle, messaging direction, and priority ZIP codes.\nFocus on Invest and Analyze zone markets only.`;}
   else if(selWfN===3){title='FINANCIAL ANALYSIS';const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};txt=`BMAP FINANCIAL ANALYSIS\nWorkflow: Executive Financial Assessment\nSource: BMAP · bank_financial_snapshot_latest\n${net}\n\nFINANCIAL SNAPSHOT\nPeriod: ${fin.period||'Q4 2025'}\nTotal assets: $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':'—'}\nTotal deposits: $${fin.total_deposits?(fin.total_deposits/1e9).toFixed(2)+'B':'—'}\nNet income: $${fin.net_income?(fin.net_income/1e6).toFixed(1)+'M':'—'}\n\nPERFORMANCE\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}%\nEfficiency YoY: ${fin.efficiency_ratio_yoy_change||'—'}pp | Net income YoY: ${fin.net_income_yoy_pct||'—'}%\n\nDEPOSITS\nYoY: ${fin.dep_yoy_pct||'—'}% | QoQ: ${fin.dep_qoq_pct||'—'}% | Loans/Deposits: ${fin.loans_to_deposits_pct||'—'}%\n\nFUNDING RATES\nCost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY: ${fin.cof_yoy_change||'—'}pp\nSavings: ${fin.save_interest_pct||'—'}% | CD: ${fin.cd_interest_pct||'—'}%\nNoninterest income: ${fin.noninterest_income_pct||'—'}%\n\nCAPITAL & QUALITY\nTier 1: ${fin.tier1_capital_pct||'—'}% | Noncurrent: ${fin.noncurrent_assets_pct||'—'}% | Nonperforming: ${fin.nonperforming_pct||'—'}%\n\nINSTRUCTION FOR AI:\nProduce an executive financial health assessment.\nIdentify where the bank is strong and where exposed.\nState the strategic implication for deposit growth capacity.\nBoardroom tone. No methodology. No tables.`;}
   else if(selWfN===4){title='BRANCH DEEP DIVE';const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}const [cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);const b=bf?.[0]||{};const fn=fin?.[0]||{};txt=`BMAP BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%\n\nINSTRUCTION FOR AI:\nGenerate the full Verlocity Branch Deep Dive report.\nInclude: branch strategic position, market opportunity, competitive landscape, recommended growth play, 12-month priority action.\nConfident boardroom tone. Name specific competitors and markets. No methodology. No follow-up questions.`;}
@@ -307,7 +406,7 @@ async function generate(){
   set('ot',title);g('otxt').textContent=txt;show('oc');
   g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');
 }
- 
+
 function copyOut(){
   navigator.clipboard.writeText(g('otxt').textContent).then(()=>{
     g('cb').textContent='✓ Copied';g('cb').classList.add('ok');

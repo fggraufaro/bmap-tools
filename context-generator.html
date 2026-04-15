@@ -94,6 +94,29 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 </style>
 </head>
 <body>
+<!-- Auth Gate -->
+<div id="authGate" style="display:flex;position:fixed;inset:0;background:#1a2332;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <div style="width:10px;height:10px;border-radius:50%;background:#F5A623"></div>
+    <div>
+      <div style="color:#fff;font-size:16px;font-weight:700;letter-spacing:.02em">BMAP Context Generator</div>
+      <div style="color:rgba(255,255,255,.35);font-size:11px;font-family:monospace">Verlocity · Restricted Access</div>
+    </div>
+  </div>
+  <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center">
+    <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:monospace;margin-bottom:14px;letter-spacing:.05em">ENTER ACCESS CODE</div>
+    <input id="tokenInput" type="password" placeholder="••••••••••••"
+      style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-family:monospace;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px"
+      onkeydown="if(event.key==='Enter')checkAccess()">
+    <div id="authErr" style="display:none;color:#F5A623;font-size:11px;font-family:monospace;margin-bottom:10px">Incorrect code — try again</div>
+    <button onclick="checkAccess()"
+      style="width:100%;background:#F5A623;color:#1a2332;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.02em">
+      Access →
+    </button>
+  </div>
+</div>
+
+<div id="appWrap" style="display:none">
 
 <div class="header">
   <div class="logo">
@@ -164,6 +187,33 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 </div>
 
 <script>
+// ── ACCESS CONTROL ─────────────────────────────────────────────
+// Change this to your own passphrase — share only with your team
+const ACCESS_TOKEN = 'verlocity2026';
+
+(function(){
+  const stored = sessionStorage.getItem('bmap_access');
+  if(stored === ACCESS_TOKEN){
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('appWrap').style.display  = 'block';
+  }
+  // else gate stays visible, appWrap stays hidden
+})();
+
+function checkAccess(){
+  const input = document.getElementById('tokenInput').value.trim();
+  if(input === ACCESS_TOKEN){
+    sessionStorage.setItem('bmap_access', ACCESS_TOKEN);
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('appWrap').style.display  = 'block';
+  } else {
+    document.getElementById('authErr').style.display = 'block';
+    document.getElementById('tokenInput').value = '';
+    document.getElementById('tokenInput').focus();
+  }
+}
+// ───────────────────────────────────────────────────────────────
+
 const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
 let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
@@ -414,5 +464,6 @@ function copyOut(){
   });
 }
 </script>
+</div><!-- /appWrap -->
 </body>
 </html>

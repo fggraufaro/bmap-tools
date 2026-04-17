@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BMAP Context Generator</title>
+<link rel="icon" type="image/png" href="https://fggraufaro.github.io/bmap-tools/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -15,7 +16,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
 .logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace}
-.logo-img{height:38px;width:auto;mix-blend-mode:screen}
+.logo-img{height:38px;width:auto;border-radius:8px}
 .live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;border-radius:12px}
 .wrap{max-width:860px;margin:0 auto;padding:18px 16px}
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
@@ -98,7 +99,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 <!-- Auth Gate -->
 <div id="authGate" style="display:flex;position:fixed;inset:0;background:#1a2332;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-    <img src="https://fggraufaro.github.io/bmap-tools/bmap-logo1.png" alt="BMAP" style="height:60px;width:auto" onerror="this.style.display='none'">
+    <img src="https://fggraufaro.github.io/bmap-tools/bmap-logo1.png" alt="BMAP" style="height:60px;width:auto;border-radius:10px" onerror="this.style.display='none'">
   </div>
   <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center">
     <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:monospace;margin-bottom:14px;letter-spacing:.05em">ENTER ACCESS CODE</div>

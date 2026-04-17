@@ -15,6 +15,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
 .logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.logo-img{height:36px;width:auto;filter:brightness(0) invert(1);opacity:.92}
 .live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;border-radius:12px}
 .wrap{max-width:860px;margin:0 auto;padding:18px 16px}
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
@@ -97,11 +98,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 <!-- Auth Gate -->
 <div id="authGate" style="display:flex;position:fixed;inset:0;background:#1a2332;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-    <div style="width:10px;height:10px;border-radius:50%;background:#F5A623"></div>
-    <div>
-      <div style="color:#fff;font-size:16px;font-weight:700;letter-spacing:.02em">BMAP Context Generator</div>
-      <div style="color:rgba(255,255,255,.35);font-size:11px;font-family:monospace">Verlocity · Restricted Access</div>
-    </div>
+    <img src="https://fggraufaro.github.io/bmap-tools/bmap-logo.png" alt="BMAP" style="height:40px;width:auto;filter:brightness(0) invert(1);opacity:.9" onerror="this.style.display='none'">
   </div>
   <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center">
     <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:monospace;margin-bottom:14px;letter-spacing:.05em">ENTER ACCESS CODE</div>
@@ -115,20 +112,26 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     </button>
   </div>
 </div>
- 
+
 <div id="appWrap" style="display:none">
- 
+
 <div class="header">
   <div class="logo">
-    <div class="logo-dot"></div>
-    <div>
-      <div class="logo-text">BMAP Context Generator</div>
-      <div class="logo-sub">Verlocity</div>
+    <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/bmap-logo.png" alt="BMAP" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+    <div id="logoFallback" style="display:none;align-items:center;gap:10px">
+      <div class="logo-dot"></div>
+      <div>
+        <div class="logo-text">BMAP Context Generator</div>
+        <div class="logo-sub">Verlocity</div>
+      </div>
     </div>
   </div>
-  <div class="live-badge">LIVE · Supabase</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="logo-sub" style="color:rgba(255,255,255,.35)">Context Generator</div>
+    <div class="live-badge">LIVE · Supabase</div>
+  </div>
 </div>
- 
+
 <div class="wrap">
   <div class="card card-pad">
     <div class="label">Search institution</div>
@@ -140,7 +143,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <button class="btn" id="sb" onclick="doSearch(document.getElementById('si').value)">Search</button>
     </div>
   </div>
- 
+
   <div class="card dn" id="bp">
     <div class="bank-hdr"><div class="bank-hdr-name" id="bn">—</div><div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div></div>
     <div class="stats">
@@ -165,19 +168,19 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <div class="target-box"><div class="target-name" id="tn">—</div><div class="target-meta" id="tm">—</div></div>
     </div>
   </div>
- 
+
   <div class="wf-grid dn" id="wg">
     <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div><div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div><span class="wf-tag">PITCH</span></div>
     <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Resonate Brief</div><div class="wf-d">Audience intelligence input for Pete Vazquez — personas, ZIPs, segments</div><span class="wf-tag">RESONATE</span></div>
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Executive financial health — ROA, efficiency, funding rates vs target</div><span class="wf-tag">FINANCIALS</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
   </div>
- 
+
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch for deep dive</div>
     <select class="inp" id="bselect" style="cursor:pointer"><option value="">— select a branch —</option></select>
   </div>
- 
+
   <button class="gen-btn dn" id="gb" onclick="generate()">Generate Context →</button>
   <div class="loading" id="ld"><span class="spin"></span>Pulling data from BMAP...</div>
   <div class="out-card dn" id="oc">
@@ -185,12 +188,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="out-body"><div class="out-txt" id="otxt"></div></div>
   </div>
 </div>
- 
+
 <script>
 // ── ACCESS CONTROL ─────────────────────────────────────────────
 // Change this to your own passphrase — share only with your team
 const ACCESS_TOKEN = 'verlocity2026';
- 
+
 (function(){
   const stored = sessionStorage.getItem('bmap_access');
   if(stored === ACCESS_TOKEN){
@@ -199,7 +202,7 @@ const ACCESS_TOKEN = 'verlocity2026';
   }
   // else gate stays visible, appWrap stays hidden
 })();
- 
+
 function checkAccess(){
   const input = document.getElementById('tokenInput').value.trim();
   if(input === ACCESS_TOKEN){
@@ -213,11 +216,11 @@ function checkAccess(){
   }
 }
 // ───────────────────────────────────────────────────────────────
- 
+
 const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
 let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
- 
+
 async function api(table,params){
   try{
     const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
@@ -230,7 +233,7 @@ const show=id=>g(id).classList.remove('dn');
 const hide=id=>g(id).classList.add('dn');
 const set=(id,v)=>g(id).textContent=v;
 const spill=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
- 
+
 function hl(name,q){
   const words=q.trim().split(/\s+/).filter(w=>w.length>0);
   let h=name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -240,7 +243,7 @@ function hl(name,q){
   });
   return h;
 }
- 
+
 async function doSearch(q){
   if(!q||q.length<2){closeDd();return;}
   const dd=g('dd');
@@ -269,14 +272,14 @@ async function doSearch(q){
       <span style="font-size:10px;color:var(--muted)">→</span>
     </div>`).join('');
 }
- 
+
 function pick(i){
   const b=ddItems[i];if(!b)return;
   g('si').value=b.institution_name;
   closeDd();selBank=b;loadBank(b.inst_key);
 }
 function closeDd(){g('dd').classList.remove('open');ddIdx=-1;}
- 
+
 g('si').addEventListener('input',e=>{
   clearTimeout(timer);
   const v=e.target.value.trim();
@@ -291,7 +294,7 @@ g('si').addEventListener('keydown',e=>{
   else if(e.key==='Escape')closeDd();
 });
 g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
- 
+
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
@@ -325,12 +328,12 @@ async function loadBank(ik){
   show('wg');hide('oc');hide('gb');hide('bsel');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
 }
- 
+
 function selWf(n){
   selWfN=n;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');show('gb');n===4?show('bsel'):hide('bsel');hide('oc');
 }
- 
+
 async function generate(){
   if(!selBank||!selWfN)return;
   g('gb').disabled=true;g('ld').classList.add('on');hide('oc');
@@ -344,25 +347,25 @@ async function generate(){
   const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
   const t=tgt;
- 
+
   // Branch helpers
   const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}`;
- 
+
   // Top 3 by opportunity score
   const top3Score = br.slice(0,3);
- 
+
   // Top 3 Invest zone branches by score
   const top3Invest = br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
- 
+
   // Top 3 Q2 matrix (Invest & Protect) by score
   const top3Q2 = br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
- 
+
   // Top 3 Priority Tier 1 by score
   const top3P1 = br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
- 
+
   // Justify zone — biggest risk branches by deposits
   const topJustify = br.filter(b=>b.opportunity_zone==='Justify').sort((a,b2)=>b2.latest_dep-a.latest_dep).slice(0,3);
- 
+
   const net=`\nNETWORK SUMMARY\nInstitution: ${rows[0]?.namefull}\nTotal branches: ${rows.length}\nTotal deposits: $${(tot/1e9).toFixed(2)}B\nAverage opportunity score: ${avg('opportunity_score').toFixed(1)} / 100\nDeposit YoY (bank avg): ${avgYoY}%\nCompetitor deposit YoY (avg): ${avgComp}%\nGap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp\n\nZONE DISTRIBUTION\nInvest:  ${invest} (${Math.round(invest/rows.length*100)}%)\nAnalyze: ${analyze} (${Math.round(analyze/rows.length*100)}%)\nDefend:  ${defend} (${Math.round(defend/rows.length*100)}%)\nJustify: ${justify} (${Math.round(justify/rows.length*100)}%)\n\nTOP 3 BRANCHES BY OPPORTUNITY SCORE\n${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n')}\n\nTOP 3 INVEST ZONE BRANCHES\n${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'None in Invest zone.'}\n\nTOP 3 Q2 — INVEST AND PROTECT (High market + High performance)\n${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Q2 branches found.'}\n\nTOP 3 PRIORITY TIER 1 BRANCHES\n${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Tier 1 branches found.'}\n\nBIGGEST RISK — JUSTIFY ZONE (by deposit size)\n${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Justify zone branches.'}\n\nTOP NETWORK TARGET\n${t?`${t.target_institution}\nBranches exposed: ${t.branches_in_radius} | Avg vulnerability: ${t.avg_vuln_score}\nDeposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}% | ROA: ${t.target_roa}% | Efficiency: ${t.target_efficiency_ratio}%\nDominant zone: ${t.dominant_zone}`:'Not computed.'}`;
   let txt='',title='';
   if(selWfN===1){
@@ -383,7 +386,7 @@ async function generate(){
     txt=`BMAP PITCH DECK CONTEXT
 Workflow: Executive Pitch Deck
 Source: BMAP · Community_Banks_Rates · Live
- 
+
 ━━━ NETWORK SUMMARY ━━━
 Institution: ${rows[0]?.namefull}
 Total branches: ${rows.length}
@@ -394,31 +397,31 @@ Average opportunity score: ${avg('opportunity_score').toFixed(1)} / 100
 Deposit YoY (bank avg): ${avgYoY}%
 Competitor deposit YoY (avg): ${avgComp}%
 Gap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp
- 
+
 ━━━ ZONE DISTRIBUTION ━━━
 Invest:  ${invest} branches (${Math.round(invest/rows.length*100)}%) — concentrate growth here
 Analyze: ${analyze} branches (${Math.round(analyze/rows.length*100)}%) — monitor and develop
 Defend:  ${defend} branches (${Math.round(defend/rows.length*100)}%) — protect share
 Justify: ${justify} branches (${Math.round(justify/rows.length*100)}%) — review investment case
- 
+
 ━━━ STATE BREAKDOWN ━━━
 ${stateLines}
- 
+
 ━━━ TOP 3 BY OPPORTUNITY SCORE ━━━
 ${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n')}
- 
+
 ━━━ TOP 3 INVEST ZONE ━━━
 ${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'None in Invest zone.'}
- 
+
 ━━━ TOP 3 Q2 — INVEST AND PROTECT (High market + High performance) ━━━
 ${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Q2 branches found.'}
- 
+
 ━━━ TOP 3 PRIORITY TIER 1 ━━━
 ${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Tier 1 branches found.'}
- 
+
 ━━━ BIGGEST RISK — JUSTIFY ZONE (by deposit size) ━━━
 ${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Justify zone branches.'}
- 
+
 ━━━ CLIENT FINANCIAL HEALTH ━━━
 Period: ${fin.period||'Q4 2025'}
 ROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency ratio: ${fin.efficiency_ratio||'—'}%
@@ -426,24 +429,24 @@ Net income YoY: ${fin.net_income_yoy_pct||'—'}%
 Cost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY change: ${fin.cof_yoy_change||'—'}pp
 Deposit YoY: ${fin.dep_yoy_pct||'—'}% | Deposit QoQ: ${fin.dep_qoq_pct||'—'}%
 Tier 1 capital: ${fin.tier1_capital_pct||'—'}% | Noncurrent assets: ${fin.noncurrent_assets_pct||'—'}%
- 
+
 ━━━ TOP NETWORK TARGET ━━━
 ${t?`Institution: ${t.target_institution}
 ${t.branches_in_radius} client branches have this competitor within 10 miles
 Average vulnerability score: ${t.avg_vuln_score} | Deposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}%
 ROA: ${t.target_roa}% | Efficiency ratio: ${t.target_efficiency_ratio}%
 Dominant zone: ${t.dominant_zone}`:'Not computed — run populate_network_top_targets.'}
- 
+
 ━━━ INSTRUCTION FOR AI ━━━
 Generate a 4-slide executive pitch deck using all BMAP data above.
 Follow the BMAP Executive Strategist prompt exactly.
- 
+
 Use the data as follows:
 SLIDE 1 — The growth opportunity: use network summary, market share, zone distribution, and competitor gap to frame where deposit growth is concentrated vs equally distributed.
 SLIDE 2 — What BMAP reveals: use the Invest zone and Q2 branches to name the top 2-3 specific locations with the strongest growth case. Always include branch name and city.
 SLIDE 3 — Strategic insight: use the client financial health, the competitor gap, and the top network target to show what the data implies about competitive positioning.
 SLIDE 4 — What leadership could do next: use Priority Tier 1 branches and the Justify zone risk to frame the prioritisation and resource allocation decision.
- 
+
 Never prioritise more than 3 branches total.
 Frame all insights as growth opportunities.
 No tables, methodology, or follow-up questions.
@@ -454,17 +457,17 @@ Write as if this will be read aloud in a boardroom.`;
     // Pull enriched demographic data for Invest + Analyze branches
     const demoBr = await api('branch_opportunity_base',
       `inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,opportunity_zone,opportunity_score,matrix_quadrant,priority_tier,latest_dep,yoy_deposits,household_income,yoy_income_growth,total_population,yoy_pop_growth,zhvi,zhvi_yoy_pct,market_growth_score,rel_growth_norm,branches_in_radius,total_deposits_10mi&order=opportunity_score.desc&limit=200`);
- 
+
     // Fix state breakdown using demoBr which has stalpbr
     const states={};
     demoBr.forEach(r=>{if(r.stalpbr)states[r.stalpbr]=(states[r.stalpbr]||0)+1});
     const topSt=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,8);
- 
+
     // Priority markets — Invest and Q2 with demographics
     const priorityMarkets = demoBr
       .filter(b=>b.opportunity_zone==='Invest'||b.opportunity_zone==='Analyze')
       .slice(0,12);
- 
+
     // Market profile line with demographics
     const mktLine = b => {
       const inc = b.household_income ? `$${Math.round(b.household_income/1000)}k` : '—';
@@ -480,7 +483,7 @@ Write as if this will be read aloud in a boardroom.`;
     Household income: ${inc} (${incYoY}) | Population: ${pop} (${popYoY})
     Home values (ZHVI): ${home} (${homeYoY}) | Competitors within 10mi: ${comp}`;
     };
- 
+
     // Invest zone state breakdown with avg demographics
     const investByState = {};
     demoBr.filter(b=>b.opportunity_zone==='Invest').forEach(b=>{
@@ -499,48 +502,48 @@ Write as if this will be read aloud in a boardroom.`;
         const zhvi = avgArr(d.zhvi);
         return `  ${s}: ${d.count} Invest branches | Avg income: ${inc?'$'+Math.round(inc/1000)+'k':'—'} | Avg home value: ${zhvi?'$'+Math.round(zhvi/1000)+'k':'—'}`;
       }).join('\n');
- 
+
     txt=`BMAP RESONATE BRIEF
 Workflow: Audience Intelligence Input — Pete Vazquez
 Source: BMAP · Community_Banks_Rates · Live
- 
+
 ━━━ NETWORK SUMMARY ━━━
 Institution: ${rows[0]?.namefull}
 Total branches: ${rows.length}
 Total deposits: $${(tot/1e9).toFixed(2)}B
 Deposit YoY (bank avg): ${avgYoY}% vs competitor avg: ${avgComp}%
 Gap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp
- 
+
 ━━━ ZONE DISTRIBUTION ━━━
 Invest:  ${invest} branches (${Math.round(invest/rows.length*100)}%) — primary audience focus
 Analyze: ${analyze} branches (${Math.round(analyze/rows.length*100)}%) — secondary audience focus
 Defend:  ${defend} branches (${Math.round(defend/rows.length*100)}%) — retention focus
 Justify: ${justify} branches (${Math.round(justify/rows.length*100)}%) — deprioritise
- 
+
 ━━━ GEOGRAPHIC FOOTPRINT ━━━
 State breakdown (all branches):
 ${topSt.map(([s,c])=>`  ${s}: ${c} branches`).join('\n')}
- 
+
 ━━━ INVEST ZONE — STATE DEMOGRAPHICS ━━━
 (Use to prioritise Resonate geo targeting and income segmentation)
 ${investStateSummary||'No Invest zone data.'}
- 
+
 ━━━ PRIORITY MARKETS — INVEST & ANALYZE ZONES ━━━
 (Full demographic profile per branch for Resonate audience building)
 ${priorityMarkets.map(b=>mktLine(b)).join('\n\n')}
- 
+
 ━━━ INSTRUCTION FOR AI ━━━
 You are building an audience intelligence brief for Resonate (audience data platform).
 The bank is ${rows[0]?.namefull}. The goal is to define targetable audience segments
 for a deposit growth campaign focused on Invest and Analyze zone markets only.
- 
+
 Using the BMAP market data above, produce the following:
- 
+
 1. PRIORITY GEOGRAPHIES
    Rank the top 5 states and top 10 markets for audience targeting.
    Justify each based on income level, home value trajectory, population growth,
    and deposit opportunity score. Include ZIP codes where available.
- 
+
 2. AUDIENCE PERSONAS (3 personas maximum)
    For each persona define:
    - Name and one-line description
@@ -549,20 +552,20 @@ Using the BMAP market data above, produce the following:
    - Primary banking need (savings growth, CD, checking, wealth management)
    - What drives their decision to switch or consolidate banks
    - Which BMAP zones and markets they are most likely concentrated in
- 
+
 3. PRODUCT ANGLE PER PERSONA
    For each persona, state which deposit product is the primary hook
    and why the market data supports that angle.
- 
+
 4. MESSAGING DIRECTION
    One sentence per persona — the core value proposition that would resonate
    in a media campaign targeting that audience in those markets.
- 
+
 5. MEDIA SIGNAL
    Based on income, home values, and market growth, suggest which channel
    types (digital, social, OOH, direct mail, local broadcast) are most
    likely to reach each persona in the priority markets.
- 
+
 Format as a structured brief Pete can take directly into Resonate.
 Do not invent data. Work only from the BMAP signals above.`;
   }
@@ -572,7 +575,7 @@ Do not invent data. Work only from the BMAP signals above.`;
   set('ot',title);g('otxt').textContent=txt;show('oc');
   g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');
 }
- 
+
 function copyOut(){
   navigator.clipboard.writeText(g('otxt').textContent).then(()=>{
     g('cb').textContent='✓ Copied';g('cb').classList.add('ok');

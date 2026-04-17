@@ -99,7 +99,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 <!-- Auth Gate -->
 <div id="authGate" style="display:flex;position:fixed;inset:0;background:#1a2332;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-    <img src="https://fggraufaro.github.io/bmap-tools/bmap-logo1.png" alt="BMAP" style="height:60px;width:auto;border-radius:10px" onerror="this.style.display='none'">
+    <img src="https://fggraufaro.github.io/bmap-tools/bmap-logo.png" alt="BMAP" style="height:60px;width:auto;border-radius:10px" onerror="this.style.display='none'">
   </div>
   <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center">
     <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:monospace;margin-bottom:14px;letter-spacing:.05em">ENTER ACCESS CODE</div>
@@ -118,7 +118,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 
 <div class="header">
   <div class="logo">
-    <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/bmap-logo1.png" alt="BMAP" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+    <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/bmap-logo.png" alt="BMAP" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
     <div id="logoFallback" style="display:none;align-items:center;gap:10px">
       <div class="logo-dot"></div>
       <div>
@@ -173,7 +173,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
   <div class="wf-grid dn" id="wg">
     <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div><div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div><span class="wf-tag">PITCH</span></div>
     <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Resonate Brief</div><div class="wf-d">Audience intelligence input for Pete Vazquez — personas, ZIPs, segments</div><span class="wf-tag">RESONATE</span></div>
-    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Executive financial health — ROA, efficiency, funding rates vs target</div><span class="wf-tag">FINANCIALS</span></div>
+    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Tom's pre-meeting brief — metrics, pressure points, the line that earns the room</div><span class="wf-tag">TOM'S BRIEF</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
   </div>
 
@@ -187,6 +187,49 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
   <div class="out-card dn" id="oc">
     <div class="out-hdr"><div class="out-t" id="ot">CONTEXT OUTPUT</div><button class="copy-btn" id="cb" onclick="copyOut()">Copy to clipboard</button></div>
     <div class="out-body"><div class="out-txt" id="otxt"></div></div>
+  </div>
+
+  <!-- Financial Brief Widget (Workflow 3) -->
+  <div class="dn" id="briefWidget">
+    <div class="card" style="overflow:hidden;margin-bottom:14px">
+      <div style="background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="color:#fff;font-size:15px;font-weight:700" id="bwName">—</div>
+          <div style="color:rgba(255,255,255,.4);font-size:10px;font-family:IBM Plex Mono,monospace" id="bwMeta">—</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="bwBadges"></div>
+      </div>
+      <!-- Performance -->
+      <div style="border-bottom:1px solid var(--border)">
+        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Performance</div>
+        <table style="width:100%;border-collapse:collapse" id="tPerf"></table>
+      </div>
+      <!-- Deposits -->
+      <div style="border-bottom:1px solid var(--border)">
+        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Deposits & Growth</div>
+        <table style="width:100%;border-collapse:collapse" id="tDep"></table>
+      </div>
+      <!-- Funding -->
+      <div style="border-bottom:1px solid var(--border)">
+        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Funding Rates & Capital</div>
+        <table style="width:100%;border-collapse:collapse" id="tFund"></table>
+      </div>
+      <!-- Network -->
+      <div>
+        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Network Intelligence (BMAP)</div>
+        <table style="width:100%;border-collapse:collapse" id="tNet"></table>
+      </div>
+    </div>
+
+    <!-- AI Briefing Note -->
+    <div class="card" style="overflow:hidden;margin-bottom:14px">
+      <div style="background:var(--navy);padding:10px 18px"><div style="color:#fff;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Tom's Briefing Note</div></div>
+      <div style="padding:16px 20px" id="briefNarrative">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace"><span class="spin"></span>Generating briefing note...</div>
+      </div>
+    </div>
+
+    <button class="copy-btn" style="background:var(--amber);color:var(--navy);width:calc(100% - 0px);padding:12px;font-size:13px;font-weight:800;border-radius:9px;margin-bottom:12px" onclick="copyBrief()">Copy full brief to clipboard</button>
   </div>
 </div>
 
@@ -332,7 +375,162 @@ async function loadBank(ik){
 
 function selWf(n){
   selWfN=n;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
-  g(`w${n}`).classList.add('on');show('gb');n===4?show('bsel'):hide('bsel');hide('oc');
+  g(`w${n}`).classList.add('on');
+  hide('oc');hide('briefWidget');
+  show('gb');n===4?show('bsel'):hide('bsel');
+}
+
+async function renderBrief(){
+  if(!selBank||!bankData)return;
+  show('briefWidget');
+  const {rows,allBr:br,tgt,ik}=bankData;
+
+  // Pull financial snapshot
+  const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
+
+  const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
+  const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
+  const avgYoY=(avg('yoy_deposits')*100).toFixed(2);
+  const avgComp=(avg('avg_comp_yoy')*100).toFixed(2);
+  const gap=(avgYoY-avgComp).toFixed(2);
+  const invest=rows.filter(r=>r.opportunity_zone==='Invest').length;
+  const analyze=rows.filter(r=>r.opportunity_zone==='Analyze').length;
+  const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
+  const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
+  const t=tgt;
+  const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
+
+  // Institution header
+  g('bwName').textContent=rows[0]?.namefull||'—';
+  g('bwMeta').textContent=`Q4 2025 · ${rows.length} branches · $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':((tot/1e9).toFixed(2)+'B')} assets`;
+
+  // Signal pill helper
+  const pill=(label,color)=>{
+    const colors={g:'background:#EAF3DE;color:#27500A',y:'background:#FAEEDA;color:#854F0B',r:'background:#FCEBEB;color:#A32D2D'};
+    return`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;font-family:IBM Plex Mono,monospace;${colors[color]||colors.y}">● ${label}</span>`;
+  };
+
+  // Badges
+  const roa=+(fin.roa||0);
+  const eff=+(fin.efficiency_ratio||0);
+  const depYoY=+(fin.dep_yoy_pct||avgYoY);
+  const gapNum=+gap;
+  g('bwBadges').innerHTML=`
+    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${roa>=1?'background:#EAF3DE;color:#27500A':'background:#FCEBEB;color:#A32D2D'}">ROA ${fin.roa||'—'}%</span>
+    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${eff<60&&eff>0?'background:#EAF3DE;color:#27500A':'background:#FCEBEB;color:#A32D2D'}">Efficiency ${fin.efficiency_ratio||'—'}%</span>
+    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${depYoY>0?'background:#FAEEDA;color:#854F0B':'background:#FCEBEB;color:#A32D2D'}">Deposits ${fin.dep_yoy_pct||avgYoY}% YoY</span>
+    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${gapNum>-5?'background:#FAEEDA;color:#854F0B':'background:#FCEBEB;color:#A32D2D'}">Gap ${gap}pp</span>`;
+
+  // Table row helper
+  const tr=(name,val,bench,note,sig)=>`<tr style="border-bottom:1px solid #f0f0ee">
+    <td style="padding:9px 14px;font-weight:500;font-size:12px;color:var(--navy)">${name}</td>
+    <td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${val}</td>
+    <td style="padding:9px 14px;font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">${bench}</td>
+    <td style="padding:9px 14px;font-size:11px;color:var(--muted)">${note}</td>
+    <td style="padding:9px 14px;text-align:center">${pill(...sig)}</td></tr>`;
+
+  const th=`<thead><tr style="background:#F0EEE8"><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Metric</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Value</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Benchmark</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Note</th><th style="padding:7px 14px;text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th></tr></thead>`;
+
+  // Performance table
+  const r=fin;
+  g('tPerf').innerHTML=th+`<tbody>
+    ${tr('ROA',`${r.roa||'—'}%`,'>1.0% = strong','Profitability per asset dollar',r.roa>=1?['Strong','g']:r.roa>0?['Watch','y']:['Critical','r'])}
+    ${tr('NIM',`${r.nim||'—'}%`,'2.5–3.5% typical','Net interest margin',r.nim>=2.5&&r.nim<=3.5?['Strong','g']:r.nim>3.5?['Watch','y']:['Weak','r'])}
+    ${tr('Efficiency',`${r.efficiency_ratio||'—'}%`,'<60% = good','Lower is better — cost to earn $1',r.efficiency_ratio>0&&r.efficiency_ratio<60?['Strong','g']:r.efficiency_ratio<75?['Watch','y']:['Weak','r'])}
+    ${tr('Net Income YoY',`${r.net_income_yoy_pct>0?'+':''}${r.net_income_yoy_pct||'—'}%`,'>0% = growing','Earnings momentum',r.net_income_yoy_pct>0?['Growing','g']:['Declining','r'])}
+  </tbody>`;
+
+  // Deposits table
+  const depYoYVal=+(r.dep_yoy_pct||0);
+  const depQoQVal=+(r.dep_qoq_pct||0);
+  const gapVal=+gap;
+  g('tDep').innerHTML=th+`<tbody>
+    ${tr('Deposit YoY',`${r.dep_yoy_pct||avgYoY}%`,'>2% = healthy','Annual deposit change',depYoYVal>2?['Strong','g']:depYoYVal>0?['Watch','y']:['Declining','r'])}
+    ${tr('Deposit QoQ',`${r.dep_qoq_pct||'—'}%`,'>0% = positive','Most recent quarter',depQoQVal>0?['Positive','g']:['Negative','r'])}
+    ${tr('Gap vs Competitors',`${gap}pp`,'0pp = parity',`Peers growing at ${avgComp}% YoY`,gapVal>-5?['Manageable','y']:gapVal>-10?['Watch','y']:['Critical','r'])}
+    ${tr('Loans / Deposits',`${r.loans_to_deposits_pct||'—'}%`,'70–85% = normal','Lending utilisation',r.loans_to_deposits_pct>=70&&r.loans_to_deposits_pct<=85?['Healthy','g']:['Watch','y'])}
+  </tbody>`;
+
+  // Funding & capital table
+  const cofVal=+(r.cost_of_funds_pct||0);
+  const t1Val=+(r.tier1_capital_pct||0);
+  const ncVal=+(r.noncurrent_assets_pct||0);
+  g('tFund').innerHTML=th+`<tbody>
+    ${tr('Cost of Funds',`${r.cost_of_funds_pct||'—'}%`,'<2% = competitive','Total funding cost',cofVal>0&&cofVal<2?['Strong','g']:cofVal<3?['Watch','y']:['High','r'])}
+    ${tr('Savings Rate',`${r.save_interest_pct||'—'}%`,'Market ~4–5%','Exposure if market reprices',r.save_interest_pct<1.5?['Below market','y']:['Competitive','g'])}
+    ${tr('CD Rate',`${r.cd_interest_pct||'—'}%`,'Market ~4–5%','vs advertised competitor rates',r.cd_interest_pct<1?['Watch','r']:['OK','y'])}
+    ${tr('Tier 1 Capital',`${r.tier1_capital_pct||'—'}%`,'>8% = well capitalised','Balance sheet strength',t1Val>=10?['Strong','g']:t1Val>=8?['OK','y']:['Thin','r'])}
+    ${tr('Noncurrent Assets',`${r.noncurrent_assets_pct||'—'}%`,'<1% = clean','Problem loan signal',ncVal<1?['Clean','g']:ncVal<2?['Watch','y']:['Elevated','r'])}
+  </tbody>`;
+
+  // Network table
+  g('tNet').innerHTML=`<thead><tr style="background:#F0EEE8"><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Value</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Implication</th><th style="padding:7px 14px;text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th></tr></thead><tbody>
+    <tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Avg Opportunity Score</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${avg('opportunity_score').toFixed(1)} / 100</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">Most branches in Analyze zone</td><td style="padding:9px 14px;text-align:center">${pill('Untapped','y')}</td></tr>
+    <tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Invest Zone</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${invest} branches (${Math.round(invest/rows.length*100)}%)</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${top3Q2.length?top3Q2.slice(0,2).map(b=>`${b.namebr}, ${b.citybr}`).join(' · '):'Top priority markets'}</td><td style="padding:9px 14px;text-align:center">${pill('Priority','g')}</td></tr>
+    <tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Justify Zone</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${justify} branches (${Math.round(justify/rows.length*100)}%)</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${justify===0?'No Justify branches — network clean':'Branches needing investment review'}</td><td style="padding:9px 14px;text-align:center">${justify===0?pill('Clean','g'):justify<20?pill('Watch','y'):pill('Review','r')}</td></tr>
+    ${t?`<tr><td style="padding:9px 14px;font-weight:500;font-size:12px">Top Competitor Exposure</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${t.branches_in_radius} branches</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">Regional competitor: ${(+t.avg_yoy_pct).toFixed(1)}% deposits YoY, ROA ${t.target_roa}%</td><td style="padding:9px 14px;text-align:center">${pill('Opportunity','g')}</td></tr>`:''}
+  </tbody>`;
+
+  // Generate AI briefing note
+  const briefContext=`Institution: ${rows[0]?.namefull} | Branches: ${rows.length} | Assets: $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':'—'} | Deposits: $${fin.total_deposits?(fin.total_deposits/1e9).toFixed(2)+'B':'—'} | Net income: $${fin.net_income?(fin.net_income/1e6).toFixed(1)+'M':'—'}
+ROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}% (YoY: ${fin.efficiency_ratio_yoy_change||'—'}pp) | Net income YoY: ${fin.net_income_yoy_pct||'—'}%
+Deposit YoY: ${fin.dep_yoy_pct||avgYoY}% | QoQ: ${fin.dep_qoq_pct||'—'}% | Loans/Deposits: ${fin.loans_to_deposits_pct||'—'}%
+Cost of funds: ${fin.cost_of_funds_pct||'—'}% (YoY: ${fin.cof_yoy_change||'—'}pp) | Savings: ${fin.save_interest_pct||'—'}% | CD: ${fin.cd_interest_pct||'—'}%
+Tier 1: ${fin.tier1_capital_pct||'—'}% | Noncurrent: ${fin.noncurrent_assets_pct||'—'}%
+BMAP: Avg score ${avg('opportunity_score').toFixed(1)}/100 | Invest: ${invest} | Analyze: ${analyze} | Defend: ${defend} | Justify: ${justify}
+Competitor deposit YoY avg: ${avgComp}% — bank gap: ${gap}pp
+Top Q2 branches: ${top3Q2.map(b=>`${b.namebr} ${b.citybr} ($${(b.latest_dep/1e6).toFixed(0)}M +${(+b.yoy_deposits*100).toFixed(1)}%)`).join(', ')||'—'}
+${t?`Top competitor: ${t.target_institution} — ${t.branches_in_radius} branches exposed, deposit YoY ${(+t.avg_yoy_pct).toFixed(1)}%, ROA ${t.target_roa}%, efficiency ${t.target_efficiency_ratio}%`:''}`;
+
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:700,
+        system:`You are the BMAP Executive Strategist at Verlocity. Brief Tom before he walks into a meeting. Sharp colleague tone. Return ONLY a JSON object with keys: paragraph (string), strong (array of 3 strings "Strength — implication"), pressure (array of 3 strings "Pressure — our angle"), asymmetric (string, 2-3 sentences with specific branch name or number that would surprise a banker). No markdown, no explanation, ONLY the JSON.`,
+        messages:[{role:'user',content:briefContext}]
+      })
+    });
+    const data=await resp.json();
+    let txt=data.content?.find(b=>b.type==='text')?.text||'{}';
+    txt=txt.replace(/```json|```/g,'').trim();
+    const p=JSON.parse(txt);
+    g('briefNarrative').innerHTML=`
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">The bank in one paragraph</div>
+        <div style="font-size:12px;line-height:1.75;color:var(--navy)">${p.paragraph||''}</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where they are strong</div>
+        ${(p.strong||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--amber);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where the pressure is</div>
+        ${(p.pressure||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--red);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">What Verlocity walks in knowing</div>
+        <div style="background:#FFFBF2;border:1px solid #E8C96A;border-radius:8px;padding:12px 16px;font-size:12px;line-height:1.75;color:var(--navy)">${p.asymmetric||''}</div>
+      </div>`;
+    briefNarrativeData=p;
+    briefFinData=fin;
+  }catch(e){
+    g('briefNarrative').innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px">Error generating narrative. Check API connection.</div>';
+  }
+}
+
+let briefNarrativeData=null,briefFinData=null;
+function copyBrief(){
+  if(!bankData||!briefNarrativeData)return;
+  const {rows}=bankData;const p=briefNarrativeData;const fin=briefFinData||{};
+  const txt=`FINANCIAL BRIEF — ${rows[0]?.namefull}\nVerlocity · BMAP Intelligence\n\nMETRICS\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}%\nNet Income YoY: ${fin.net_income_yoy_pct||'—'}% | Deposit YoY: ${fin.dep_yoy_pct||'—'}% | QoQ: ${fin.dep_qoq_pct||'—'}%\nCost of Funds: ${fin.cost_of_funds_pct||'—'}% | Tier 1: ${fin.tier1_capital_pct||'—'}% | Noncurrent: ${fin.noncurrent_assets_pct||'—'}%\n\nTHE BANK\n${p.paragraph||''}\n\nWHERE THEY ARE STRONG\n${(p.strong||[]).map(s=>'→ '+s).join('\n')}\n\nWHERE THE PRESSURE IS\n${(p.pressure||[]).map(s=>'→ '+s).join('\n')}\n\nWHAT VERLOCITY WALKS IN KNOWING\n${p.asymmetric||''}`;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn=document.querySelector('#briefWidget button');
+    btn.textContent='✓ Copied';
+    setTimeout(()=>btn.textContent='Copy full brief to clipboard',2000);
+  });
 }
 
 async function generate(){

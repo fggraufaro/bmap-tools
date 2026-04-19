@@ -432,91 +432,47 @@ async function loadRRWidget(){
   g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
   g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
 
-  // Step 1: pull competitors using my_inst_key (same as dim_institutions inst_key)
-  console.log('[RateRadar] querying branch_target_competitors with my_inst_key=', ik);
-  const rawComp = await api('branch_target_competitors',
+  // Query branch_target_competitors with my_inst_key (same join as Power BI)
+  let rawComp = await api('branch_target_competitors',
     `my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,target_dep_M,target_yoy_pct,target_zone,vuln_score&limit=500`);
-  console.log('[RateRadar] rawComp result:', rawComp?.length, 'rows', rawComp?.[0]);
 
   if(!rawComp||!rawComp.length){
-    // Fallback: try via branch IDs
-    console.log('[RateRadar] inst_key query empty — trying branch ID fallback');
-    const branchIds = bankData.allBr.map(b=>b.uninumbr).filter(Boolean).slice(0,50);
-    console.log('[RateRadar] branchIds sample:', branchIds.slice(0,3));
-    const rawComp2 = branchIds.length ? await api('branch_target_competitors',
-      `my_branch_id=in.(${branchIds.join(',')})&select=target_inst_key,target_namefull,target_dep_M,target_yoy_pct,target_zone,vuln_score&limit=500`) : [];
-    console.log('[RateRadar] branch fallback result:', rawComp2?.length, 'rows', rawComp2?.[0]);
-    if(!rawComp2||!rawComp2.length){
-      g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found — open browser console for debug info</td></tr>';
-      g('rrMeta').textContent='No data — check console (F12)';
-      return;
-    }
-    rawComp.push(...rawComp2);
-  }
-
-  // Step 2: aggregate by target_inst_key — avg vuln_score, avg deposits, avg yoy, dominant zone
-  const grouped={};
-  rawComp.forEach(r=>{
-    const k=r.target_inst_key;
-    if(!k)return;
-    if(!grouped[k]){
-      grouped[k]={
-        target_inst_key:k,
-        target_namefull:r.target_namefull||'—',
-        vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}
-      };
-    }
-    if(r.vuln_score!=null) grouped[k].vuln_scores.push(+r.vuln_score);
-    if(r.target_dep_M!=null) grouped[k].dep_vals.push(+r.target_dep_M);
-    if(r.target_yoy_pct!=null) grouped[k].yoy_vals.push(+r.target_yoy_pct);
-    if(r.target_zone) grouped[k].zones[r.target_zone]=(grouped[k].zones[r.target_zone]||0)+1;
-  });
-
-  const avg=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;
-  const dominantZone=z=>Object.entries(z).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
-
-  // Sort by avg vuln_score desc, take top 20
-  const sorted = Object.values(grouped)
-    .map(g=>({
-      target_inst_key: g.target_inst_key,
-      target_namefull: g.target_namefull,
-      avg_vuln: avg(g.vuln_scores),
-      avg_dep: avg(g.dep_vals),
-      avg_yoy: avg(g.yoy_vals),
-      zone: dominantZone(g.zones)
-    }))
-    .filter(r=>r.avg_vuln!=null)
-    .sort((a,b)=>b.avg_vuln-a.avg_vuln)
-    .slice(0,20);
-
-  if(!sorted.length){
-    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No scored competitors found</td></tr>';
+    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found for this institution</td></tr>';
     g('rrMeta').textContent='No data';
     return;
   }
 
-  // Step 3: get website URLs from bank_website table
-  const instKeys=sorted.map(t=>t.target_inst_key).filter(Boolean);
-  const websiteRows = instKeys.length ? await api('bank_website',
-    `inst_key=in.(${instKeys.join(',')})&select=inst_key,WEBADDR`) : [];
+  // Aggregate by target_inst_key
+  const grouped={};
+  rawComp.forEach(r=>{
+    const k=r.target_inst_key;
+    if(!k)return;
+    if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}
+    if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);
+    if(r.target_dep_M!=null)grouped[k].dep_vals.push(+r.target_dep_M);
+    if(r.target_yoy_pct!=null)grouped[k].yoy_vals.push(+r.target_yoy_pct);
+    if(r.target_zone)grouped[k].zones[r.target_zone]=(grouped[k].zones[r.target_zone]||0)+1;
+  });
 
+  const avgArr=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;
+  const domZone=z=>Object.entries(z).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+
+  const sorted=Object.values(grouped)
+    .map(g=>({target_inst_key:g.target_inst_key,target_namefull:g.target_namefull,avg_vuln:avgArr(g.vuln_scores),avg_dep:avgArr(g.dep_vals),avg_yoy:avgArr(g.yoy_vals),zone:domZone(g.zones)}))
+    .filter(r=>r.avg_vuln!=null)
+    .sort((a,b)=>b.avg_vuln-a.avg_vuln)
+    .slice(0,20);
+
+  // Get website URLs
+  const instKeys=sorted.map(t=>t.target_inst_key).filter(Boolean);
+  const websiteRows=instKeys.length?await api('bank_website',`inst_key=in.(${instKeys.join(',')})&select=inst_key,WEBADDR`):[];
   const urlMap={};
   (websiteRows||[]).forEach(r=>{if(r.inst_key&&r.WEBADDR)urlMap[r.inst_key]=r.WEBADDR;});
 
-  // Step 4: merge and render
-  rrData = sorted.map((t,i)=>({
-    rank: i+1,
-    bank_name: t.target_namefull,
-    bank_url: urlMap[t.target_inst_key]||'',
-    vuln: t.avg_vuln,
-    dep: t.avg_dep,
-    yoy: t.avg_yoy,
-    zone: t.zone,
-    inst_key: t.target_inst_key
-  }));
+  rrData=sorted.map((t,i)=>({rank:i+1,bank_name:t.target_namefull,bank_url:urlMap[t.target_inst_key]||'',vuln:t.avg_vuln,dep:t.avg_dep,yoy:t.avg_yoy,zone:t.zone,inst_key:t.target_inst_key}));
 
   const zoneColor=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
-  g('rrTbody').innerHTML = rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee">
+  g('rrTbody').innerHTML=rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee">
     <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td>
     <td style="padding:8px 14px;font-weight:600">${r.bank_name}</td>
     <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln!=null?(+r.vuln).toFixed(1):'—'}</td>
@@ -526,8 +482,9 @@ async function loadRRWidget(){
     <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
   </tr>`).join('');
 
-  const withUrl = rrData.filter(r=>r.bank_url).length;
+  const withUrl=rrData.filter(r=>r.bank_url).length;
   g('rrMeta').textContent=`Top ${rrData.length} competitors by vulnerability score · ${withUrl} with website URLs`;
+
 }
 
 function downloadRRcsv(){

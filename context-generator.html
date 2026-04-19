@@ -432,34 +432,75 @@ async function loadRRWidget(){
   g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
   g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
 
-  // Step 1: get top 20 competitors by avg_vuln_score
-  const targets = await api('vw_network_top_targets',
-    `my_inst_key=eq.${ik}&select=network_rank,target_institution,target_inst_key,avg_vuln_score,avg_dep_M,avg_yoy_pct,dominant_zone&order=avg_vuln_score.desc&limit=20`);
+  // Step 1: pull all branch-level competitors for this institution from branch_target_competitors
+  // Returns up to 500 rows — we aggregate client-side by target_inst_key
+  const rawComp = await api('branch_target_competitors',
+    `my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,target_dep_M,target_yoy_pct,target_zone,vuln_score&limit=500`);
 
-  if(!targets||!targets.length){
-    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No network targets found — run populate_network_top_targets for this institution</td></tr>';
+  if(!rawComp||!rawComp.length){
+    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found for this institution</td></tr>';
     g('rrMeta').textContent='No data';
     return;
   }
 
-  // Step 2: get website URLs from bank_website table
-  const instKeys=targets.map(t=>t.target_inst_key).filter(Boolean);
+  // Step 2: aggregate by target_inst_key — avg vuln_score, avg deposits, avg yoy, dominant zone
+  const grouped={};
+  rawComp.forEach(r=>{
+    const k=r.target_inst_key;
+    if(!k)return;
+    if(!grouped[k]){
+      grouped[k]={
+        target_inst_key:k,
+        target_namefull:r.target_namefull||'—',
+        vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}
+      };
+    }
+    if(r.vuln_score!=null) grouped[k].vuln_scores.push(+r.vuln_score);
+    if(r.target_dep_M!=null) grouped[k].dep_vals.push(+r.target_dep_M);
+    if(r.target_yoy_pct!=null) grouped[k].yoy_vals.push(+r.target_yoy_pct);
+    if(r.target_zone) grouped[k].zones[r.target_zone]=(grouped[k].zones[r.target_zone]||0)+1;
+  });
+
+  const avg=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;
+  const dominantZone=z=>Object.entries(z).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+
+  // Sort by avg vuln_score desc, take top 20
+  const sorted = Object.values(grouped)
+    .map(g=>({
+      target_inst_key: g.target_inst_key,
+      target_namefull: g.target_namefull,
+      avg_vuln: avg(g.vuln_scores),
+      avg_dep: avg(g.dep_vals),
+      avg_yoy: avg(g.yoy_vals),
+      zone: dominantZone(g.zones)
+    }))
+    .filter(r=>r.avg_vuln!=null)
+    .sort((a,b)=>b.avg_vuln-a.avg_vuln)
+    .slice(0,20);
+
+  if(!sorted.length){
+    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No scored competitors found</td></tr>';
+    g('rrMeta').textContent='No data';
+    return;
+  }
+
+  // Step 3: get website URLs from bank_website table
+  const instKeys=sorted.map(t=>t.target_inst_key).filter(Boolean);
   const websiteRows = instKeys.length ? await api('bank_website',
     `inst_key=in.(${instKeys.join(',')})&select=inst_key,WEBADDR`) : [];
 
-  // Build lookup map
   const urlMap={};
   (websiteRows||[]).forEach(r=>{if(r.inst_key&&r.WEBADDR)urlMap[r.inst_key]=r.WEBADDR;});
 
-  // Step 3: merge and render
-  rrData = targets.map((t,i)=>({
+  // Step 4: merge and render
+  rrData = sorted.map((t,i)=>({
     rank: i+1,
-    bank_name: t.target_institution||'—',
+    bank_name: t.target_namefull,
     bank_url: urlMap[t.target_inst_key]||'',
-    vuln: t.avg_vuln_score,
-    dep: t.avg_dep_M,
-    yoy: t.avg_yoy_pct,
-    zone: t.dominant_zone||'—',
+    vuln: t.avg_vuln,
+    dep: t.avg_dep,
+    yoy: t.avg_yoy,
+    zone: t.zone,
     inst_key: t.target_inst_key
   }));
 
@@ -467,9 +508,9 @@ async function loadRRWidget(){
   g('rrTbody').innerHTML = rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee">
     <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td>
     <td style="padding:8px 14px;font-weight:600">${r.bank_name}</td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln?(+r.vuln).toFixed(1):'—'}</td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep?(+r.dep).toFixed(0)+'M':'—'}</td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy?((+r.yoy).toFixed(1)+'%'):'—'}</td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln!=null?(+r.vuln).toFixed(1):'—'}</td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep!=null?(+r.dep).toFixed(0)+'M':'—'}</td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy!=null?((+r.yoy).toFixed(1)+'%'):'—'}</td>
     <td style="padding:8px 14px"><span class="spill ${zoneColor(r.zone)}">${r.zone}</span></td>
     <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
   </tr>`).join('');

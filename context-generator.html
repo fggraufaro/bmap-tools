@@ -463,11 +463,14 @@ async function loadRRWidget(){
     .sort((a,b)=>b.avg_vuln-a.avg_vuln)
     .slice(0,20);
 
-  // Get website URLs
-  const instKeys=sorted.map(t=>t.target_inst_key).filter(Boolean);
-  const websiteRows=instKeys.length?await api('bank_website',`inst_key=in.(${instKeys.join(',')})&select=inst_key,WEBADDR`):[];
+  // Get website URLs — bank_website uses FED_RSSD; inst_key = bank_{FED_RSSD}
+  const rssdIds=sorted.map(t=>{
+    const k=t.target_inst_key||'';
+    return k.startsWith('bank_')?k.replace('bank_',''):null;
+  }).filter(Boolean);
+  const websiteRows=rssdIds.length?await api('bank_website',`FED_RSSD=in.(${rssdIds.join(',')})&select=FED_RSSD,WEBADDR`):[];
   const urlMap={};
-  (websiteRows||[]).forEach(r=>{if(r.inst_key&&r.WEBADDR)urlMap[r.inst_key]=r.WEBADDR;});
+  (websiteRows||[]).forEach(r=>{if(r.FED_RSSD&&r.WEBADDR)urlMap['bank_'+r.FED_RSSD]=r.WEBADDR;});
 
   rrData=sorted.map((t,i)=>({rank:i+1,bank_name:t.target_namefull,bank_url:urlMap[t.target_inst_key]||'',vuln:t.avg_vuln,dep:t.avg_dep,yoy:t.avg_yoy,zone:t.zone,inst_key:t.target_inst_key}));
 

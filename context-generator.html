@@ -18,6 +18,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace}
 .logo-img{height:38px;width:auto;border-radius:8px}
 .live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;border-radius:12px}
+.radar-btn{display:inline-flex;align-items:center;gap:6px;background:var(--amber);color:var(--navy);font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;letter-spacing:.04em;padding:4px 10px;border-radius:12px;text-decoration:none;transition:opacity .18s;text-transform:uppercase}
+.radar-btn:hover{opacity:.85}
+.radar-dot{width:6px;height:6px;border-radius:50%;background:var(--navy);animation:radarPulse 1.8s infinite}
+@keyframes radarPulse{0%,100%{opacity:1}50%{opacity:.3}}
 .wrap{max-width:860px;margin:0 auto;padding:18px 16px}
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
 .card-pad{padding:18px 20px}
@@ -129,6 +133,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
   </div>
   <div style="display:flex;align-items:center;gap:12px">
     <div class="logo-sub" style="color:rgba(255,255,255,.35)">Context Generator</div>
+    <a href="rate-radar.html" class="radar-btn" title="Open BMAP Rate Radar"><span class="radar-dot"></span>Rate Radar →</a>
     <div class="live-badge">LIVE · Supabase</div>
   </div>
 </div>

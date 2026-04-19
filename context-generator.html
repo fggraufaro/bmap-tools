@@ -434,7 +434,7 @@ async function loadRRWidget(){
 
   // Query branch_target_competitors with my_inst_key (same join as Power BI)
   let rawComp = await api('branch_target_competitors',
-    `my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,target_dep_M,target_yoy_pct,target_zone,vuln_score&limit=500`);
+    `my_inst_key=eq.${ik}&select=*&limit=500`);
 
   if(!rawComp||!rawComp.length){
     g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found for this institution</td></tr>';
@@ -449,9 +449,9 @@ async function loadRRWidget(){
     if(!k)return;
     if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}
     if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);
-    if(r.target_dep_M!=null)grouped[k].dep_vals.push(+r.target_dep_M);
-    if(r.target_yoy_pct!=null)grouped[k].yoy_vals.push(+r.target_yoy_pct);
-    if(r.target_zone)grouped[k].zones[r.target_zone]=(grouped[k].zones[r.target_zone]||0)+1;
+    const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);
+    const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);
+    const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;
   });
 
   const avgArr=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;

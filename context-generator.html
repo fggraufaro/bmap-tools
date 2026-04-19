@@ -16,7 +16,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
 .logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace}
-.logo-img{height:38px;width:auto;border-radius:8px}
+.logo-img{height:40px;width:auto;border-radius:0}
 .live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;border-radius:12px}
 .radar-btn{display:inline-flex;align-items:center;gap:6px;background:var(--amber);color:var(--navy);font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;letter-spacing:.04em;padding:4px 10px;border-radius:12px;text-decoration:none;transition:opacity .18s;text-transform:uppercase}
 .radar-btn:hover{opacity:.85}
@@ -103,7 +103,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 <!-- Auth Gate -->
 <div id="authGate" style="display:flex;position:fixed;inset:0;background:#1a2332;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-    <img src="https://fggraufaro.github.io/bmap-tools/bmap-logo1.png" alt="BMAP" style="height:60px;width:auto;border-radius:10px" onerror="this.style.display='none'">
+    <img src="https://fggraufaro.github.io/bmap-tools/BMAP.png" alt="BMAP" style="height:72px;width:auto;border-radius:14px;background:#fff;padding:8px 16px" onerror="this.style.display='none'">
   </div>
   <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center">
     <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:monospace;margin-bottom:14px;letter-spacing:.05em">ENTER ACCESS CODE</div>
@@ -121,8 +121,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 <div id="appWrap" style="display:none">
 
 <div class="header">
-  <div class="logo">
-    <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/bmap-logo1.png" alt="BMAP" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+  <div class="logo" style="background:#fff;padding:4px 10px;border-radius:10px">
+    <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/BMAP.png" alt="BMAP" style="background:transparent;mix-blend-mode:normal" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
     <div id="logoFallback" style="display:none;align-items:center;gap:10px">
       <div class="logo-dot"></div>
       <div>
@@ -180,11 +180,42 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Resonate Brief</div><div class="wf-d">Audience intelligence input for Pete Vazquez — personas, ZIPs, segments</div><span class="wf-tag">RESONATE</span></div>
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Tom's pre-meeting brief — metrics, pressure points, the line that earns the room</div><span class="wf-tag">TOM'S BRIEF</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
+    <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Rate Radar CSV</div><div class="wf-d">Top 20 competitors by vulnerability score — ready to drop into Rate Radar</div><span class="wf-tag">RATE RADAR</span></div>
   </div>
 
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch for deep dive</div>
     <select class="inp" id="bselect" style="cursor:pointer"><option value="">— select a branch —</option></select>
+  </div>
+
+  <!-- Rate Radar Widget (Workflow 5) -->
+  <div class="dn" id="rrWidget">
+    <div class="card" style="overflow:hidden;margin-bottom:14px">
+      <div style="background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="color:#fff;font-size:15px;font-weight:700" id="rrTitle">—</div>
+          <div style="color:rgba(255,255,255,.4);font-size:10px;font-family:IBM Plex Mono,monospace" id="rrMeta">—</div>
+        </div>
+        <button onclick="downloadRRcsv()" style="background:var(--amber);color:var(--navy);border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:IBM Plex Mono,monospace;letter-spacing:.04em">⬇ Download CSV for Rate Radar</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="rrTable">
+          <thead><tr style="background:#F0EEE8">
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">#</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Institution</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Vuln Score</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Deposits</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">YoY</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Zone</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Website</th>
+          </tr></thead>
+          <tbody id="rrTbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;background:#FFFBF2;border-top:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace;color:var(--muted)">
+        CSV format: bank_name, bank_url — ready to upload directly to Rate Radar · Missing URLs can be filled manually
+      </div>
+    </div>
   </div>
 
   <button class="gen-btn dn" id="gb" onclick="generate()">Generate Context →</button>
@@ -381,8 +412,76 @@ async function loadBank(ik){
 function selWf(n){
   selWfN=n;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');
-  hide('oc');hide('briefWidget');
+  hide('oc');hide('briefWidget');hide('rrWidget');
+  if(n===5){hide('gb');hide('bsel');loadRRWidget();return;}
   show('gb');n===4?show('bsel'):hide('bsel');
+}
+
+let rrData=[];
+
+async function loadRRWidget(){
+  if(!selBank||!bankData)return;
+  show('rrWidget');
+  const {ik,rows}=bankData;
+  g('rrTitle').textContent=rows[0]?.namefull||'—';
+  g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
+  g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
+
+  // Step 1: get top 20 competitors by avg_vuln_score
+  const targets = await api('vw_network_top_targets',
+    `my_inst_key=eq.${ik}&select=network_rank,target_institution,target_inst_key,avg_vuln_score,avg_dep_M,avg_yoy_pct,dominant_zone&order=avg_vuln_score.desc&limit=20`);
+
+  if(!targets||!targets.length){
+    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No network targets found — run populate_network_top_targets for this institution</td></tr>';
+    g('rrMeta').textContent='No data';
+    return;
+  }
+
+  // Step 2: get website URLs from bank_website table
+  const instKeys=targets.map(t=>t.target_inst_key).filter(Boolean);
+  const websiteRows = instKeys.length ? await api('bank_website',
+    `inst_key=in.(${instKeys.join(',')})&select=inst_key,WEBADDR`) : [];
+
+  // Build lookup map
+  const urlMap={};
+  (websiteRows||[]).forEach(r=>{if(r.inst_key&&r.WEBADDR)urlMap[r.inst_key]=r.WEBADDR;});
+
+  // Step 3: merge and render
+  rrData = targets.map((t,i)=>({
+    rank: i+1,
+    bank_name: t.target_institution||'—',
+    bank_url: urlMap[t.target_inst_key]||'',
+    vuln: t.avg_vuln_score,
+    dep: t.avg_dep_M,
+    yoy: t.avg_yoy_pct,
+    zone: t.dominant_zone||'—',
+    inst_key: t.target_inst_key
+  }));
+
+  const zoneColor=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
+  g('rrTbody').innerHTML = rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee">
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td>
+    <td style="padding:8px 14px;font-weight:600">${r.bank_name}</td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln?(+r.vuln).toFixed(1):'—'}</td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep?(+r.dep).toFixed(0)+'M':'—'}</td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy?((+r.yoy).toFixed(1)+'%'):'—'}</td>
+    <td style="padding:8px 14px"><span class="spill ${zoneColor(r.zone)}">${r.zone}</span></td>
+    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
+  </tr>`).join('');
+
+  const withUrl = rrData.filter(r=>r.bank_url).length;
+  g('rrMeta').textContent=`Top ${rrData.length} competitors by vulnerability score · ${withUrl} with website URLs`;
+}
+
+function downloadRRcsv(){
+  if(!rrData.length)return;
+  const rows=['bank_name,bank_url',...rrData.map(r=>`"${r.bank_name}","${r.bank_url||''}"`)];
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const bankName=(bankData?.rows?.[0]?.namefull||'bank').replace(/[^a-z0-9]/gi,'_');
+  a.download=`rate_radar_${bankName}.csv`;
+  a.click();
 }
 
 async function renderBrief(){

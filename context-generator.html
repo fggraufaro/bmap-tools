@@ -432,15 +432,26 @@ async function loadRRWidget(){
   g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
   g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
 
-  // Step 1: pull all branch-level competitors for this institution from branch_target_competitors
-  // Returns up to 500 rows — we aggregate client-side by target_inst_key
+  // Step 1: pull competitors using my_inst_key (same as dim_institutions inst_key)
+  console.log('[RateRadar] querying branch_target_competitors with my_inst_key=', ik);
   const rawComp = await api('branch_target_competitors',
     `my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,target_dep_M,target_yoy_pct,target_zone,vuln_score&limit=500`);
+  console.log('[RateRadar] rawComp result:', rawComp?.length, 'rows', rawComp?.[0]);
 
   if(!rawComp||!rawComp.length){
-    g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found for this institution</td></tr>';
-    g('rrMeta').textContent='No data';
-    return;
+    // Fallback: try via branch IDs
+    console.log('[RateRadar] inst_key query empty — trying branch ID fallback');
+    const branchIds = bankData.allBr.map(b=>b.uninumbr).filter(Boolean).slice(0,50);
+    console.log('[RateRadar] branchIds sample:', branchIds.slice(0,3));
+    const rawComp2 = branchIds.length ? await api('branch_target_competitors',
+      `my_branch_id=in.(${branchIds.join(',')})&select=target_inst_key,target_namefull,target_dep_M,target_yoy_pct,target_zone,vuln_score&limit=500`) : [];
+    console.log('[RateRadar] branch fallback result:', rawComp2?.length, 'rows', rawComp2?.[0]);
+    if(!rawComp2||!rawComp2.length){
+      g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found — open browser console for debug info</td></tr>';
+      g('rrMeta').textContent='No data — check console (F12)';
+      return;
+    }
+    rawComp.push(...rawComp2);
   }
 
   // Step 2: aggregate by target_inst_key — avg vuln_score, avg deposits, avg yoy, dominant zone

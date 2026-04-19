@@ -121,18 +121,23 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 <div id="appWrap" style="display:none">
 
 <div class="header">
-  <div class="logo" style="background:#fff;padding:4px 10px;border-radius:10px">
-    <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/BMAP.png" alt="BMAP" style="background:transparent;mix-blend-mode:normal" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
-    <div id="logoFallback" style="display:none;align-items:center;gap:10px">
-      <div class="logo-dot"></div>
-      <div>
-        <div class="logo-text">BMAP Context Generator</div>
-        <div class="logo-sub">Verlocity</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="logo" style="background:#fff;padding:4px 10px;border-radius:10px">
+      <img class="logo-img" src="https://fggraufaro.github.io/bmap-tools/BMAP.png" alt="BMAP" style="background:transparent;mix-blend-mode:normal" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+      <div id="logoFallback" style="display:none;align-items:center;gap:10px">
+        <div class="logo-dot"></div>
+        <div>
+          <div class="logo-text">BMAP Context Generator</div>
+          <div class="logo-sub">Verlocity</div>
+        </div>
       </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="color:#fff;font-size:15px;font-weight:700;letter-spacing:.01em;font-family:'Inter',system-ui,sans-serif">Context Generator</div>
+      <div style="color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Verlocity · BMAP</div>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <div class="logo-sub" style="color:rgba(255,255,255,.35)">Context Generator</div>
     <a href="rate-radar.html" class="radar-btn" title="Open BMAP Rate Radar"><span class="radar-dot"></span>Rate Radar →</a>
     <div class="live-badge">LIVE · Supabase</div>
   </div>

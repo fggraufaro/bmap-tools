@@ -134,6 +134,17 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ag-seg.primary .ag-rai{background:rgba(12,68,124,.07);color:#0C447C}
 .ag-seg.secondary .ag-rai{background:rgba(15,110,86,.07);color:#085041}
 .ag-rai-lbl{font-weight:700;font-size:9px;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:2px;opacity:.7}
+.ag-params-toggle{margin-top:6px;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;opacity:.6;font-family:'IBM Plex Mono',monospace;user-select:none}
+.ag-params-toggle:hover{opacity:1}
+.ag-params-body{display:none;margin-top:6px;border-top:1px solid rgba(0,0,0,.08);padding-top:6px}
+.ag-params-body.open{display:block}
+.ag-param-row{display:flex;gap:6px;font-size:10px;font-family:'IBM Plex Mono',monospace;padding:2px 0;line-height:1.4}
+.ag-param-k{color:var(--muted);flex-shrink:0;min-width:120px}
+.ag-seg.primary .ag-param-k{color:#185FA5;opacity:.7}
+.ag-seg.secondary .ag-param-k{color:#0F6E56;opacity:.7}
+.ag-param-v{font-weight:500;color:var(--navy)}
+.ag-seg.primary .ag-param-v{color:#0C447C}
+.ag-seg.secondary .ag-param-v{color:#085041}
 .ag-smb-pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;font-family:'IBM Plex Mono',monospace}
 .ag-smb-top{background:#9FE1CB;color:#04342C}.ag-smb-high{background:#C0DD97;color:#173404}
 .ag-smb-medium{background:#FAC775;color:#412402}.ag-smb-low{background:#D3D1C7;color:#444}
@@ -560,7 +571,14 @@ const AG_SEGS = [
       if(gap <  0)  return {rank:'secondary', why:`Slight negative gap vs competitors`};
       return {rank:'off', why:`Bank growing ahead of market`};
     },
-    rAI: d => `People in [METRO] planning to switch their primary bank in the next 3–12 months, household income above $${Math.max(50,Math.round(d.income-20))}k`
+    rAI: d => `People in [METRO] planning to switch their primary bank in the next 3–12 months, household income above $${Math.max(50,Math.round(d.income-20))}k`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — Invest zone markets`},
+      {k:'Intent signal',v:`Likely to switch banks — 3 to 12 months`},
+      {k:'Household income',v:`$${Math.max(50,Math.round(d.income-20))}k+`},
+      {k:'Audience type',v:d.audType==='smb'?'Business':'Consumer'},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   },
   {
     key:'cd', name:'CD opener',
@@ -571,7 +589,15 @@ const AG_SEGS = [
       if(d.income >= 50) return {rank:'secondary', why:`Mid-income bracket — CD viable with rate-first messaging`};
       return {rank:'off', why:`Income below CD threshold`};
     },
-    rAI: d => `People in [METRO] planning to open a certificate of deposit in the next 6 months, household income $${Math.round(d.income)}k or higher, motivated by locking in a competitive rate`
+    rAI: d => `People in [METRO] planning to open a certificate of deposit in the next 6 months, household income $${Math.round(d.income)}k or higher, motivated by locking in a competitive rate`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — Invest + Analyze markets`},
+      {k:'Intent signal',v:`Planning to open a CD — 3 to 6 months`},
+      {k:'Household income',v:`$${Math.round(d.income)}k+`},
+      {k:'Home value (ZHVI)',v:`$${Math.round(d.zhvi)}k avg (+${d.zhviYoy.toFixed(1)}% YoY)`},
+      {k:'Audience type',v:`Consumer`},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   },
   {
     key:'hys', name:'High-yield savings seeker',
@@ -582,7 +608,15 @@ const AG_SEGS = [
       if(d.income >= 55) return {rank:'secondary', why:`Middle-income market responds to savings rate messaging`};
       return {rank:'off', why:`Lower income or growing market`};
     },
-    rAI: d => `People in [METRO] looking for a high-yield savings account, dissatisfied with their current bank's savings rate`
+    rAI: d => `People in [METRO] looking for a high-yield savings account, dissatisfied with their current bank's savings rate`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — Invest + Analyze markets`},
+      {k:'Intent signal',v:`Seeking high-yield savings / money market account`},
+      {k:'Household income',v:`$${Math.round(Math.max(55,d.income-15))}k+`},
+      {k:'Behavioral',v:`Currently holds savings at a competing institution`},
+      {k:'Audience type',v:`Consumer`},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   },
   {
     key:'checking', name:'New checking opener',
@@ -593,7 +627,15 @@ const AG_SEGS = [
       if(d.oppScore >= 20) return {rank:'secondary', why:`Moderate score — checking viable but higher CAC expected`};
       return {rank:'off', why:`Low opportunity score — acquisition cost may not justify`};
     },
-    rAI: d => `People in [METRO] likely to open a new checking account or switch their primary checking account within 6 months`
+    rAI: d => `People in [METRO] likely to open a new checking account or switch their primary checking account within 6 months`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — Invest zone priority`},
+      {k:'Intent signal',v:`Likely to open new checking / switch primary bank`},
+      {k:'Opportunity score',v:`${Math.round(d.oppScore)}/100 — active growth market`},
+      {k:'Household income',v:`All income bands — relationship product`},
+      {k:'Audience type',v:`Consumer`},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   },
   {
     key:'smb', name:'SMB banking decision-maker',
@@ -606,7 +648,16 @@ const AG_SEGS = [
       if(sz === 'Medium') return {rank:'secondary', why:`SMB zone: Medium — include alongside consumer targeting`};
       return {rank:'off', why:`SMB zone: Low — consumer-first recommended`};
     },
-    rAI: d => `Small business owners or CFOs in [METRO] evaluating business checking, business savings, or sweep accounts at a community bank`
+    rAI: d => `Small business owners or CFOs in [METRO] evaluating business checking, business savings, or sweep accounts at a community bank`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — SMB zone ${d.smbZone||'—'}`},
+      {k:'Intent signal',v:`Evaluating business banking options`},
+      {k:'Occupation',v:`Small business owner / CFO / financial decision-maker`},
+      {k:'Business size',v:`1–499 employees (SMB)`},
+      {k:'SMB density',v:`${d.smbEstab} avg establishments · ${d.smbDensity}/1k pop`},
+      {k:'Audience type',v:`Business`},
+      {k:'Suppress',v:`Bank CRM list — existing business accounts`},
+    ]
   },
   {
     key:'wealth', name:'Wealth consolidator',
@@ -617,7 +668,16 @@ const AG_SEGS = [
       if(d.income >= 85) return {rank:'secondary', why:`Income supports wealth consolidation messaging`};
       return {rank:'off', why:`Income/wealth below consolidation threshold`};
     },
-    rAI: d => `People in [METRO] with household income above $${Math.round(Math.max(80,d.income))}k consolidating financial accounts into a single trusted community bank`
+    rAI: d => `People in [METRO] with household income above $${Math.round(Math.max(80,d.income))}k consolidating financial accounts into a single trusted community bank`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — highest ZHVI markets`},
+      {k:'Intent signal',v:`Consolidating accounts / moving assets to single institution`},
+      {k:'Household income',v:`$${Math.round(Math.max(80,d.income))}k+`},
+      {k:'Home value (ZHVI)',v:`$${Math.round(d.zhvi)}k+ avg`},
+      {k:'Life stage',v:`45–65, pre-retirement or wealth accumulation`},
+      {k:'Audience type',v:`Consumer`},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   },
   {
     key:'digital', name:'Digital-first big bank leaver',
@@ -629,7 +689,15 @@ const AG_SEGS = [
       if(d.investBr >= 1)             return {rank:'secondary', why:`Invest zone footprint — digital-first messaging can capture community preference`};
       return {rank:'off', why:`Limited Invest zone presence reduces addressable pool`};
     },
-    rAI: d => `People in [METRO] who are current customers of national banks (Chase, BofA, Wells Fargo, Citizens) and are considering switching to a local community bank`
+    rAI: d => `People in [METRO] who are current customers of national banks (Chase, BofA, Wells Fargo, Citizens) and are considering switching to a local community bank`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — Invest zone`},
+      {k:'Intent signal',v:`Likely to switch from national bank to community/regional bank`},
+      {k:'Current institution',v:`Chase, Bank of America, Wells Fargo, Citizens`},
+      {k:'Household income',v:`$${Math.round(d.income)}k avg — broad targeting`},
+      {k:'Audience type',v:`Consumer`},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   },
   {
     key:'rate', name:'Rate-sensitive depositor',
@@ -641,7 +709,15 @@ const AG_SEGS = [
       if(gap <  0)  return {rank:'secondary', why:`Mild negative gap — rate messaging resonates with a segment`};
       return {rank:'off', why:`Bank holding or growing share`};
     },
-    rAI: d => `People in [METRO] actively comparing savings and CD rates across banks, likely to move money for a better APY offer`
+    rAI: d => `People in [METRO] actively comparing savings and CD rates across banks, likely to move money for a better APY offer`,
+    params: d => [
+      {k:'Geography',v:`[METRO] ZIPs — all Invest/Analyze markets`},
+      {k:'Intent signal',v:`Actively rate-shopping — savings and CD comparison behavior`},
+      {k:'Deposit gap signal',v:`Bank ${(d.bankYoy-d.compYoy).toFixed(1)}pp behind competitors`},
+      {k:'Household income',v:`$${Math.round(d.income*0.8)}k+ — savers with balance to move`},
+      {k:'Audience type',v:`Consumer`},
+      {k:'Suppress',v:`Bank CRM list — existing customers`},
+    ]
   }
 ];
 
@@ -715,14 +791,18 @@ function agCompute(){
   g('agSegLabel').textContent=`${primary.length} primary · ${secondary.length} secondary`;
 
   const metro = agTopMetro(focusRows);
-  g('agSegGrid').innerHTML = results.map(s=>{
+  g('agSegGrid').innerHTML = results.map((s,idx)=>{
     const r=s.result;
     const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
     const badge=r.rank==='primary'?'<span class="ag-badge bp">Primary</span>':
                 r.rank==='secondary'?'<span class="ag-badge bs">Secondary</span>':
                 '<span class="ag-badge bo">Not recommended</span>';
-    const rai=r.rank!=='off'?`<div class="ag-rai"><span class="ag-rai-lbl">rAI prompt for Ignite</span>"${s.rAI(d).replace('[METRO]',metro)}"</div>`:'';
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${rai}</div>`;
+    const raiBlock = r.rank!=='off' ? `<div class="ag-rai"><span class="ag-rai-lbl">rAI prompt — paste into Resonate Ignite</span>"${s.rAI(d).replace('[METRO]',metro)}"</div>` : '';
+    const paramsBlock = (r.rank!=='off' && s.params) ? (() => {
+      const rows = s.params(d).map(p=>`<div class="ag-param-row"><span class="ag-param-k">${p.k}</span><span class="ag-param-v">${p.v}</span></div>`).join('');
+      return `<div class="ag-params-toggle" onclick="agToggleParams(this)" data-idx="${idx}">▸ Manual build values</div><div class="ag-params-body">${rows}</div>`;
+    })() : '';
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${raiBlock}${paramsBlock}</div>`;
   }).join('');
 
   const hasSmbData = focusRows.some(r=>r.smb_index!=null);
@@ -732,6 +812,12 @@ function agCompute(){
 
   // Store for brief generation
   window._agState = {d, results, primary, secondary, focusRows, metro};
+}
+
+function agToggleParams(el){
+  const body = el.nextElementSibling;
+  const open = body.classList.toggle('open');
+  el.textContent = (open ? '▾' : '▸') + ' Manual build values';
 }
 
 async function agGenerate(){

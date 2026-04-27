@@ -87,7 +87,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .out-card{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .out-hdr{background:var(--gray);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
 .out-t{font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
-.copy-btn{background:var(--navy);color:#fff;border:none;border-radius:5px;padding:5px 12px;font-size:10px;font-family:'Syne',monospace;font-weight:700;cursor:pointer;transition:opacity .2s}
+.copy-btn{background:var(--navy);color:#fff;border:none;border-radius:5px;padding:5px 12px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;cursor:pointer;transition:opacity .2s}
 .copy-btn:hover{opacity:.8}
 .copy-btn.ok{background:var(--green)}
 .out-body{padding:16px;max-height:380px;overflow-y:auto}
@@ -98,7 +98,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .loading.on{display:block}
 .dn{display:none}
 
-/* ── WORKFLOW 02 — AUDIENCE GENERATOR STYLES ── */
+/* ── WF02 AUDIENCE GENERATOR ── */
 .ag-section{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
 .ag-sec-hdr{background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
 .ag-sec-body{padding:14px 16px}
@@ -152,6 +152,33 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ag-gen-btn:hover{opacity:.88}
 .ag-gen-btn:disabled{opacity:.35;cursor:not-allowed}
 .ag-note{font-size:10px;color:var(--muted);font-style:italic;margin-top:8px;font-family:'IBM Plex Mono',monospace}
+
+/* ── WF06 PPT NARRATIVE ── */
+.ppt-tone-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.ppt-tone{background:var(--white);border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:all .15s;position:relative}
+.ppt-tone::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:8px 0 0 8px;background:var(--border);transition:background .15s}
+.ppt-tone.on{border-color:var(--amber);background:#FFFBF2}
+.ppt-tone.on::before{background:var(--amber)}
+.ppt-tone-title{font-size:12px;font-weight:700;margin-bottom:3px}
+.ppt-tone-desc{font-size:11px;color:var(--muted);line-height:1.5}
+.ppt-slides{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
+.ppt-slide{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.ppt-slide-hdr{background:var(--navy);padding:10px 16px;display:flex;align-items:center;gap:10px}
+.ppt-slide-num{font-size:9px;font-family:'IBM Plex Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:.08em;flex-shrink:0}
+.ppt-slide-label{font-size:12px;font-weight:700;color:#fff;flex:1}
+.ppt-copy-slide{background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.4);color:var(--amber);font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;padding:3px 10px;border-radius:5px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.ppt-copy-slide:hover{background:rgba(245,166,35,.35)}
+.ppt-copy-slide.ok{background:rgba(39,80,10,.2);border-color:rgba(39,80,10,.4);color:var(--green)}
+.ppt-slide-body{padding:16px 18px}
+.ppt-headline{font-size:19px;font-weight:800;color:var(--navy);line-height:1.25;margin-bottom:9px;letter-spacing:-.01em}
+.ppt-intro{font-size:12px;color:#444;line-height:1.75;margin-bottom:12px;font-style:italic;border-left:3px solid var(--amber);padding-left:11px}
+.ppt-bullets{margin-bottom:12px}
+.ppt-bullet{display:flex;gap:9px;margin-bottom:7px;font-size:12px;line-height:1.65}
+.ppt-bullet-dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0;margin-top:6px}
+.ppt-close{font-size:12px;font-weight:700;color:var(--navy);background:var(--gray);border-radius:6px;padding:9px 13px;border-left:3px solid var(--navy)}
+.ppt-copy-all{width:100%;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-bottom:14px}
+.ppt-copy-all:hover{opacity:.88}
+.ppt-copy-all.ok{background:var(--green)}
 </style>
 </head>
 <body>
@@ -166,10 +193,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-family:monospace;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px"
       onkeydown="if(event.key==='Enter')checkAccess()">
     <div id="authErr" style="display:none;color:#F5A623;font-size:11px;font-family:monospace;margin-bottom:10px">Incorrect code — try again</div>
-    <button onclick="checkAccess()"
-      style="width:100%;background:#F5A623;color:#1a2332;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.02em">
-      Access →
-    </button>
+    <button onclick="checkAccess()" style="width:100%;background:#F5A623;color:#1a2332;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.02em">Access →</button>
   </div>
 </div>
 
@@ -238,6 +262,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Tom's pre-meeting brief — metrics, pressure points, the line that earns the room</div><span class="wf-tag">TOM'S BRIEF</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
     <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Rate Radar CSV</div><div class="wf-d">Top 20 competitors by vulnerability score — ready to drop into Rate Radar</div><span class="wf-tag">RATE RADAR</span></div>
+    <div class="wf" id="w6" onclick="selWf(6)"><div class="wf-n">06</div><div class="wf-t">PPT Narrative</div><div class="wf-d">AI-written slide copy — headline, spoken intro, bullets, close. Pick your tone.</div><span class="wf-tag">SLIDES · AI</span></div>
   </div>
 
   <div class="card card-pad dn" id="bsel">
@@ -245,86 +270,40 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <select class="inp" id="bselect" style="cursor:pointer"><option value="">— select a branch —</option></select>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════════
-       WORKFLOW 02 — AUDIENCE GENERATOR (replaces old text brief)
-  ══════════════════════════════════════════════════════════ -->
+  <!-- WF02 AUDIENCE GENERATOR -->
   <div class="dn" id="agWidget">
-
-    <!-- Config -->
     <div class="ag-section">
       <div class="ag-sec-hdr">Configure audience</div>
       <div class="ag-sec-body">
         <div class="ag-input-grid">
-          <div class="ag-field">
-            <label>Audience type</label>
-            <select id="agAudType" onchange="agCompute()">
-              <option value="both">Consumer + SMB</option>
-              <option value="consumer">Consumer only</option>
-              <option value="smb">SMB only</option>
-            </select>
-          </div>
-          <div class="ag-field">
-            <label>Max audiences for Pete</label>
-            <select id="agMaxAud">
-              <option value="2">2 audiences</option>
-              <option value="3" selected>3 audiences</option>
-              <option value="4">4 audiences</option>
-            </select>
-          </div>
-          <div class="ag-field">
-            <label>Zone focus</label>
-            <select id="agZoneFocus" onchange="agCompute()">
-              <option value="both" selected>Invest + Analyze</option>
-              <option value="invest">Invest only</option>
-            </select>
-          </div>
-          <div class="ag-field">
-            <label>CRM suppression list</label>
-            <select id="agCrm">
-              <option value="no">Not yet uploaded</option>
-              <option value="yes">Bank CRM provided</option>
-            </select>
-          </div>
+          <div class="ag-field"><label>Audience type</label><select id="agAudType" onchange="agCompute()"><option value="both">Consumer + SMB</option><option value="consumer">Consumer only</option><option value="smb">SMB only</option></select></div>
+          <div class="ag-field"><label>Max audiences for Pete</label><select id="agMaxAud"><option value="2">2 audiences</option><option value="3" selected>3 audiences</option><option value="4">4 audiences</option></select></div>
+          <div class="ag-field"><label>Zone focus</label><select id="agZoneFocus" onchange="agCompute()"><option value="both" selected>Invest + Analyze</option><option value="invest">Invest only</option></select></div>
+          <div class="ag-field"><label>CRM suppression list</label><select id="agCrm"><option value="no">Not yet uploaded</option><option value="yes">Bank CRM provided</option></select></div>
         </div>
       </div>
     </div>
-
-    <!-- Segment suggester -->
     <div class="ag-section">
-      <div class="ag-sec-hdr">
-        <span>Suggested Resonate segments</span>
-        <span id="agSegLabel" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span>
-      </div>
+      <div class="ag-sec-hdr"><span>Suggested Resonate segments</span><span id="agSegLabel" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></div>
       <div class="ag-sec-body">
         <div class="ag-summary" id="agSummary"></div>
         <div class="ag-seg-grid" id="agSegGrid"></div>
         <div class="ag-note" id="agNote"></div>
       </div>
     </div>
-
-    <!-- Generate -->
     <button class="ag-gen-btn" id="agGenBtn" onclick="agGenerate()">Generate Resonate audience brief for Pete →</button>
     <div class="loading" id="agLd"><span class="spin"></span>Building audience brief with AI...</div>
-
-    <!-- Output -->
     <div class="out-card dn" id="agOut">
-      <div class="out-hdr">
-        <div class="out-t">RESONATE AUDIENCE BRIEF</div>
-        <button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button>
-      </div>
+      <div class="out-hdr"><div class="out-t">RESONATE AUDIENCE BRIEF</div><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button></div>
       <div class="out-body"><div class="out-txt" id="agOutTxt"></div></div>
     </div>
+  </div>
 
-  </div><!-- /agWidget -->
-
-  <!-- Rate Radar Widget (Workflow 5) -->
+  <!-- WF05 RATE RADAR WIDGET -->
   <div class="dn" id="rrWidget">
     <div class="card" style="overflow:hidden;margin-bottom:14px">
       <div style="background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="color:#fff;font-size:15px;font-weight:700" id="rrTitle">—</div>
-          <div style="color:rgba(255,255,255,.4);font-size:10px;font-family:IBM Plex Mono,monospace" id="rrMeta">—</div>
-        </div>
+        <div><div style="color:#fff;font-size:15px;font-weight:700" id="rrTitle">—</div><div style="color:rgba(255,255,255,.4);font-size:10px;font-family:IBM Plex Mono,monospace" id="rrMeta">—</div></div>
         <button onclick="downloadRRcsv()" style="background:var(--amber);color:var(--navy);border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:IBM Plex Mono,monospace;letter-spacing:.04em">⬇ Download CSV for Rate Radar</button>
       </div>
       <div style="overflow-x:auto">
@@ -341,9 +320,40 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
           <tbody id="rrTbody"></tbody>
         </table>
       </div>
-      <div style="padding:10px 14px;background:#FFFBF2;border-top:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace;color:var(--muted)">
-        CSV format: bank_name, bank_url — ready to upload directly to Rate Radar · Missing URLs can be filled manually
+      <div style="padding:10px 14px;background:#FFFBF2;border-top:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace;color:var(--muted)">CSV format: bank_name, bank_url — ready to upload directly to Rate Radar · Missing URLs can be filled manually</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       WF06 — PPT NARRATIVE GENERATOR
+  ══════════════════════════════════════════════════════════ -->
+  <div class="dn" id="pptWidget">
+    <div class="card card-pad" style="margin-bottom:14px">
+      <div class="label" style="margin-bottom:10px">Select narrative tone</div>
+      <div class="ppt-tone-grid">
+        <div class="ppt-tone on" id="pt1" onclick="selPptTone(1)">
+          <div class="ppt-tone-title">🎯 Executive Boardroom</div>
+          <div class="ppt-tone-desc">Confident, strategic. Numbers drive the story. Written to be read aloud by leadership.</div>
+        </div>
+        <div class="ppt-tone" id="pt2" onclick="selPptTone(2)">
+          <div class="ppt-tone-title">📊 Analytical Consultant</div>
+          <div class="ppt-tone-desc">Data-forward, precise. Evidence speaks for itself. For a sophisticated financial audience.</div>
+        </div>
+        <div class="ppt-tone" id="pt3" onclick="selPptTone(3)">
+          <div class="ppt-tone-title">🔥 Sales Pitch</div>
+          <div class="ppt-tone-desc">Urgency-led, opportunity-focused. Built to create momentum and close the room.</div>
+        </div>
       </div>
+    </div>
+    <button class="gen-btn" id="pptGenBtn" onclick="pptGenerate()">Generate PPT Narrative →</button>
+    <div class="loading" id="pptLd"><span class="spin"></span><span id="pptLdMsg">Pulling BMAP data...</span></div>
+    <div class="dn" id="pptOut">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="label" style="margin-bottom:0">Generated Slides</div>
+        <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted)" id="pptOutMeta">—</div>
+      </div>
+      <div class="ppt-slides" id="pptSlides"></div>
+      <button class="ppt-copy-all" id="pptCopyAll" onclick="pptCopyAll()">Copy all slides to clipboard</button>
     </div>
   </div>
 
@@ -354,46 +364,32 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="out-body"><div class="out-txt" id="otxt"></div></div>
   </div>
 
-  <!-- Financial Brief Widget (Workflow 3) -->
+  <!-- WF03 FINANCIAL BRIEF -->
   <div class="dn" id="briefWidget">
     <div class="card" style="overflow:hidden;margin-bottom:14px">
       <div style="background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="color:#fff;font-size:15px;font-weight:700" id="bwName">—</div>
-          <div style="color:rgba(255,255,255,.4);font-size:10px;font-family:IBM Plex Mono,monospace" id="bwMeta">—</div>
-        </div>
+        <div><div style="color:#fff;font-size:15px;font-weight:700" id="bwName">—</div><div style="color:rgba(255,255,255,.4);font-size:10px;font-family:IBM Plex Mono,monospace" id="bwMeta">—</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap" id="bwBadges"></div>
       </div>
-      <div style="border-bottom:1px solid var(--border)">
-        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Performance</div>
-        <table style="width:100%;border-collapse:collapse" id="tPerf"></table>
-      </div>
-      <div style="border-bottom:1px solid var(--border)">
-        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Deposits & Growth</div>
-        <table style="width:100%;border-collapse:collapse" id="tDep"></table>
-      </div>
-      <div style="border-bottom:1px solid var(--border)">
-        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Funding Rates & Capital</div>
-        <table style="width:100%;border-collapse:collapse" id="tFund"></table>
-      </div>
-      <div>
-        <div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Network Intelligence (BMAP)</div>
-        <table style="width:100%;border-collapse:collapse" id="tNet"></table>
-      </div>
+      <div style="border-bottom:1px solid var(--border)"><div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Performance</div><table style="width:100%;border-collapse:collapse" id="tPerf"></table></div>
+      <div style="border-bottom:1px solid var(--border)"><div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Deposits & Growth</div><table style="width:100%;border-collapse:collapse" id="tDep"></table></div>
+      <div style="border-bottom:1px solid var(--border)"><div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Funding Rates & Capital</div><table style="width:100%;border-collapse:collapse" id="tFund"></table></div>
+      <div><div style="background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Network Intelligence (BMAP)</div><table style="width:100%;border-collapse:collapse" id="tNet"></table></div>
     </div>
     <div class="card" style="overflow:hidden;margin-bottom:14px">
       <div style="background:var(--navy);padding:10px 18px"><div style="color:#fff;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Tom's Briefing Note</div></div>
-      <div style="padding:16px 20px" id="briefNarrative">
-        <div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace"><span class="spin"></span>Generating briefing note...</div>
-      </div>
+      <div style="padding:16px 20px" id="briefNarrative"><div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace"><span class="spin"></span>Generating briefing note...</div></div>
     </div>
-    <button class="copy-btn" style="background:var(--amber);color:var(--navy);width:calc(100% - 0px);padding:12px;font-size:13px;font-weight:800;border-radius:9px;margin-bottom:12px" onclick="copyBrief()">Copy full brief to clipboard</button>
+    <button class="copy-btn" style="background:var(--amber);color:var(--navy);width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:9px;margin-bottom:12px" onclick="copyBrief()">Copy full brief to clipboard</button>
   </div>
 </div>
 
 <script>
 // ── ACCESS CONTROL ─────────────────────────────────────────────
 const ACCESS_TOKEN = 'verlocity2026';
+// ── ANTHROPIC API KEY ──────────────────────────────────────────
+const ANTHROPIC_KEY = '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';
+
 (function(){
   const stored = sessionStorage.getItem('bmap_access');
   if(stored === ACCESS_TOKEN){
@@ -419,6 +415,28 @@ const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
 let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
 
+// ── SHARED AI FETCH HELPER ─────────────────────────────────────
+async function aiCall(system, userMsg, max_tokens=800){
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens,
+      system,
+      messages:[{role:'user',content:userMsg}]
+    })
+  });
+  const data = await resp.json();
+  if(data.error) throw new Error(data.error.message);
+  return data.content?.find(b=>b.type==='text')?.text||'';
+}
+
 async function api(table,params){
   try{
     const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
@@ -435,10 +453,7 @@ const spill=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]|
 function hl(name,q){
   const words=q.trim().split(/\s+/).filter(w=>w.length>0);
   let h=name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  words.forEach(w=>{
-    const re=new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-    h=h.replace(re,'<mark>$1</mark>');
-  });
+  words.forEach(w=>{const re=new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');h=h.replace(re,'<mark>$1</mark>');});
   return h;
 }
 
@@ -453,34 +468,16 @@ async function doSearch(q){
   promises.push(api('dim_institutions',`institution_name=ilike.*${encodeURIComponent(q.trim())}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=30`));
   const results=await Promise.all(promises);
   results.forEach(arr=>{if(Array.isArray(arr))arr.forEach(b=>map.set(b.inst_key,b))});
-  const scored=[...map.values()].map(b=>{
-    const name=b.institution_name.toLowerCase();
-    const score=words.reduce((s,w)=>s+(name.includes(w.toLowerCase())?1:0),0);
-    return{...b,_score:score};
-  }).sort((a,b)=>b._score-a._score).slice(0,8);
+  const scored=[...map.values()].map(b=>{const name=b.institution_name.toLowerCase();const score=words.reduce((s,w)=>s+(name.includes(w.toLowerCase())?1:0),0);return{...b,_score:score};}).sort((a,b)=>b._score-a._score).slice(0,8);
   ddItems=scored;ddIdx=-1;
   if(!scored.length){dd.innerHTML='<div class="dd-msg">No results — try a shorter name</div>';return;}
-  dd.innerHTML=scored.map((b,i)=>`
-    <div class="dd-item" onmousedown="pick(${i})">
-      <div><div class="dd-name">${hl(b.institution_name,q)}</div>
-      <div class="dd-meta">${b.institution_type} · ${[b.city_hq,b.state_hq].filter(Boolean).join(', ')}</div></div>
-      <span style="font-size:10px;color:var(--muted)">→</span>
-    </div>`).join('');
+  dd.innerHTML=scored.map((b,i)=>`<div class="dd-item" onmousedown="pick(${i})"><div><div class="dd-name">${hl(b.institution_name,q)}</div><div class="dd-meta">${b.institution_type} · ${[b.city_hq,b.state_hq].filter(Boolean).join(', ')}</div></div><span style="font-size:10px;color:var(--muted)">→</span></div>`).join('');
 }
 
-function pick(i){
-  const b=ddItems[i];if(!b)return;
-  g('si').value=b.institution_name;
-  closeDd();selBank=b;loadBank(b.inst_key);
-}
+function pick(i){const b=ddItems[i];if(!b)return;g('si').value=b.institution_name;closeDd();selBank=b;loadBank(b.inst_key);}
 function closeDd(){g('dd').classList.remove('open');ddIdx=-1;}
 
-g('si').addEventListener('input',e=>{
-  clearTimeout(timer);
-  const v=e.target.value.trim();
-  if(v.length<2){closeDd();return;}
-  timer=setTimeout(()=>doSearch(v),250);
-});
+g('si').addEventListener('input',e=>{clearTimeout(timer);const v=e.target.value.trim();if(v.length<2){closeDd();return;}timer=setTimeout(()=>doSearch(v),250);});
 g('si').addEventListener('keydown',e=>{
   const items=g('dd').querySelectorAll('.dd-item');
   if(e.key==='ArrowDown'){e.preventDefault();ddIdx=Math.min(ddIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('hi',i===ddIdx));}
@@ -506,19 +503,11 @@ async function loadBank(ik){
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);
   set('sm',avg('market_growth_score').toFixed(1));set('sd',avg('inv_density_norm_winsor').toFixed(1));
   ['Invest','Analyze','Defend','Justify'].forEach((z,i)=>set(['zi','za','zd','zj'][i],rows.filter(r=>r.opportunity_zone===z).length));
-  g('br').innerHTML=allBr.slice(0,5).map(b=>`
-    <div class="br-row">
-      <span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span>
-      <span style="font-family:IBM Plex Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span>
-      <span style="font-family:IBM Plex Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span>
-      <span style="font-family:IBM Plex Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span>
-      <span><span class="spill ${spill(b.opportunity_zone)}">${b.opportunity_zone}</span></span>
-    </div>`).join('');
+  g('br').innerHTML=allBr.slice(0,5).map(b=>`<div class="br-row"><span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span><span style="font-family:IBM Plex Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span><span><span class="spill ${spill(b.opportunity_zone)}">${b.opportunity_zone}</span></span></div>`).join('');
   const t=tgt?.[0];
   set('tn',t?t.target_institution:'No network targets computed yet');
   set('tm',t?`${t.branches_in_radius} branches exposed · Vuln ${t.avg_vuln_score} · YoY ${(+t.avg_yoy_pct).toFixed(1)}% · ROA ${t.target_roa}% · Efficiency ${t.target_efficiency_ratio}%`:'Run populate_network_top_targets for this institution');
-  const sel=g('bselect');
-  sel.innerHTML='<option value="">— select a branch —</option>';
+  const sel=g('bselect');sel.innerHTML='<option value="">— select a branch —</option>';
   allBr.forEach(b=>{const o=document.createElement('option');o.value=b.uninumbr;o.textContent=`${b.namebr} — ${b.citybr}, ${b.stalpbr} (${(+b.opportunity_score).toFixed(1)})`;sel.appendChild(o);});
   show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
@@ -528,394 +517,254 @@ function selWf(n){
   selWfN=n;
   document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');
-  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');
+  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');hide('pptOut');
   g('agLd').classList.remove('on');
   if(n===2){hide('gb');hide('bsel');show('agWidget');agLoadAndCompute();return;}
   if(n===5){hide('gb');hide('bsel');loadRRWidget();return;}
   if(n===3){hide('gb');hide('bsel');renderBrief();return;}
+  if(n===6){hide('gb');hide('bsel');show('pptWidget');return;}
   show('gb');n===4?show('bsel'):hide('bsel');
 }
 
 // ══════════════════════════════════════════════════════════════
-// WORKFLOW 02 — AUDIENCE GENERATOR
+// WF06 — PPT NARRATIVE GENERATOR
 // ══════════════════════════════════════════════════════════════
+let pptToneN=1, pptSlides=[];
 
-// Full enriched data for WF02 (pulled once per bank)
-let agBranchData = null;
-
-async function agLoadAndCompute(){
-  if(!selBank||!bankData) return;
-  const {ik} = bankData;
-
-  // Pull enriched branch data including SMB columns
-  if(!agBranchData || agBranchData.ik !== ik){
-    agBranchData = null;
-    const rows = await api('branch_opportunity_base',
-      `inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,opportunity_zone,opportunity_score,` +
-      `latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,` +
-      `total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,` +
-      `estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
-    agBranchData = {ik, rows};
-  }
-  agCompute();
+function selPptTone(n){
+  pptToneN=n;
+  [1,2,3].forEach(i=>g('pt'+i).classList.toggle('on',i===n));
 }
 
-const AG_SEGS = [
-  {
-    key:'switcher', name:'Likely bank switcher',
-    desc:'Planning to move primary bank in 3–12 months',
-    logic: d => {
-      const gap = d.bankYoy - d.compYoy;
-      if(gap <= -8) return {rank:'primary', why:`Severe ${gap.toFixed(1)}pp deposit gap — large switcher pool in market`};
-      if(gap <= -3) return {rank:'primary', why:`Bank losing ${Math.abs(gap).toFixed(1)}pp to competitors`};
-      if(gap <  0)  return {rank:'secondary', why:`Slight negative gap vs competitors`};
-      return {rank:'off', why:`Bank growing ahead of market`};
-    },
-    rAI: d => `People in [METRO] planning to switch their primary bank in the next 3–12 months, household income above $${Math.max(50,Math.round(d.income-20))}k`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — Invest zone markets`},
-      {k:'Intent signal',v:`Likely to switch banks — 3 to 12 months`},
-      {k:'Household income',v:`$${Math.max(50,Math.round(d.income-20))}k+`},
-      {k:'Audience type',v:d.audType==='smb'?'Business':'Consumer'},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  },
-  {
-    key:'cd', name:'CD opener',
-    desc:'Actively shopping for a certificate of deposit',
-    logic: d => {
-      if(d.income >= 80 && d.zhviYoy >= 3) return {rank:'primary', why:`Income $${Math.round(d.income)}k + rising home values ($${Math.round(d.zhviYoy)}% YoY) — wealth accumulation drives CD demand`};
-      if(d.income >= 65) return {rank:'primary', why:`Income profile supports CD commitment`};
-      if(d.income >= 50) return {rank:'secondary', why:`Mid-income bracket — CD viable with rate-first messaging`};
-      return {rank:'off', why:`Income below CD threshold`};
-    },
-    rAI: d => `People in [METRO] planning to open a certificate of deposit in the next 6 months, household income $${Math.round(d.income)}k or higher, motivated by locking in a competitive rate`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — Invest + Analyze markets`},
-      {k:'Intent signal',v:`Planning to open a CD — 3 to 6 months`},
-      {k:'Household income',v:`$${Math.round(d.income)}k+`},
-      {k:'Home value (ZHVI)',v:`$${Math.round(d.zhvi)}k avg (+${d.zhviYoy.toFixed(1)}% YoY)`},
-      {k:'Audience type',v:`Consumer`},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  },
-  {
-    key:'hys', name:'High-yield savings seeker',
-    desc:'Wants better APY without locking into a term',
-    logic: d => {
-      const gap = d.bankYoy - d.compYoy;
-      if(gap < -3 && d.income >= 60) return {rank:'primary', why:`Rate-sensitive market + competitor deposit growth — HYS is the entry hook`};
-      if(d.income >= 55) return {rank:'secondary', why:`Middle-income market responds to savings rate messaging`};
-      return {rank:'off', why:`Lower income or growing market`};
-    },
-    rAI: d => `People in [METRO] looking for a high-yield savings account, dissatisfied with their current bank's savings rate`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — Invest + Analyze markets`},
-      {k:'Intent signal',v:`Seeking high-yield savings / money market account`},
-      {k:'Household income',v:`$${Math.round(Math.max(55,d.income-15))}k+`},
-      {k:'Behavioral',v:`Currently holds savings at a competing institution`},
-      {k:'Audience type',v:`Consumer`},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  },
-  {
-    key:'checking', name:'New checking opener',
-    desc:'Opening or switching primary checking account',
-    logic: d => {
-      if(d.oppScore >= 55) return {rank:'primary', why:`High opportunity score ${Math.round(d.oppScore)} — active growth market, checking anchors the full relationship`};
-      if(d.oppScore >= 35) return {rank:'primary', why:`Solid opportunity score — checking is the strongest relationship-builder`};
-      if(d.oppScore >= 20) return {rank:'secondary', why:`Moderate score — checking viable but higher CAC expected`};
-      return {rank:'off', why:`Low opportunity score — acquisition cost may not justify`};
-    },
-    rAI: d => `People in [METRO] likely to open a new checking account or switch their primary checking account within 6 months`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — Invest zone priority`},
-      {k:'Intent signal',v:`Likely to open new checking / switch primary bank`},
-      {k:'Opportunity score',v:`${Math.round(d.oppScore)}/100 — active growth market`},
-      {k:'Household income',v:`All income bands — relationship product`},
-      {k:'Audience type',v:`Consumer`},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  },
-  {
-    key:'smb', name:'SMB banking decision-maker',
-    desc:'Owner or CFO evaluating business checking or sweep account',
-    logic: d => {
-      if(d.audType === 'consumer') return {rank:'off', why:`Consumer-only audience selected`};
-      const sz = d.smbZone;
-      if(sz === 'Top' || d.audType === 'smb') return {rank:'primary', why:`SMB zone: ${sz||'Top'} · ${d.smbEstab} avg establishments · ${d.smbDensity}/1k pop`};
-      if(sz === 'High') return {rank:'secondary', why:`SMB zone: High · ${d.smbEstab} establishments — solid business presence`};
-      if(sz === 'Medium') return {rank:'secondary', why:`SMB zone: Medium — include alongside consumer targeting`};
-      return {rank:'off', why:`SMB zone: Low — consumer-first recommended`};
-    },
-    rAI: d => `Small business owners or CFOs in [METRO] evaluating business checking, business savings, or sweep accounts at a community bank`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — SMB zone ${d.smbZone||'—'}`},
-      {k:'Intent signal',v:`Evaluating business banking options`},
-      {k:'Occupation',v:`Small business owner / CFO / financial decision-maker`},
-      {k:'Business size',v:`1–499 employees (SMB)`},
-      {k:'SMB density',v:`${d.smbEstab} avg establishments · ${d.smbDensity}/1k pop`},
-      {k:'Audience type',v:`Business`},
-      {k:'Suppress',v:`Bank CRM list — existing business accounts`},
-    ]
-  },
-  {
-    key:'wealth', name:'Wealth consolidator',
-    desc:'Moving assets to a single trusted institution',
-    logic: d => {
-      if(d.income >= 100 && d.zhvi >= 450) return {rank:'primary', why:`High income $${Math.round(d.income)}k + home value $${Math.round(d.zhvi)}k — wealth consolidation top motive`};
-      if(d.income >= 85 && d.zhviYoy >= 5) return {rank:'secondary', why:`Rising wealth market — consolidation opportunity growing`};
-      if(d.income >= 85) return {rank:'secondary', why:`Income supports wealth consolidation messaging`};
-      return {rank:'off', why:`Income/wealth below consolidation threshold`};
-    },
-    rAI: d => `People in [METRO] with household income above $${Math.round(Math.max(80,d.income))}k consolidating financial accounts into a single trusted community bank`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — highest ZHVI markets`},
-      {k:'Intent signal',v:`Consolidating accounts / moving assets to single institution`},
-      {k:'Household income',v:`$${Math.round(Math.max(80,d.income))}k+`},
-      {k:'Home value (ZHVI)',v:`$${Math.round(d.zhvi)}k+ avg`},
-      {k:'Life stage',v:`45–65, pre-retirement or wealth accumulation`},
-      {k:'Audience type',v:`Consumer`},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  },
-  {
-    key:'digital', name:'Digital-first big bank leaver',
-    desc:'Leaving a national bank for a community alternative',
-    logic: d => {
-      const gap = d.bankYoy - d.compYoy;
-      if(d.investBr >= 2 && gap < -2) return {rank:'primary', why:`${d.investBr} Invest branches + competitor growth — digital switchers are the addressable pool`};
-      if(d.investBr >= 1 && gap < 0)  return {rank:'primary', why:`Invest zone presence + negative gap — community bank differentiation works here`};
-      if(d.investBr >= 1)             return {rank:'secondary', why:`Invest zone footprint — digital-first messaging can capture community preference`};
-      return {rank:'off', why:`Limited Invest zone presence reduces addressable pool`};
-    },
-    rAI: d => `People in [METRO] who are current customers of national banks (Chase, BofA, Wells Fargo, Citizens) and are considering switching to a local community bank`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — Invest zone`},
-      {k:'Intent signal',v:`Likely to switch from national bank to community/regional bank`},
-      {k:'Current institution',v:`Chase, Bank of America, Wells Fargo, Citizens`},
-      {k:'Household income',v:`$${Math.round(d.income)}k avg — broad targeting`},
-      {k:'Audience type',v:`Consumer`},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  },
-  {
-    key:'rate', name:'Rate-sensitive depositor',
-    desc:'APY-driven — shops rates actively across institutions',
-    logic: d => {
-      const gap = d.bankYoy - d.compYoy;
-      if(gap <= -8) return {rank:'primary', why:`Severe deposit gap ${gap.toFixed(1)}pp — market is actively rate-shopping`};
-      if(gap <= -4) return {rank:'primary', why:`Significant negative gap — rate sensitivity is the primary churn driver`};
-      if(gap <  0)  return {rank:'secondary', why:`Mild negative gap — rate messaging resonates with a segment`};
-      return {rank:'off', why:`Bank holding or growing share`};
-    },
-    rAI: d => `People in [METRO] actively comparing savings and CD rates across banks, likely to move money for a better APY offer`,
-    params: d => [
-      {k:'Geography',v:`[METRO] ZIPs — all Invest/Analyze markets`},
-      {k:'Intent signal',v:`Actively rate-shopping — savings and CD comparison behavior`},
-      {k:'Deposit gap signal',v:`Bank ${(d.bankYoy-d.compYoy).toFixed(1)}pp behind competitors`},
-      {k:'Household income',v:`$${Math.round(d.income*0.8)}k+ — savers with balance to move`},
-      {k:'Audience type',v:`Consumer`},
-      {k:'Suppress',v:`Bank CRM list — existing customers`},
-    ]
-  }
-];
-
-function agAvg(rows, col){
-  const vals = rows.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));
-  return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : 0;
+function pptTonePrompt(){
+  return [
+    `You are writing boardroom-level executive slide copy. Tone: confident, strategic, authoritative. Numbers anchor every claim. This will be read aloud by a senior executive. No hedging. No filler. Every sentence earns its place.`,
+    `You are writing analytical consulting slide copy. Tone: precise, methodical, evidence-led. The data does the persuading. Present it with clarity and rigor for a sophisticated financial audience who will scrutinize every number.`,
+    `You are writing high-urgency sales pitch slide copy. Tone: momentum-building, opportunity-forward, assertive. Frame every insight as an action the audience should take now. Build toward a clear ask. Move the room from curious to committed.`
+  ][pptToneN-1];
 }
 
-function agTopSmbZone(rows){
-  const zones = rows.map(r=>r.smb_zone).filter(Boolean);
-  if(!zones.length) return null;
-  const counts = {};
-  zones.forEach(z=>counts[z]=(counts[z]||0)+1);
-  const order = {Top:4,High:3,Medium:2,Low:1};
-  return Object.entries(counts).sort((a,b)=>(order[b[0]]||0)-(order[a[0]]||0))[0]?.[0]||null;
-}
-
-function agTopMetro(rows){
-  const invest = rows.filter(r=>r.opportunity_zone==='Invest');
-  const top = (invest.length?invest:rows).sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0))[0];
-  return top?`${top.citybr}, ${top.stalpbr}`:'priority market';
-}
-
-function agCompute(){
-  if(!agBranchData) return;
-  const allRows = agBranchData.rows;
-  const audType   = g('agAudType').value;
-  const zoneFocus = g('agZoneFocus').value;
-
-  const focusRows = allRows.filter(r=>
-    zoneFocus==='invest'
-      ? r.opportunity_zone==='Invest'
-      : r.opportunity_zone==='Invest'||r.opportunity_zone==='Analyze'
-  );
-  if(!focusRows.length) return;
-
-  const d = {
-    bankYoy:   agAvg(focusRows,'yoy_deposits')*100,
-    compYoy:   agAvg(focusRows,'avg_comp_yoy')*100,
-    oppScore:  agAvg(focusRows,'opportunity_score'),
-    investBr:  allRows.filter(r=>r.opportunity_zone==='Invest').length,
-    income:    agAvg(focusRows,'household_income')/1000,
-    zhvi:      agAvg(focusRows,'zhvi')/1000,
-    zhviYoy:   agAvg(focusRows,'zhvi_yoy_pct'),
-    smbZone:   agTopSmbZone(focusRows),
-    smbEstab:  Math.round(agAvg(focusRows,'smb_establishments')),
-    smbDensity:agAvg(focusRows,'estab_per_1k_pop').toFixed(1),
-    audType
-  };
-
-  const gap = d.bankYoy - d.compYoy;
-  const gapCls = gap<-5?'bad':gap<0?'warn':'good';
-  const scoreCls = d.oppScore>=55?'good':d.oppScore>=35?'warn':'bad';
-  const smbPill = d.smbZone
-    ? `<span class="ag-smb-pill ag-smb-${d.smbZone.toLowerCase()}">${d.smbZone}</span>`
-    : `<span class="ag-smb-pill ag-smb-medium">—</span>`;
-
-  g('agSummary').innerHTML=`
-    <div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div>
-    <div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div>
-    <div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div>
-    <div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div>
-    <div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>
-  `;
-
-  const results = AG_SEGS.map(s=>({...s,result:s.logic(d)}))
-    .sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
-
-  const primary   = results.filter(r=>r.result.rank==='primary');
-  const secondary = results.filter(r=>r.result.rank==='secondary');
-  g('agSegLabel').textContent=`${primary.length} primary · ${secondary.length} secondary`;
-
-  const metro = agTopMetro(focusRows);
-  g('agSegGrid').innerHTML = results.map((s,idx)=>{
-    const r=s.result;
-    const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
-    const badge=r.rank==='primary'?'<span class="ag-badge bp">Primary</span>':
-                r.rank==='secondary'?'<span class="ag-badge bs">Secondary</span>':
-                '<span class="ag-badge bo">Not recommended</span>';
-    const raiBlock = r.rank!=='off' ? `<div class="ag-rai"><span class="ag-rai-lbl">rAI prompt — paste into Resonate Ignite</span>"${s.rAI(d).replace('[METRO]',metro)}"</div>` : '';
-    const paramsBlock = (r.rank!=='off' && s.params) ? (() => {
-      const rows = s.params(d).map(p=>`<div class="ag-param-row"><span class="ag-param-k">${p.k}</span><span class="ag-param-v">${p.v}</span></div>`).join('');
-      return `<div class="ag-params-toggle" onclick="agToggleParams(this)" data-idx="${idx}">▸ Manual build values</div><div class="ag-params-body">${rows}</div>`;
-    })() : '';
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${raiBlock}${paramsBlock}</div>`;
-  }).join('');
-
-  const hasSmbData = focusRows.some(r=>r.smb_index!=null);
-  g('agNote').textContent = hasSmbData
-    ? `SMB index from real Census Business Patterns data (vw_smb_index_by_zip). ${d.smbEstab} avg establishments in priority markets.`
-    : `SMB index unavailable — using income/ZHVI proxy. Run vw_smb_index_by_zip in Supabase to upgrade.`;
-
-  // Store for brief generation
-  window._agState = {d, results, primary, secondary, focusRows, metro};
-}
-
-function agToggleParams(el){
-  const body = el.nextElementSibling;
-  const open = body.classList.toggle('open');
-  el.textContent = (open ? '▾' : '▸') + ' Manual build values';
-}
-
-async function agGenerate(){
-  const s = window._agState;
-  if(!s) return;
-  g('agGenBtn').disabled=true;
-  g('agLd').classList.add('on');
-  hide('agOut');
-
-  const {d, primary, secondary, focusRows, metro} = s;
-  const maxAud = parseInt(g('agMaxAud').value);
-  const crm    = g('agCrm').value;
-  const {rows,ik} = bankData;
-
-  const investZips = focusRows
-    .filter(r=>r.opportunity_zone==='Invest')
-    .slice(0,6)
-    .map(r=>`${r.citybr} ${r.zipbr||''}`.trim())
-    .join(', ');
-
-  const primarySegs   = primary.slice(0, maxAud);
-  const secondarySegs = secondary.slice(0, Math.max(0, maxAud - primarySegs.length));
-
-  const context=`
-BANK: ${rows[0]?.namefull}
-Total branches: ${rows.length} | Invest zone: ${d.investBr} branches
-Deposit gap vs competitors: ${(d.bankYoy-d.compYoy).toFixed(1)}pp
-Bank deposit YoY: ${d.bankYoy.toFixed(1)}% | Competitor avg YoY: ${d.compYoy.toFixed(1)}%
-Avg opportunity score: ${Math.round(d.oppScore)}/100
-Avg household income: $${Math.round(d.income)}k
-Avg home value (ZHVI): $${Math.round(d.zhvi)}k (${d.zhviYoy.toFixed(1)}% YoY)
-SMB zone: ${d.smbZone||'—'} | Avg establishments: ${d.smbEstab} | Density: ${d.smbDensity}/1k pop
-Top metro: ${metro}
-Priority ZIPs (Invest zone): ${investZips||'—'}
-Audience type: ${d.audType}
-CRM suppression: ${crm==='yes'?'provided — existing customers will be excluded from all audiences':'not yet provided — flag as required before Pete activates'}
-
-PRIMARY SEGMENTS (${primarySegs.length}):
-${primarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}\n   rAI prompt: "${seg.rAI(d).replace('[METRO]',metro)}"`).join('\n')||'None'}
-
-SECONDARY SEGMENTS (${secondarySegs.length}):
-${secondarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}\n   rAI prompt: "${seg.rAI(d).replace('[METRO]',metro)}"`).join('\n')||'None within audience cap'}
-`.trim();
+async function pptGenerate(){
+  if(!selBank||!bankData)return;
+  g('pptGenBtn').disabled=true;
+  hide('pptOut');
+  const ld=g('pptLd');ld.classList.add('on');
+  g('pptLdMsg').textContent='Pulling BMAP data...';
 
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1400,
-        system:`You are the Verlocity audience strategist. Build a Resonate audience brief for Pete Vazquez at Resonate.
-Pete will use rAI natural language prompts in Resonate Ignite to build targetable audience IDs.
-Write in clear, structured format. Be specific with data. No fluff. Direct colleague tone.
-Return ONLY the brief — no preamble outside the brief itself.`,
-        messages:[{role:'user',content:`Build a complete Resonate audience brief from these BMAP signals:\n\n${context}\n\nBrief must include:\n1. BANK SNAPSHOT — 3 lines max, key signals only\n2. PRIORITY GEOGRAPHY — top markets with ZIPs for geo targeting\n3. AUDIENCES (${maxAud} total) — for each: name, who they are, BMAP data rationale, exact rAI prompt Pete types into Ignite, estimated reach guidance, product angle\n4. SUPPRESSION — ${crm==='yes'?'CRM provided — remind Pete to upload to Ignite before activation':'CRM not yet provided — list as required step before activation'}\n5. NEXT STEPS — 3 bullet actions for Pete\n\nTone: direct, data-driven, colleague-to-colleague.`}]
-      })
-    });
-    const data=await resp.json();
-    const txt=data.content?.find(b=>b.type==='text')?.text||'Error generating brief.';
-    g('agOutTxt').textContent=txt;
-    show('agOut');
-  }catch(e){
-    g('agOutTxt').textContent='Error connecting to AI. Please try again.';
-    show('agOut');
-  }
-  g('agLd').classList.remove('on');
-  g('agGenBtn').disabled=false;
+    const {rows,allBr:br,tgt,ik}=bankData;
+    const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
+    const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
+    const avgYoY=(avg('yoy_deposits')*100).toFixed(2);
+    const avgComp=(avg('avg_comp_yoy')*100).toFixed(2);
+    const invest=rows.filter(r=>r.opportunity_zone==='Invest').length;
+    const analyze=rows.filter(r=>r.opportunity_zone==='Analyze').length;
+    const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
+    const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
+    const t=tgt;
+    const top3Score=br.slice(0,3);
+    const top3Invest=br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
+    const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
+    const top3P1=br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
+    const topJustify=br.filter(b=>b.opportunity_zone==='Justify').sort((a,b2)=>b2.latest_dep-a.latest_dep).slice(0,3);
+    const brLine=b=>`${b.namebr} (${b.citybr}, ${b.stalpbr}) — Score: ${(+b.opportunity_score||0).toFixed(1)}, $${(b.latest_dep/1e6).toFixed(0)}M, YoY: ${(+b.yoy_deposits*100).toFixed(1)}%`;
+    const totalMkt=rows.reduce((a,r)=>a+(+r.total_deposits_10mi||0),0);
+    const mktShare=totalMkt>0?((tot/totalMkt)*100).toFixed(1):'—';
+    const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
+
+    const context=`BMAP DATA — ${rows[0]?.namefull}
+Total branches: ${rows.length} | Total deposits: $${(tot/1e9).toFixed(2)}B
+Market share (10mi): ${mktShare}% of $${(totalMkt/1e9).toFixed(0)}B addressable
+Avg opportunity score: ${avg('opportunity_score').toFixed(1)}/100
+Deposit YoY: ${avgYoY}% | Competitor avg: ${avgComp}% | Gap: ${(avgYoY-avgComp).toFixed(2)}pp
+
+ZONES: Invest ${invest} (${Math.round(invest/rows.length*100)}%) | Analyze ${analyze} | Defend ${defend} | Justify ${justify} (${Math.round(justify/rows.length*100)}%)
+
+TOP 3 BY SCORE: ${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join(' | ')}
+TOP INVEST: ${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join(' | '):'None'}
+TOP Q2: ${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join(' | '):'None'}
+PRIORITY T1: ${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join(' | '):'None'}
+JUSTIFY RISK: ${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join(' | '):'None'}
+
+FINANCIALS (${fin.period||'Q4 2025'}): ROA ${fin.roa||'—'}% | NIM ${fin.nim||'—'}% | Efficiency ${fin.efficiency_ratio||'—'}%
+Net income YoY: ${fin.net_income_yoy_pct||'—'}% | CoF: ${fin.cost_of_funds_pct||'—'}% | Tier 1: ${fin.tier1_capital_pct||'—'}%
+Deposits YoY: ${fin.dep_yoy_pct||'—'}% | QoQ: ${fin.dep_qoq_pct||'—'}%
+
+TOP COMPETITOR: ${t?`${t.target_institution} — ${t.branches_in_radius} branches exposed, Vuln ${t.avg_vuln_score}, YoY ${(+t.avg_yoy_pct).toFixed(1)}%, ROA ${t.target_roa}%`:'Not computed'}`;
+
+    g('pptLdMsg').textContent='Generating slide narratives with AI...';
+
+    const systemPrompt=`${pptTonePrompt()}
+
+You will receive BMAP market intelligence data for a bank. Write complete, presentation-ready slide copy for a 4-slide follow-up deck delivered AFTER the initial pitch.
+
+Return ONLY a valid JSON array of exactly 4 objects. No markdown, no preamble. Each object:
+{
+  "slide_number": 1,
+  "slide_label": "SHORT LABEL (e.g. THE OPPORTUNITY)",
+  "headline": "Bold punchy headline — max 10 words",
+  "spoken_intro": "2 sentences the presenter says before the bullets. Specific, data-grounded.",
+  "bullets": ["Bullet 1 with real branch name/number/figure","Bullet 2 competitive context","Bullet 3 implication"],
+  "closing_line": "One sentence punchline — what this slide proves and why it matters."
 }
 
-function agCopyOut(){
-  navigator.clipboard.writeText(g('agOutTxt').textContent).then(()=>{
-    g('agCb').textContent='✓ Copied';g('agCb').classList.add('ok');
-    setTimeout(()=>{g('agCb').textContent='Copy to clipboard';g('agCb').classList.remove('ok');},2000);
+SLIDE 1 — THE OPPORTUNITY: Market gap, zone distribution, market share, competitor gap.
+SLIDE 2 — WHERE TO ACT: Name top 2-3 branches specifically (name + city). Use Invest zone and Q2 data.
+SLIDE 3 — COMPETITIVE POSITION: Financial health + competitor vulnerability + top target competitor named.
+SLIDE 4 — NEXT STEPS: Priority Tier 1 branches + Justify zone risk. Frame as urgent prioritized actions.
+
+Rules: Always name specific branches with city. Always include real numbers. Max 3 bullets. No methodology. No "BMAP shows that".`;
+
+    const raw=await aiCall(systemPrompt, `Generate the 4-slide PPT narrative:\n\n${context}`, 2000);
+    const cleaned=raw.replace(/```json|```/g,'').trim();
+    pptSlides=JSON.parse(cleaned);
+    pptRender();
+
+  }catch(e){
+    console.error(e);
+    alert('Error generating narrative: '+e.message);
+  }finally{
+    ld.classList.remove('on');
+    g('pptGenBtn').disabled=false;
+  }
+}
+
+function escH(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function pptRender(){
+  const {rows}=bankData;
+  const toneLabels=['Executive Boardroom','Analytical Consultant','Sales Pitch'];
+  g('pptOutMeta').textContent=`${rows[0]?.namefull} · ${toneLabels[pptToneN-1]} · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+  g('pptSlides').innerHTML=pptSlides.map((s,i)=>`
+    <div class="ppt-slide">
+      <div class="ppt-slide-hdr">
+        <span class="ppt-slide-num">SLIDE ${s.slide_number} / ${pptSlides.length}</span>
+        <span class="ppt-slide-label">${escH(s.slide_label)}</span>
+        <button class="ppt-copy-slide" id="pcs${i}" onclick="pptCopySlide(${i})">Copy slide</button>
+      </div>
+      <div class="ppt-slide-body">
+        <div class="ppt-headline">${escH(s.headline)}</div>
+        <div class="ppt-intro">${escH(s.spoken_intro)}</div>
+        <div class="ppt-bullets">${(s.bullets||[]).map(b=>`<div class="ppt-bullet"><div class="ppt-bullet-dot"></div><div>${escH(b)}</div></div>`).join('')}</div>
+        <div class="ppt-close">${escH(s.closing_line)}</div>
+      </div>
+    </div>`).join('');
+  show('pptOut');
+  g('pptOut').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function pptSlideText(s){
+  return [`SLIDE ${s.slide_number} — ${s.slide_label}`,'',`HEADLINE: ${s.headline}`,'',`INTRO:`,s.spoken_intro,'',`BULLETS:`,
+    ...(s.bullets||[]).map(b=>`• ${b}`),'',`CLOSE: ${s.closing_line}`].join('\n');
+}
+
+function pptCopySlide(i){
+  navigator.clipboard.writeText(pptSlideText(pptSlides[i])).then(()=>{
+    const btn=g('pcs'+i);btn.textContent='✓ Copied';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='Copy slide';btn.classList.remove('ok');},2000);
+  });
+}
+
+function pptCopyAll(){
+  const text=pptSlides.map(s=>pptSlideText(s)).join('\n\n'+'─'.repeat(50)+'\n\n');
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=g('pptCopyAll');btn.textContent='✓ All slides copied';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='Copy all slides to clipboard';btn.classList.remove('ok');},2500);
   });
 }
 
 // ══════════════════════════════════════════════════════════════
-// RATE RADAR WIDGET (Workflow 5) — unchanged
+// WF02 — AUDIENCE GENERATOR (unchanged from original)
+// ══════════════════════════════════════════════════════════════
+let agBranchData=null;
+async function agLoadAndCompute(){
+  if(!selBank||!bankData)return;
+  const{ik}=bankData;
+  if(!agBranchData||agBranchData.ik!==ik){
+    agBranchData=null;
+    const rows=await api('branch_opportunity_base',`inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
+    agBranchData={ik,rows};
+  }
+  agCompute();
+}
+
+const AG_SEGS=[
+  {key:'switcher',name:'Likely bank switcher',desc:'Planning to move primary bank in 3–12 months',logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<=-8)return{rank:'primary',why:`Severe ${gap.toFixed(1)}pp deposit gap — large switcher pool in market`};if(gap<=-3)return{rank:'primary',why:`Bank losing ${Math.abs(gap).toFixed(1)}pp to competitors`};if(gap<0)return{rank:'secondary',why:`Slight negative gap vs competitors`};return{rank:'off',why:`Bank growing ahead of market`};},rAI:d=>`People in [METRO] planning to switch their primary bank in the next 3–12 months, household income above $${Math.max(50,Math.round(d.income-20))}k`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — Invest zone markets`},{k:'Intent signal',v:`Likely to switch banks — 3 to 12 months`},{k:'Household income',v:`$${Math.max(50,Math.round(d.income-20))}k+`},{k:'Audience type',v:d.audType==='smb'?'Business':'Consumer'},{k:'Suppress',v:`Bank CRM list — existing customers`}]},
+  {key:'cd',name:'CD opener',desc:'Actively shopping for a certificate of deposit',logic:d=>{if(d.income>=80&&d.zhviYoy>=3)return{rank:'primary',why:`Income $${Math.round(d.income)}k + rising home values (${Math.round(d.zhviYoy)}% YoY) — wealth accumulation drives CD demand`};if(d.income>=65)return{rank:'primary',why:`Income profile supports CD commitment`};if(d.income>=50)return{rank:'secondary',why:`Mid-income bracket — CD viable with rate-first messaging`};return{rank:'off',why:`Income below CD threshold`};},rAI:d=>`People in [METRO] planning to open a certificate of deposit in the next 6 months, household income $${Math.round(d.income)}k or higher`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — Invest + Analyze markets`},{k:'Intent signal',v:`Planning to open a CD — 3 to 6 months`},{k:'Household income',v:`$${Math.round(d.income)}k+`},{k:'Home value (ZHVI)',v:`$${Math.round(d.zhvi)}k avg (+${d.zhviYoy.toFixed(1)}% YoY)`},{k:'Audience type',v:`Consumer`},{k:'Suppress',v:`Bank CRM list`}]},
+  {key:'hys',name:'High-yield savings seeker',desc:'Wants better APY without locking into a term',logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<-3&&d.income>=60)return{rank:'primary',why:`Rate-sensitive market + competitor deposit growth — HYS is the entry hook`};if(d.income>=55)return{rank:'secondary',why:`Middle-income market responds to savings rate messaging`};return{rank:'off',why:`Lower income or growing market`};},rAI:d=>`People in [METRO] looking for a high-yield savings account, dissatisfied with their current bank's savings rate`,params:d=>[{k:'Geography',v:`[METRO] ZIPs`},{k:'Intent signal',v:`Seeking high-yield savings / money market`},{k:'Household income',v:`$${Math.round(Math.max(55,d.income-15))}k+`},{k:'Suppress',v:`Bank CRM list`}]},
+  {key:'checking',name:'New checking opener',desc:'Opening or switching primary checking account',logic:d=>{if(d.oppScore>=55)return{rank:'primary',why:`High opportunity score ${Math.round(d.oppScore)} — active growth market`};if(d.oppScore>=35)return{rank:'primary',why:`Solid opportunity score — checking anchors the relationship`};if(d.oppScore>=20)return{rank:'secondary',why:`Moderate score — checking viable but higher CAC`};return{rank:'off',why:`Low opportunity score`};},rAI:d=>`People in [METRO] likely to open a new checking account or switch primary bank within 6 months`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — Invest zone`},{k:'Intent signal',v:`Likely to open new checking`},{k:'Opp score',v:`${Math.round(d.oppScore)}/100`},{k:'Suppress',v:`Bank CRM list`}]},
+  {key:'smb',name:'SMB banking decision-maker',desc:'Owner or CFO evaluating business checking or sweep account',logic:d=>{if(d.audType==='consumer')return{rank:'off',why:`Consumer-only audience selected`};const sz=d.smbZone;if(sz==='Top'||d.audType==='smb')return{rank:'primary',why:`SMB zone: ${sz||'Top'} · ${d.smbEstab} avg establishments · ${d.smbDensity}/1k pop`};if(sz==='High')return{rank:'secondary',why:`SMB zone: High — solid business presence`};if(sz==='Medium')return{rank:'secondary',why:`SMB zone: Medium — include alongside consumer`};return{rank:'off',why:`SMB zone: Low — consumer-first recommended`};},rAI:d=>`Small business owners or CFOs in [METRO] evaluating business checking, savings, or sweep accounts at a community bank`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — SMB zone ${d.smbZone||'—'}`},{k:'Intent signal',v:`Evaluating business banking`},{k:'Occupation',v:`Small business owner / CFO`},{k:'SMB density',v:`${d.smbEstab} avg establishments`},{k:'Suppress',v:`Bank CRM — existing business accounts`}]},
+  {key:'wealth',name:'Wealth consolidator',desc:'Moving assets to a single trusted institution',logic:d=>{if(d.income>=100&&d.zhvi>=450)return{rank:'primary',why:`High income $${Math.round(d.income)}k + home value $${Math.round(d.zhvi)}k — wealth consolidation top motive`};if(d.income>=85&&d.zhviYoy>=5)return{rank:'secondary',why:`Rising wealth market`};if(d.income>=85)return{rank:'secondary',why:`Income supports wealth consolidation`};return{rank:'off',why:`Income/wealth below threshold`};},rAI:d=>`People in [METRO] with income above $${Math.round(Math.max(80,d.income))}k consolidating accounts into a single trusted community bank`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — highest ZHVI`},{k:'Household income',v:`$${Math.round(Math.max(80,d.income))}k+`},{k:'Life stage',v:`45–65, pre-retirement`},{k:'Suppress',v:`Bank CRM list`}]},
+  {key:'digital',name:'Digital-first big bank leaver',desc:'Leaving a national bank for a community alternative',logic:d=>{const gap=d.bankYoy-d.compYoy;if(d.investBr>=2&&gap<-2)return{rank:'primary',why:`${d.investBr} Invest branches + competitor growth`};if(d.investBr>=1&&gap<0)return{rank:'primary',why:`Invest zone + negative gap — community bank differentiation works`};if(d.investBr>=1)return{rank:'secondary',why:`Invest zone footprint`};return{rank:'off',why:`Limited Invest zone presence`};},rAI:d=>`People in [METRO] who are current customers of national banks and considering switching to a community bank`,params:d=>[{k:'Geography',v:`[METRO] — Invest zone`},{k:'Current institution',v:`Chase, BofA, Wells Fargo, Citizens`},{k:'Suppress',v:`Bank CRM list`}]},
+  {key:'rate',name:'Rate-sensitive depositor',desc:'APY-driven — shops rates actively',logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<=-8)return{rank:'primary',why:`Severe deposit gap ${gap.toFixed(1)}pp — market is rate-shopping`};if(gap<=-4)return{rank:'primary',why:`Significant negative gap`};if(gap<0)return{rank:'secondary',why:`Mild negative gap`};return{rank:'off',why:`Bank holding or growing share`};},rAI:d=>`People in [METRO] actively comparing savings and CD rates, likely to move money for better APY`,params:d=>[{k:'Geography',v:`[METRO] — all Invest/Analyze`},{k:'Intent signal',v:`Actively rate-shopping`},{k:'Deposit gap',v:`Bank ${(d.bankYoy-d.compYoy).toFixed(1)}pp behind competitors`},{k:'Suppress',v:`Bank CRM list`}]}
+];
+
+function agAvg(rows,col){const vals=rows.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));return vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:0;}
+function agTopSmbZone(rows){const zones=rows.map(r=>r.smb_zone).filter(Boolean);if(!zones.length)return null;const counts={};zones.forEach(z=>counts[z]=(counts[z]||0)+1);const order={Top:4,High:3,Medium:2,Low:1};return Object.entries(counts).sort((a,b)=>(order[b[0]]||0)-(order[a[0]]||0))[0]?.[0]||null;}
+function agTopMetro(rows){const invest=rows.filter(r=>r.opportunity_zone==='Invest');const top=(invest.length?invest:rows).sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0))[0];return top?`${top.citybr}, ${top.stalpbr}`:'priority market';}
+
+function agCompute(){
+  if(!agBranchData)return;
+  const allRows=agBranchData.rows;
+  const audType=g('agAudType').value,zoneFocus=g('agZoneFocus').value;
+  const focusRows=allRows.filter(r=>zoneFocus==='invest'?r.opportunity_zone==='Invest':r.opportunity_zone==='Invest'||r.opportunity_zone==='Analyze');
+  if(!focusRows.length)return;
+  const d={bankYoy:agAvg(focusRows,'yoy_deposits')*100,compYoy:agAvg(focusRows,'avg_comp_yoy')*100,oppScore:agAvg(focusRows,'opportunity_score'),investBr:allRows.filter(r=>r.opportunity_zone==='Invest').length,income:agAvg(focusRows,'household_income')/1000,zhvi:agAvg(focusRows,'zhvi')/1000,zhviYoy:agAvg(focusRows,'zhvi_yoy_pct'),smbZone:agTopSmbZone(focusRows),smbEstab:Math.round(agAvg(focusRows,'smb_establishments')),smbDensity:agAvg(focusRows,'estab_per_1k_pop').toFixed(1),audType};
+  const gap=d.bankYoy-d.compYoy;const gapCls=gap<-5?'bad':gap<0?'warn':'good';const scoreCls=d.oppScore>=55?'good':d.oppScore>=35?'warn':'bad';
+  const smbPill=d.smbZone?`<span class="ag-smb-pill ag-smb-${d.smbZone.toLowerCase()}">${d.smbZone}</span>`:`<span class="ag-smb-pill ag-smb-medium">—</span>`;
+  g('agSummary').innerHTML=`<div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div><div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div><div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div><div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div><div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>`;
+  const results=AG_SEGS.map(s=>({...s,result:s.logic(d)})).sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
+  const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
+  g('agSegLabel').textContent=`${primary.length} primary · ${secondary.length} secondary`;
+  const metro=agTopMetro(focusRows);
+  g('agSegGrid').innerHTML=results.map((s,idx)=>{
+    const r=s.result;const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
+    const badge=r.rank==='primary'?'<span class="ag-badge bp">Primary</span>':r.rank==='secondary'?'<span class="ag-badge bs">Secondary</span>':'<span class="ag-badge bo">Not recommended</span>';
+    const raiBlock=r.rank!=='off'?`<div class="ag-rai"><span class="ag-rai-lbl">rAI prompt — paste into Resonate Ignite</span>"${s.rAI(d).replace('[METRO]',metro)}"</div>`:'';
+    const paramsBlock=(r.rank!=='off'&&s.params)?(()=>{const rows=s.params(d).map(p=>`<div class="ag-param-row"><span class="ag-param-k">${p.k}</span><span class="ag-param-v">${p.v}</span></div>`).join('');return`<div class="ag-params-toggle" onclick="agToggleParams(this)" data-idx="${idx}">▸ Manual build values</div><div class="ag-params-body">${rows}</div>`;})():'';
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${raiBlock}${paramsBlock}</div>`;
+  }).join('');
+  const hasSmbData=focusRows.some(r=>r.smb_index!=null);
+  g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
+  window._agState={d,results,primary,secondary,focusRows,metro};
+}
+
+function agToggleParams(el){const body=el.nextElementSibling;const open=body.classList.toggle('open');el.textContent=(open?'▾':'▸')+' Manual build values';}
+
+async function agGenerate(){
+  const s=window._agState;if(!s)return;
+  g('agGenBtn').disabled=true;g('agLd').classList.add('on');hide('agOut');
+  const{d,primary,secondary,focusRows,metro}=s;
+  const maxAud=parseInt(g('agMaxAud').value),crm=g('agCrm').value;
+  const{rows,ik}=bankData;
+  const investZips=focusRows.filter(r=>r.opportunity_zone==='Invest').slice(0,6).map(r=>`${r.citybr} ${r.zipbr||''}`.trim()).join(', ');
+  const primarySegs=primary.slice(0,maxAud);
+  const secondarySegs=secondary.slice(0,Math.max(0,maxAud-primarySegs.length));
+  const context=`BANK: ${rows[0]?.namefull}\nTotal branches: ${rows.length} | Invest zone: ${d.investBr}\nDeposit gap vs competitors: ${(d.bankYoy-d.compYoy).toFixed(1)}pp\nBank deposit YoY: ${d.bankYoy.toFixed(1)}% | Competitor avg: ${d.compYoy.toFixed(1)}%\nAvg opportunity score: ${Math.round(d.oppScore)}/100\nAvg household income: $${Math.round(d.income)}k | Avg ZHVI: $${Math.round(d.zhvi)}k (${d.zhviYoy.toFixed(1)}% YoY)\nSMB zone: ${d.smbZone||'—'} | Establishments: ${d.smbEstab} | Density: ${d.smbDensity}/1k\nTop metro: ${metro} | Priority ZIPs: ${investZips||'—'}\nAudience type: ${d.audType} | CRM: ${crm==='yes'?'provided':'not yet provided'}\n\nPRIMARY SEGMENTS: ${primarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}\n   rAI: "${seg.rAI(d).replace('[METRO]',metro)}"`).join('\n')}\n\nSECONDARY: ${secondarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}`).join('\n')||'None within cap'}`;
+  try{
+    const txt=await aiCall(`You are the Verlocity audience strategist. Build a Resonate audience brief for Pete Vazquez. Write in clear structured format. Be specific with data. Direct colleague tone. Return ONLY the brief.`,`Build a complete Resonate audience brief from these BMAP signals:\n\n${context}\n\nInclude: BANK SNAPSHOT (3 lines), PRIORITY GEOGRAPHY, AUDIENCES (${maxAud} total with rAI prompts), SUPPRESSION, NEXT STEPS (3 bullets).`,1400);
+    g('agOutTxt').textContent=txt;show('agOut');
+  }catch(e){g('agOutTxt').textContent='Error connecting to AI: '+e.message;show('agOut');}
+  g('agLd').classList.remove('on');g('agGenBtn').disabled=false;
+}
+
+function agCopyOut(){navigator.clipboard.writeText(g('agOutTxt').textContent).then(()=>{g('agCb').textContent='✓ Copied';g('agCb').classList.add('ok');setTimeout(()=>{g('agCb').textContent='Copy to clipboard';g('agCb').classList.remove('ok');},2000);});}
+
+// ══════════════════════════════════════════════════════════════
+// WF05 — RATE RADAR WIDGET
 // ══════════════════════════════════════════════════════════════
 let rrData=[];
-
 async function loadRRWidget(){
   if(!selBank||!bankData)return;
   show('rrWidget');
-  const {ik,rows}=bankData;
+  const{ik,rows}=bankData;
   g('rrTitle').textContent=rows[0]?.namefull||'—';
   g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
   g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
   let rawComp=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=*&limit=500`);
   if(!rawComp||!rawComp.length){g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found</td></tr>';g('rrMeta').textContent='No data';return;}
   const grouped={};
-  rawComp.forEach(r=>{const k=r.target_inst_key;if(!k)return;if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}
-    if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);
-    const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);
-    const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);
-    const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;
-  });
+  rawComp.forEach(r=>{const k=r.target_inst_key;if(!k)return;if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;});
   const avgArr=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;
   const domZone=z=>Object.entries(z).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
   const sorted=Object.values(grouped).map(g=>({target_inst_key:g.target_inst_key,target_namefull:g.target_namefull,avg_vuln:avgArr(g.vuln_scores),avg_dep:avgArr(g.dep_vals),avg_yoy:avgArr(g.yoy_vals),zone:domZone(g.zones)})).filter(r=>r.avg_vuln!=null).sort((a,b)=>b.avg_vuln-a.avg_vuln).slice(0,20);
@@ -924,15 +773,7 @@ async function loadRRWidget(){
   const urlMap={};(websiteRows||[]).forEach(r=>{if(r.FED_RSSD&&r.WEBADDR)urlMap['bank_'+r.FED_RSSD]=r.WEBADDR;});
   rrData=sorted.map((t,i)=>({rank:i+1,bank_name:t.target_namefull,bank_url:urlMap[t.target_inst_key]||'',vuln:t.avg_vuln,dep:t.avg_dep,yoy:t.avg_yoy,zone:t.zone,inst_key:t.target_inst_key}));
   const zoneColor=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
-  g('rrTbody').innerHTML=rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee">
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td>
-    <td style="padding:8px 14px;font-weight:600">${r.bank_name}</td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln!=null?(+r.vuln).toFixed(1):'—'}</td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep!=null?(+r.dep).toFixed(0)+'M':'—'}</td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy!=null?((+r.yoy).toFixed(1)+'%'):'—'}</td>
-    <td style="padding:8px 14px"><span class="spill ${zoneColor(r.zone)}">${r.zone}</span></td>
-    <td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
-  </tr>`).join('');
+  g('rrTbody').innerHTML=rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee"><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td><td style="padding:8px 14px;font-weight:600">${r.bank_name}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln!=null?(+r.vuln).toFixed(1):'—'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep!=null?(+r.dep).toFixed(0)+'M':'—'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy!=null?((+r.yoy).toFixed(1)+'%'):'—'}</td><td style="padding:8px 14px"><span class="spill ${zoneColor(r.zone)}">${r.zone}</span></td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td></tr>`).join('');
   const withUrl=rrData.filter(r=>r.bank_url).length;
   g('rrMeta').textContent=`Top ${rrData.length} competitors by vulnerability score · ${withUrl} with website URLs`;
 }
@@ -947,12 +788,12 @@ function downloadRRcsv(){
 }
 
 // ══════════════════════════════════════════════════════════════
-// WORKFLOW 03 — FINANCIAL BRIEF — unchanged
+// WF03 — FINANCIAL BRIEF
 // ══════════════════════════════════════════════════════════════
 async function renderBrief(){
   if(!selBank||!bankData)return;
   show('briefWidget');
-  const {rows,allBr:br,tgt,ik}=bankData;
+  const{rows,allBr:br,tgt,ik}=bankData;
   const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
@@ -963,47 +804,22 @@ async function renderBrief(){
   const analyze=rows.filter(r=>r.opportunity_zone==='Analyze').length;
   const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
-  const t=tgt;
-  const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
+  const t=tgt;const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
   g('bwName').textContent=rows[0]?.namefull||'—';
   g('bwMeta').textContent=`Q4 2025 · ${rows.length} branches · $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':((tot/1e9).toFixed(2)+'B')} assets`;
   const pill=(label,color)=>{const colors={g:'background:#EAF3DE;color:#27500A',y:'background:#FAEEDA;color:#854F0B',r:'background:#FCEBEB;color:#A32D2D'};return`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;font-family:IBM Plex Mono,monospace;${colors[color]||colors.y}">● ${label}</span>`;};
   const roa=+(fin.roa||0);const eff=+(fin.efficiency_ratio||0);const depYoY=+(fin.dep_yoy_pct||avgYoY);const gapNum=+gap;
-  g('bwBadges').innerHTML=`
-    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${roa>=1?'background:#EAF3DE;color:#27500A':'background:#FCEBEB;color:#A32D2D'}">ROA ${fin.roa||'—'}%</span>
-    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${eff<60&&eff>0?'background:#EAF3DE;color:#27500A':'background:#FCEBEB;color:#A32D2D'}">Efficiency ${fin.efficiency_ratio||'—'}%</span>
-    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${depYoY>0?'background:#FAEEDA;color:#854F0B':'background:#FCEBEB;color:#A32D2D'}">Deposits ${fin.dep_yoy_pct||avgYoY}% YoY</span>
-    <span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${gapNum>-5?'background:#FAEEDA;color:#854F0B':'background:#FCEBEB;color:#A32D2D'}">Gap ${gap}pp</span>`;
+  g('bwBadges').innerHTML=`<span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${roa>=1?'background:#EAF3DE;color:#27500A':'background:#FCEBEB;color:#A32D2D'}">ROA ${fin.roa||'—'}%</span><span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${eff<60&&eff>0?'background:#EAF3DE;color:#27500A':'background:#FCEBEB;color:#A32D2D'}">Efficiency ${fin.efficiency_ratio||'—'}%</span><span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${depYoY>0?'background:#FAEEDA;color:#854F0B':'background:#FCEBEB;color:#A32D2D'}">Deposits ${fin.dep_yoy_pct||avgYoY}% YoY</span><span style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;font-family:IBM Plex Mono,monospace;${gapNum>-5?'background:#FAEEDA;color:#854F0B':'background:#FCEBEB;color:#A32D2D'}">Gap ${gap}pp</span>`;
   const tr=(name,val,bench,note,sig)=>`<tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px;color:var(--navy)">${name}</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${val}</td><td style="padding:9px 14px;font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">${bench}</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${note}</td><td style="padding:9px 14px;text-align:center">${pill(...sig)}</td></tr>`;
   const th=`<thead><tr style="background:#F0EEE8"><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Metric</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Value</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Benchmark</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Note</th><th style="padding:7px 14px;text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th></tr></thead>`;
   const r=fin;
-  g('tPerf').innerHTML=th+`<tbody>
-    ${tr('ROA',`${r.roa||'—'}%`,'>1.0% = strong','Profitability per asset dollar',r.roa>=1?['Strong','g']:r.roa>0?['Watch','y']:['Critical','r'])}
-    ${tr('NIM',`${r.nim||'—'}%`,'2.5–3.5% typical','Net interest margin',r.nim>=2.5&&r.nim<=3.5?['Strong','g']:r.nim>3.5?['Watch','y']:['Weak','r'])}
-    ${tr('Efficiency',`${r.efficiency_ratio||'—'}%`,'<60% = good','Lower is better',r.efficiency_ratio>0&&r.efficiency_ratio<60?['Strong','g']:r.efficiency_ratio<75?['Watch','y']:['Weak','r'])}
-    ${tr('Net Income YoY',`${r.net_income_yoy_pct>0?'+':''}${r.net_income_yoy_pct||'—'}%`,'>0% = growing','Earnings momentum',r.net_income_yoy_pct>0?['Growing','g']:['Declining','r'])}
-  </tbody>`;
+  g('tPerf').innerHTML=th+`<tbody>${tr('ROA',`${r.roa||'—'}%`,'>1.0% = strong','Profitability per asset dollar',r.roa>=1?['Strong','g']:r.roa>0?['Watch','y']:['Critical','r'])}${tr('NIM',`${r.nim||'—'}%`,'2.5–3.5% typical','Net interest margin',r.nim>=2.5&&r.nim<=3.5?['Strong','g']:r.nim>3.5?['Watch','y']:['Weak','r'])}${tr('Efficiency',`${r.efficiency_ratio||'—'}%`,'<60% = good','Lower is better',r.efficiency_ratio>0&&r.efficiency_ratio<60?['Strong','g']:r.efficiency_ratio<75?['Watch','y']:['Weak','r'])}${tr('Net Income YoY',`${r.net_income_yoy_pct>0?'+':''}${r.net_income_yoy_pct||'—'}%`,'>0% = growing','Earnings momentum',r.net_income_yoy_pct>0?['Growing','g']:['Declining','r'])}</tbody>`;
   const depYoYVal=+(r.dep_yoy_pct||0);const depQoQVal=+(r.dep_qoq_pct||0);const gapVal=+gap;
-  g('tDep').innerHTML=th+`<tbody>
-    ${tr('Deposit YoY',`${r.dep_yoy_pct||avgYoY}%`,'>2% = healthy','Annual deposit change',depYoYVal>2?['Strong','g']:depYoYVal>0?['Watch','y']:['Declining','r'])}
-    ${tr('Deposit QoQ',`${r.dep_qoq_pct||'—'}%`,'>0% = positive','Most recent quarter',depQoQVal>0?['Positive','g']:['Negative','r'])}
-    ${tr('Gap vs Competitors',`${gap}pp`,'0pp = parity',`Peers growing at ${avgComp}% YoY`,gapVal>-5?['Manageable','y']:gapVal>-10?['Watch','y']:['Critical','r'])}
-    ${tr('Loans / Deposits',`${r.loans_to_deposits_pct||'—'}%`,'70–85% = normal','Lending utilisation',r.loans_to_deposits_pct>=70&&r.loans_to_deposits_pct<=85?['Healthy','g']:['Watch','y'])}
-  </tbody>`;
+  g('tDep').innerHTML=th+`<tbody>${tr('Deposit YoY',`${r.dep_yoy_pct||avgYoY}%`,'>2% = healthy','Annual deposit change',depYoYVal>2?['Strong','g']:depYoYVal>0?['Watch','y']:['Declining','r'])}${tr('Deposit QoQ',`${r.dep_qoq_pct||'—'}%`,'>0% = positive','Most recent quarter',depQoQVal>0?['Positive','g']:['Negative','r'])}${tr('Gap vs Competitors',`${gap}pp`,'0pp = parity',`Peers growing at ${avgComp}% YoY`,gapVal>-5?['Manageable','y']:gapVal>-10?['Watch','y']:['Critical','r'])}${tr('Loans / Deposits',`${r.loans_to_deposits_pct||'—'}%`,'70–85% = normal','Lending utilisation',r.loans_to_deposits_pct>=70&&r.loans_to_deposits_pct<=85?['Healthy','g']:['Watch','y'])}</tbody>`;
   const cofVal=+(r.cost_of_funds_pct||0);const t1Val=+(r.tier1_capital_pct||0);const ncVal=+(r.noncurrent_assets_pct||0);
-  g('tFund').innerHTML=th+`<tbody>
-    ${tr('Cost of Funds',`${r.cost_of_funds_pct||'—'}%`,'<2% = competitive','Total funding cost',cofVal>0&&cofVal<2?['Strong','g']:cofVal<3?['Watch','y']:['High','r'])}
-    ${tr('Savings Rate',`${r.save_interest_pct||'—'}%`,'Market ~4–5%','Exposure if market reprices',r.save_interest_pct<1.5?['Below market','y']:['Competitive','g'])}
-    ${tr('CD Rate',`${r.cd_interest_pct||'—'}%`,'Market ~4–5%','vs competitor rates',r.cd_interest_pct<1?['Watch','r']:['OK','y'])}
-    ${tr('Tier 1 Capital',`${r.tier1_capital_pct||'—'}%`,'>8% = well capitalised','Balance sheet strength',t1Val>=10?['Strong','g']:t1Val>=8?['OK','y']:['Thin','r'])}
-    ${tr('Noncurrent Assets',`${r.noncurrent_assets_pct||'—'}%`,'<1% = clean','Problem loan signal',ncVal<1?['Clean','g']:ncVal<2?['Watch','y']:['Elevated','r'])}
-  </tbody>`;
-  g('tNet').innerHTML=`<thead><tr style="background:#F0EEE8"><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Value</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Implication</th><th style="padding:7px 14px;text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th></tr></thead><tbody>
-    <tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Avg Opportunity Score</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${avg('opportunity_score').toFixed(1)} / 100</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">Most branches in Analyze zone</td><td style="padding:9px 14px;text-align:center">${pill('Untapped','y')}</td></tr>
-    <tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Invest Zone</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${invest} branches (${Math.round(invest/rows.length*100)}%)</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${top3Q2.length?top3Q2.slice(0,2).map(b=>`${b.namebr}, ${b.citybr}`).join(' · '):'Top priority markets'}</td><td style="padding:9px 14px;text-align:center">${pill('Priority','g')}</td></tr>
-    <tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Justify Zone</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${justify} branches (${Math.round(justify/rows.length*100)}%)</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${justify===0?'No Justify branches — network clean':'Branches needing investment review'}</td><td style="padding:9px 14px;text-align:center">${justify===0?pill('Clean','g'):justify<20?pill('Watch','y'):pill('Review','r')}</td></tr>
-    ${t?`<tr><td style="padding:9px 14px;font-weight:500;font-size:12px">Top Competitor Exposure</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${t.branches_in_radius} branches</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">Regional competitor: ${(+t.avg_yoy_pct).toFixed(1)}% deposits YoY, ROA ${t.target_roa}%</td><td style="padding:9px 14px;text-align:center">${pill('Opportunity','g')}</td></tr>`:''}
-  </tbody>`;
+  g('tFund').innerHTML=th+`<tbody>${tr('Cost of Funds',`${r.cost_of_funds_pct||'—'}%`,'<2% = competitive','Total funding cost',cofVal>0&&cofVal<2?['Strong','g']:cofVal<3?['Watch','y']:['High','r'])}${tr('Savings Rate',`${r.save_interest_pct||'—'}%`,'Market ~4–5%','Exposure if market reprices',r.save_interest_pct<1.5?['Below market','y']:['Competitive','g'])}${tr('CD Rate',`${r.cd_interest_pct||'—'}%`,'Market ~4–5%','vs competitor rates',r.cd_interest_pct<1?['Watch','r']:['OK','y'])}${tr('Tier 1 Capital',`${r.tier1_capital_pct||'—'}%`,'>8% = well capitalised','Balance sheet strength',t1Val>=10?['Strong','g']:t1Val>=8?['OK','y']:['Thin','r'])}${tr('Noncurrent Assets',`${r.noncurrent_assets_pct||'—'}%`,'<1% = clean','Problem loan signal',ncVal<1?['Clean','g']:ncVal<2?['Watch','y']:['Elevated','r'])}</tbody>`;
+  g('tNet').innerHTML=`<thead><tr style="background:#F0EEE8"><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Value</th><th style="padding:7px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Implication</th><th style="padding:7px 14px;text-align:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Signal</th></tr></thead><tbody><tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Avg Opportunity Score</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${avg('opportunity_score').toFixed(1)} / 100</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">Most branches in Analyze zone</td><td style="padding:9px 14px;text-align:center">${pill('Untapped','y')}</td></tr><tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Invest Zone</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${invest} branches (${Math.round(invest/rows.length*100)}%)</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${top3Q2.length?top3Q2.slice(0,2).map(b=>`${b.namebr}, ${b.citybr}`).join(' · '):'Top priority markets'}</td><td style="padding:9px 14px;text-align:center">${pill('Priority','g')}</td></tr><tr style="border-bottom:1px solid #f0f0ee"><td style="padding:9px 14px;font-weight:500;font-size:12px">Justify Zone</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${justify} branches (${Math.round(justify/rows.length*100)}%)</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">${justify===0?'No Justify branches — network clean':'Branches needing investment review'}</td><td style="padding:9px 14px;text-align:center">${justify===0?pill('Clean','g'):justify<20?pill('Watch','y'):pill('Review','r')}</td></tr>${t?`<tr><td style="padding:9px 14px;font-weight:500;font-size:12px">Top Competitor Exposure</td><td style="padding:9px 14px;font-family:IBM Plex Mono,monospace;font-weight:600;font-size:13px">${t.branches_in_radius} branches</td><td style="padding:9px 14px;font-size:11px;color:var(--muted)">Regional competitor: ${(+t.avg_yoy_pct).toFixed(1)}% deposits YoY, ROA ${t.target_roa}%</td><td style="padding:9px 14px;text-align:center">${pill('Opportunity','g')}</td></tr>`:''}</tbody>`;
+
   const briefContext=`Institution: ${rows[0]?.namefull} | Branches: ${rows.length} | Assets: $${fin.total_assets?(fin.total_assets/1e9).toFixed(2)+'B':'—'} | Deposits: $${fin.total_deposits?(fin.total_deposits/1e9).toFixed(2)+'B':'—'} | Net income: $${fin.net_income?(fin.net_income/1e6).toFixed(1)+'M':'—'}
 ROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}% (YoY: ${fin.efficiency_ratio_yoy_change||'—'}pp) | Net income YoY: ${fin.net_income_yoy_pct||'—'}%
 Deposit YoY: ${fin.dep_yoy_pct||avgYoY}% | QoQ: ${fin.dep_qoq_pct||'—'}% | Loans/Deposits: ${fin.loans_to_deposits_pct||'—'}%
@@ -1013,36 +829,31 @@ BMAP: Avg score ${avg('opportunity_score').toFixed(1)}/100 | Invest: ${invest} |
 Competitor deposit YoY avg: ${avgComp}% — bank gap: ${gap}pp
 Top Q2 branches: ${top3Q2.map(b=>`${b.namebr} ${b.citybr} ($${(b.latest_dep/1e6).toFixed(0)}M +${(+b.yoy_deposits*100).toFixed(1)}%)`).join(', ')||'—'}
 ${t?`Top competitor: ${t.target_institution} — ${t.branches_in_radius} branches exposed, deposit YoY ${(+t.avg_yoy_pct).toFixed(1)}%, ROA ${t.target_roa}%, efficiency ${t.target_efficiency_ratio}%`:''}`;
+
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,system:`You are the BMAP Executive Strategist at Verlocity. Brief Tom before he walks into a meeting. Sharp colleague tone. Return ONLY a JSON object with keys: paragraph (string), strong (array of 3 strings "Strength — implication"), pressure (array of 3 strings "Pressure — our angle"), asymmetric (string, 2-3 sentences with specific branch name or number that would surprise a banker). No markdown, no explanation, ONLY the JSON.`,messages:[{role:'user',content:briefContext}]})});
-    const data=await resp.json();
-    let txt=data.content?.find(b=>b.type==='text')?.text||'{}';
-    txt=txt.replace(/```json|```/g,'').trim();
+    const rawTxt=await aiCall(`You are the BMAP Executive Strategist at Verlocity. Brief Tom before he walks into a meeting. Sharp colleague tone. Return ONLY a JSON object with keys: paragraph (string), strong (array of 3 strings "Strength — implication"), pressure (array of 3 strings "Pressure — our angle"), asymmetric (string, 2-3 sentences with specific branch name or number that would surprise a banker). No markdown, no explanation, ONLY the JSON.`,briefContext,700);
+    const txt=rawTxt.replace(/```json|```/g,'').trim();
     const p=JSON.parse(txt);
-    g('briefNarrative').innerHTML=`
-      <div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">The bank in one paragraph</div><div style="font-size:12px;line-height:1.75;color:var(--navy)">${p.paragraph||''}</div></div>
-      <div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where they are strong</div>${(p.strong||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--amber);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}</div>
-      <div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where the pressure is</div>${(p.pressure||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--red);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}</div>
-      <div><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">What Verlocity walks in knowing</div><div style="background:#FFFBF2;border:1px solid #E8C96A;border-radius:8px;padding:12px 16px;font-size:12px;line-height:1.75;color:var(--navy)">${p.asymmetric||''}</div></div>`;
+    g('briefNarrative').innerHTML=`<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">The bank in one paragraph</div><div style="font-size:12px;line-height:1.75;color:var(--navy)">${p.paragraph||''}</div></div><div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where they are strong</div>${(p.strong||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--amber);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}</div><div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where the pressure is</div>${(p.pressure||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--red);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}</div><div><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">What Verlocity walks in knowing</div><div style="background:#FFFBF2;border:1px solid #E8C96A;border-radius:8px;padding:12px 16px;font-size:12px;line-height:1.75;color:var(--navy)">${p.asymmetric||''}</div></div>`;
     briefNarrativeData=p;briefFinData=fin;
-  }catch(e){g('briefNarrative').innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px">Error generating narrative. Check API connection.</div>';}
+  }catch(e){g('briefNarrative').innerHTML=`<div style="color:var(--muted);font-size:12px;padding:8px">Error generating narrative: ${e.message}</div>`;}
 }
 
 let briefNarrativeData=null,briefFinData=null;
 function copyBrief(){
   if(!bankData||!briefNarrativeData)return;
-  const {rows}=bankData;const p=briefNarrativeData;const fin=briefFinData||{};
+  const{rows}=bankData;const p=briefNarrativeData;const fin=briefFinData||{};
   const txt=`FINANCIAL BRIEF — ${rows[0]?.namefull}\nVerlocity · BMAP Intelligence\n\nMETRICS\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency: ${fin.efficiency_ratio||'—'}%\nNet Income YoY: ${fin.net_income_yoy_pct||'—'}% | Deposit YoY: ${fin.dep_yoy_pct||'—'}% | QoQ: ${fin.dep_qoq_pct||'—'}%\nCost of Funds: ${fin.cost_of_funds_pct||'—'}% | Tier 1: ${fin.tier1_capital_pct||'—'}% | Noncurrent: ${fin.noncurrent_assets_pct||'—'}%\n\nTHE BANK\n${p.paragraph||''}\n\nWHERE THEY ARE STRONG\n${(p.strong||[]).map(s=>'→ '+s).join('\n')}\n\nWHERE THE PRESSURE IS\n${(p.pressure||[]).map(s=>'→ '+s).join('\n')}\n\nWHAT VERLOCITY WALKS IN KNOWING\n${p.asymmetric||''}`;
   navigator.clipboard.writeText(txt).then(()=>{const btn=document.querySelector('#briefWidget button');btn.textContent='✓ Copied';setTimeout(()=>btn.textContent='Copy full brief to clipboard',2000);});
 }
 
 // ══════════════════════════════════════════════════════════════
-// WORKFLOWS 01, 04 — GENERATE (text output) — unchanged
+// WF01 + WF04 — GENERATE (text context output)
 // ══════════════════════════════════════════════════════════════
 async function generate(){
   if(!selBank||!selWfN)return;
   g('gb').disabled=true;g('ld').classList.add('on');hide('oc');
-  const {rows,allBr:br,tgt,ik}=bankData;
+  const{rows,allBr:br,tgt,ik}=bankData;
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
   const avgYoY=(avg('yoy_deposits')*100).toFixed(2);
@@ -1053,8 +864,7 @@ async function generate(){
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
   const t=tgt;
   const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}`;
-  const top3Score=br.slice(0,3);
-  const top3Invest=br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
+  const top3Score=br.slice(0,3);const top3Invest=br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
   const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
   const top3P1=br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
   const topJustify=br.filter(b=>b.opportunity_zone==='Justify').sort((a,b2)=>b2.latest_dep-a.latest_dep).slice(0,3);
@@ -1065,15 +875,13 @@ async function generate(){
     const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
     const states={};rows.forEach(r=>{states[r.stalpbr]=(states[r.stalpbr]||0)+1});
     const stateLines=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([s,c])=>{const inv=br.filter(b=>b.stalpbr===s&&b.opportunity_zone==='Invest').length;const q2=br.filter(b=>b.stalpbr===s&&b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).length;return`  ${s}: ${c} branches | Invest: ${inv} | Q2: ${q2}`;}).join('\n');
-    const totalMkt=rows.reduce((a,r)=>a+(+r.total_deposits_10mi||0),0);
-    const mktShare=totalMkt>0?((tot/totalMkt)*100).toFixed(1):'—';
+    const totalMkt=rows.reduce((a,r)=>a+(+r.total_deposits_10mi||0),0);const mktShare=totalMkt>0?((tot/totalMkt)*100).toFixed(1):'—';
     txt=`BMAP PITCH DECK CONTEXT\nWorkflow: Executive Pitch Deck\nSource: BMAP · Community_Banks_Rates · Live\n\n━━━ NETWORK SUMMARY ━━━\nInstitution: ${rows[0]?.namefull}\nTotal branches: ${rows.length}\nTotal deposits: $${(tot/1e9).toFixed(2)}B\nTotal addressable market (10mi radius): $${(totalMkt/1e9).toFixed(0)}B\nEstimated market share: ${mktShare}%\nAverage opportunity score: ${avg('opportunity_score').toFixed(1)} / 100\nDeposit YoY (bank avg): ${avgYoY}%\nCompetitor deposit YoY (avg): ${avgComp}%\nGap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp\n\n━━━ ZONE DISTRIBUTION ━━━\nInvest:  ${invest} branches (${Math.round(invest/rows.length*100)}%) — concentrate growth here\nAnalyze: ${analyze} branches (${Math.round(analyze/rows.length*100)}%) — monitor and develop\nDefend:  ${defend} branches (${Math.round(defend/rows.length*100)}%) — protect share\nJustify: ${justify} branches (${Math.round(justify/rows.length*100)}%) — review investment case\n\n━━━ STATE BREAKDOWN ━━━\n${stateLines}\n\n━━━ TOP 3 BY OPPORTUNITY SCORE ━━━\n${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n')}\n\n━━━ TOP 3 INVEST ZONE ━━━\n${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'None in Invest zone.'}\n\n━━━ TOP 3 Q2 — INVEST AND PROTECT ━━━\n${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Q2 branches found.'}\n\n━━━ TOP 3 PRIORITY TIER 1 ━━━\n${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Tier 1 branches found.'}\n\n━━━ BIGGEST RISK — JUSTIFY ZONE ━━━\n${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Justify zone branches.'}\n\n━━━ CLIENT FINANCIAL HEALTH ━━━\nPeriod: ${fin.period||'Q4 2025'}\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency ratio: ${fin.efficiency_ratio||'—'}%\nNet income YoY: ${fin.net_income_yoy_pct||'—'}%\nCost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY change: ${fin.cof_yoy_change||'—'}pp\nDeposit YoY: ${fin.dep_yoy_pct||'—'}% | Deposit QoQ: ${fin.dep_qoq_pct||'—'}%\nTier 1 capital: ${fin.tier1_capital_pct||'—'}% | Noncurrent assets: ${fin.noncurrent_assets_pct||'—'}%\n\n━━━ TOP NETWORK TARGET ━━━\n${t?`Institution: ${t.target_institution}\n${t.branches_in_radius} client branches have this competitor within 10 miles\nAverage vulnerability score: ${t.avg_vuln_score} | Deposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}%\nROA: ${t.target_roa}% | Efficiency ratio: ${t.target_efficiency_ratio}%\nDominant zone: ${t.dominant_zone}`:'Not computed — run populate_network_top_targets.'}\n\n━━━ INSTRUCTION FOR AI ━━━\nGenerate a 4-slide executive pitch deck using all BMAP data above.\nFollow the BMAP Executive Strategist prompt exactly.\n\nUse the data as follows:\nSLIDE 1 — The growth opportunity: use network summary, market share, zone distribution, and competitor gap to frame where deposit growth is concentrated vs equally distributed.\nSLIDE 2 — What BMAP reveals: use the Invest zone and Q2 branches to name the top 2-3 specific locations with the strongest growth case. Always include branch name and city.\nSLIDE 3 — Strategic insight: use the client financial health, the competitor gap, and the top network target to show what the data implies about competitive positioning.\nSLIDE 4 — What leadership could do next: use Priority Tier 1 branches and the Justify zone risk to frame the prioritisation and resource allocation decision.\n\nNever prioritise more than 3 branches total.\nFrame all insights as growth opportunities.\nNo tables, methodology, or follow-up questions.\nWrite as if this will be read aloud in a boardroom.`;
   }
   else if(selWfN===4){
     title='BRANCH DEEP DIVE';
-    const uid=g('bselect').value;
-    if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}
-    const [cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);
+    const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}
+    const[cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);
     const b=bf?.[0]||{};const fn=fin?.[0]||{};
     txt=`BMAP BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%\n\nINSTRUCTION FOR AI:\nGenerate the full Verlocity Branch Deep Dive report.\nInclude: branch strategic position, market opportunity, competitive landscape, recommended growth play, 12-month priority action.\nConfident boardroom tone. Name specific competitors and markets. No methodology. No follow-up questions.`;
   }
@@ -1083,12 +891,9 @@ async function generate(){
 }
 
 function copyOut(){
-  navigator.clipboard.writeText(g('otxt').textContent).then(()=>{
-    g('cb').textContent='✓ Copied';g('cb').classList.add('ok');
-    setTimeout(()=>{g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');},2000);
-  });
+  navigator.clipboard.writeText(g('otxt').textContent).then(()=>{g('cb').textContent='✓ Copied';g('cb').classList.add('ok');setTimeout(()=>{g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');},2000);});
 }
 </script>
-</div><!-- /appWrap -->
+</div>
 </body>
 </html>

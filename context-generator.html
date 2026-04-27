@@ -180,6 +180,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ppt-copy-all:hover{opacity:.88}
 .ppt-copy-all.ok{background:var(--green)}
 </style>
+<script src="https://cdn.jsdelivr.net/gh/gitbrent/PptxGenJS@3.12.0/libs/pptxgen.bundle.js"></script>
 </head>
 <body>
 <!-- Auth Gate -->
@@ -353,7 +354,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
         <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted)" id="pptOutMeta">—</div>
       </div>
       <div class="ppt-slides" id="pptSlides"></div>
-      <button class="ppt-copy-all" id="pptCopyAll" onclick="pptCopyAll()">Copy all slides to clipboard</button>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="ppt-copy-all" style="margin-bottom:0;flex:1" id="pptCopyAll" onclick="pptCopyAll()">Copy all slides to clipboard</button>
+        <button class="ppt-copy-all" style="margin-bottom:0;flex:1;background:var(--teal)" id="pptExportBtn" onclick="pptExport()">⬇ Export PPTX</button>
+      </div>
     </div>
   </div>
 
@@ -667,6 +671,116 @@ function pptCopyAll(){
     setTimeout(()=>{btn.textContent='Copy all slides to clipboard';btn.classList.remove('ok');},2500);
   });
 }
+
+// ── WF06 PPTX EXPORT ─────────────────────────────────────────────────────
+async function pptExport(){
+  if(!pptSlides||!pptSlides.length||!bankData)return;
+  const btn=g('pptExportBtn');
+  btn.textContent='Building deck...';btn.disabled=true;
+
+  const pres=new PptxGenJS();
+  pres.layout='LAYOUT_16x9';
+  const {rows}=bankData;
+  const bankName=rows[0]?.namefull||'Bank';
+  const toneLabels=['Executive Boardroom','Analytical Consultant','Sales Pitch'];
+  const tone=toneLabels[pptToneN-1];
+
+  // Brand colors
+  const NAVY='1a2332',TEAL='1D9E75',AMBER='F5A623',WHITE='FFFFFF',
+        GRAY='F5F5F2',MUTED='778899',LTEAL='4DB6AC';
+
+  function brandFrame(slide,num){
+    // Left navy sidebar
+    slide.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.12,h:5.625,fill:{color:NAVY},line:{color:NAVY}});
+    slide.addShape(pres.ShapeType.rect,{x:0.12,y:0,w:0.05,h:5.625,fill:{color:LTEAL},line:{color:LTEAL}});
+    // Footer
+    slide.addShape(pres.ShapeType.rect,{x:0,y:5.25,w:10,h:0.375,fill:{color:NAVY},line:{color:NAVY}});
+    slide.addText([
+      {text:'Verlocity',options:{bold:true,color:WHITE}},
+      {text:' ↗',options:{bold:true,color:TEAL}},
+      {text:`   |   BMAP Intelligence   |   ${bankName}`,options:{color:'AAAAAA'}}
+    ],{x:0.3,y:5.265,w:8,h:0.28,fontSize:8,fontFace:'Calibri',margin:0});
+    slide.addText(String(num),{x:9.5,y:5.265,w:0.45,h:0.28,fontSize:8,color:'AAAAAA',fontFace:'Calibri',align:'right',margin:0});
+  }
+
+  // ── COVER SLIDE ──
+  const cover=pres.addSlide();
+  cover.background={color:NAVY};
+  cover.addShape(pres.ShapeType.rect,{x:7.2,y:0,w:2.8,h:5.625,fill:{color:'142740'},line:{color:'142740'}});
+  cover.addShape(pres.ShapeType.rect,{x:7.16,y:0,w:0.07,h:5.625,fill:{color:LTEAL},line:{color:LTEAL}});
+  cover.addText([{text:'Verlocity',options:{bold:true,color:WHITE,fontSize:18}},{text:' ↗',options:{bold:true,color:TEAL,fontSize:18}}],
+    {x:0.5,y:0.4,w:4,h:0.4,fontFace:'Calibri',margin:0});
+  cover.addText('BMAP INTELLIGENCE REPORT',{x:0.5,y:0.9,w:6,h:0.25,fontSize:8,fontFace:'Calibri',color:TEAL,bold:true,charSpacing:3,margin:0});
+  cover.addText(bankName,{x:0.5,y:1.25,w:6.5,h:1.1,fontSize:32,fontFace:'Calibri',bold:true,color:WHITE,margin:0});
+  cover.addShape(pres.ShapeType.rect,{x:0.5,y:2.45,w:3.5,h:0.04,fill:{color:TEAL},line:{color:TEAL}});
+  cover.addText(`Narrative Tone: ${tone}  ·  ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`,
+    {x:0.5,y:2.6,w:6.5,h:0.25,fontSize:9,fontFace:'Calibri',color:'AAAAAA',italic:true,margin:0});
+  cover.addText('Branch Opportunity Analysis  ·  Competitive Intelligence  ·  Strategic Priorities',
+    {x:0.5,y:3.0,w:6.5,h:0.25,fontSize:9,fontFace:'Calibri',color:'AAAAAA',italic:true,margin:0});
+  cover.addText('CONFIDENTIAL · Verlocity · '+new Date().getFullYear(),
+    {x:0,y:5.35,w:10,h:0.22,fontSize:7,fontFace:'Calibri',color:'555555',align:'center',margin:0});
+
+  // ── CONTENT SLIDES (one per AI-generated slide) ──
+  const ZONE_COLORS={Invest:'27500A',Analyze:'185FA5',Defend:'854F0B',Justify:'A32D2D'};
+
+  pptSlides.forEach((s,idx)=>{
+    const slide=pres.addSlide();
+    brandFrame(slide,idx+1);
+
+    // Section label pill (top right)
+    slide.addShape(pres.ShapeType.roundRect,{
+      x:7.8,y:0.18,w:2.0,h:0.3,
+      fill:{color:TEAL},line:{color:TEAL},rectRadius:0.05
+    });
+    slide.addText((s.slide_label||'').toUpperCase(),{
+      x:7.8,y:0.18,w:2.0,h:0.3,
+      fontSize:7,fontFace:'Calibri',color:WHITE,bold:true,
+      align:'center',valign:'middle',charSpacing:1.5,margin:0
+    });
+
+    // Headline
+    slide.addText(s.headline||'',{
+      x:0.28,y:0.22,w:7.3,h:0.7,
+      fontSize:26,fontFace:'Calibri',bold:true,color:NAVY,margin:0
+    });
+
+    // Spoken intro (italic, amber left border)
+    slide.addShape(pres.ShapeType.rect,{x:0.28,y:1.05,w:0.06,h:0.8,fill:{color:AMBER},line:{color:AMBER}});
+    slide.addText(s.spoken_intro||'',{
+      x:0.42,y:1.05,w:9.3,h:0.8,
+      fontSize:11,fontFace:'Calibri',color:'444444',italic:true,
+      valign:'middle',margin:0
+    });
+
+    // Bullets
+    const bullets=(s.bullets||[]);
+    const bulletArr=bullets.map((b,bi)=>({
+      text:b,
+      options:{
+        bullet:{color:TEAL,code:'25B8'},
+        breakLine:bi<bullets.length-1,
+        fontSize:11,paraSpaceAfter:5,color:NAVY
+      }
+    }));
+    slide.addText(bulletArr,{x:0.32,y:2.0,w:9.35,h:1.8,fontFace:'Calibri',valign:'top'});
+
+    // Closing line box
+    slide.addShape(pres.ShapeType.rect,{x:0.28,y:3.95,w:9.4,h:0.65,fill:{color:GRAY},line:{color:'E0DED8',pt:0.5}});
+    slide.addShape(pres.ShapeType.rect,{x:0.28,y:3.95,w:0.06,h:0.65,fill:{color:NAVY},line:{color:NAVY}});
+    slide.addText(s.closing_line||'',{
+      x:0.42,y:3.95,w:9.1,h:0.65,
+      fontSize:11,fontFace:'Calibri',bold:true,color:NAVY,
+      valign:'middle',margin:0
+    });
+  });
+
+  // Save
+  const safeName=bankName.replace(/[^a-z0-9]/gi,'_');
+  await pres.writeFile({fileName:`BMAP_${safeName}_narrative.pptx`});
+  btn.textContent='✓ Downloaded';btn.style.background='var(--green)';
+  setTimeout(()=>{btn.textContent='⬇ Export PPTX';btn.style.background='';btn.disabled=false;},3000);
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // WF02 — AUDIENCE GENERATOR (unchanged from original)

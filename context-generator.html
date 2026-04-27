@@ -388,7 +388,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 // ── ACCESS CONTROL ─────────────────────────────────────────────
 const ACCESS_TOKEN = 'verlocity2026';
 // ── ANTHROPIC API KEY ──────────────────────────────────────────
-const ANTHROPIC_KEY = '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';
+const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 
 (function(){
   const stored = sessionStorage.getItem('bmap_access');
@@ -417,14 +417,9 @@ let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=
 
 // ── SHARED AI FETCH HELPER ─────────────────────────────────────
 async function aiCall(system, userMsg, max_tokens=800){
-  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+  const resp = await fetch(AI_PROXY,{
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
       model:'claude-sonnet-4-20250514',
       max_tokens,

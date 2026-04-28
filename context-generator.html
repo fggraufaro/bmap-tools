@@ -578,13 +578,13 @@ function vKpi(pres,slide,x,y,w,h,val,label,bg){
 // ── Narrative column (left ~4.4") ─────────────────────────────
 function vNarr(slide,n,y0){
   slide.addText(n.headline,{x:0.45,y:y0,w:4.4,h:0.72,fontSize:17,fontFace:'Calibri',bold:true,color:VB.navy,margin:0});
-  slide.addShape('rect',{x:0.45,y:y0+0.76,w:0.05,h:0.76,fill:{color:VB.teal},line:{color:VB.teal}});
-  slide.addText(n.spoken,{x:0.58,y:y0+0.76,w:4.27,h:0.76,fontSize:9,fontFace:'Calibri',color:'333333',italic:true,valign:'top',margin:0});
-  const ba=(n.bullets||[]).map((b,i)=>({text:b,options:{bullet:{color:VB.teal,code:'25B8'},breakLine:i<(n.bullets.length-1),fontSize:9,paraSpaceAfter:4,color:VB.navy}}));
-  slide.addText(ba,{x:0.45,y:y0+1.6,w:4.4,h:1.08,fontFace:'Calibri',valign:'top'});
-  slide.addShape('rect',{x:0.45,y:y0+2.76,w:4.4,h:0.55,fill:{color:VB.offwh},line:{color:VB.gray,pt:0.5}});
-  slide.addShape('rect',{x:0.45,y:y0+2.76,w:0.05,h:0.55,fill:{color:VB.navy},line:{color:VB.navy}});
-  slide.addText(n.close,{x:0.58,y:y0+2.76,w:4.2,h:0.55,fontSize:9,fontFace:'Calibri',bold:true,color:VB.navy,valign:'middle',margin:0});
+  slide.addShape('rect',{x:0.45,y:y0+0.76,w:0.05,h:0.68,fill:{color:VB.teal},line:{color:VB.teal}});
+  slide.addText(n.spoken,{x:0.58,y:y0+0.76,w:4.27,h:0.68,fontSize:8.5,fontFace:'Calibri',color:'333333',italic:true,valign:'top',margin:0});
+  const ba=(n.bullets||[]).map((b,i)=>({text:b,options:{bullet:{color:VB.teal,code:'25B8'},breakLine:i<(n.bullets.length-1),fontSize:8.5,paraSpaceAfter:3,color:VB.navy}}));
+  slide.addText(ba,{x:0.45,y:y0+1.52,w:4.4,h:1.3,fontFace:'Calibri',valign:'top'});
+  slide.addShape('rect',{x:0.45,y:y0+2.88,w:4.4,h:0.5,fill:{color:VB.offwh},line:{color:VB.gray,pt:0.5}});
+  slide.addShape('rect',{x:0.45,y:y0+2.88,w:0.05,h:0.5,fill:{color:VB.navy},line:{color:VB.navy}});
+  slide.addText(n.close,{x:0.58,y:y0+2.88,w:4.2,h:0.5,fontSize:8.5,fontFace:'Calibri',bold:true,color:VB.navy,valign:'middle',margin:0});
 }
 
 // ── MAIN EXPORT ───────────────────────────────────────────────
@@ -674,7 +674,7 @@ Generate for ids: network, priority, financial, nextsteps`,
     const gapImg=await vChart('bar',
       ['This Bank','Competitor Avg'],
       [{data:[+bankYoY.toFixed(1),+compYoY.toFixed(1)],
-        backgroundColor:['#1D9E75','#A32D2D']}],
+        backgroundColor:[gap<0?'#A32D2D':'#1D9E75','#778899']}],
       {w:520,h:440,legend:false});
 
     // ── Build PPTX ─────────────────────────────────────────────
@@ -720,9 +720,9 @@ Generate for ids: network, priority, financial, nextsteps`,
     [{v:`$${(tot/1e9).toFixed(2)}B`,l:'TOTAL DEPOSITS',bg:VB.offwh},{v:avgScore.toFixed(1),l:'AVG OPP SCORE',bg:VB.offwh},
      {v:`${bankYoY>0?'+':''}${bankYoY.toFixed(1)}%`,l:'DEPOSIT YoY',bg:gap>0?VB.lgreen:VB.lred},
      {v:`${gap>0?'+':''}${gap.toFixed(1)}pp`,l:'GAP VS PEERS',bg:gap>0?VB.lgreen:VB.lred}]
-      .forEach((k,i)=>vKpi(pres,s1,5.0+(i%2)*2.42,0.18+Math.floor(i/2)*0.84,2.3,0.74,k.v,k.l,k.bg));
-    s1.addImage({data:zoneImg,x:5.0,y:1.78,w:2.3,h:2.94});
-    s1.addImage({data:scoreImg,x:7.45,y:1.78,w:2.3,h:2.94});
+      .forEach((k,i)=>vKpi(pres,s1,5.0+(i%2)*2.42,0.18+Math.floor(i/2)*0.86,2.3,0.76,k.v,k.l,k.bg));
+    s1.addImage({data:zoneImg,x:5.0,y:1.78,w:2.5,h:3.0});
+    s1.addImage({data:scoreImg,x:7.6,y:1.78,w:2.15,h:3.0});
 
     // ─ SLIDE 2 — PRIORITY BRANCHES ────────────────────────────
     const s2=pres.addSlide('BLANK');
@@ -736,8 +736,8 @@ Generate for ids: network, priority, financial, nextsteps`,
       const yoy=((+b.yoy_deposits)*100).toFixed(1);
       s2.addShape('rect',{x:5.0,y,w:4.75,h:0.84,fill:{color:VB.offwh},line:{color:VB.gray,pt:0.5}});
       s2.addShape('rect',{x:5.0,y,w:0.06,h:0.84,fill:{color:VZC[b.opportunity_zone]||VB.blue},line:{color:VZC[b.opportunity_zone]||VB.blue}});
-      s2.addShape('oval',{x:5.1,y:y+0.22,w:0.36,h:0.36,fill:{color:VB.navy},line:{color:VB.navy}});
-      s2.addText(String(i+1),{x:5.1,y:y+0.22,w:0.36,h:0.36,fontSize:9,fontFace:'Calibri',bold:true,color:VB.white,align:'center',valign:'middle',margin:0});
+      s2.addShape('roundRect',{x:5.1,y:y+0.22,w:0.36,h:0.36,fill:{color:VB.navy},line:{color:VB.navy},rectRadius:0.04});
+      s2.addText(String(i+1),{x:5.08,y:y+0.22,w:0.4,h:0.36,fontSize:10,fontFace:'Calibri',bold:true,color:VB.white,align:'center',valign:'middle',margin:0});
       s2.addText(brName,{x:5.54,y:y+0.07,w:2.7,h:0.25,fontSize:10,fontFace:'Calibri',bold:true,color:VB.navy,margin:0});
       s2.addText(`${b.citybr}, ${b.stalpbr}`,{x:5.54,y:y+0.32,w:2.7,h:0.18,fontSize:7.5,fontFace:'Calibri',color:VB.muted,margin:0});
       s2.addText(`$${dep}M  ·  ${yoy>=0?'+':''}${yoy}% YoY  ·  Score ${(+b.opportunity_score).toFixed(0)}`,{x:5.54,y:y+0.53,w:2.7,h:0.2,fontSize:8,fontFace:'Calibri',color:VB.navy,margin:0});
@@ -764,7 +764,8 @@ Generate for ids: network, priority, financial, nextsteps`,
         s3.addText(m.l,{x:5.1,y:y+0.14,w:1.8,h:0.28,fontSize:10,fontFace:'Calibri',color:VB.navy,margin:0});
         s3.addText(m.v,{x:6.95,y:y+0.14,w:1.1,h:0.28,fontSize:10,fontFace:'Calibri',bold:true,color:VB.navy,margin:0});
         s3.addText(m.bench,{x:8.1,y:y+0.14,w:1.1,h:0.28,fontSize:8,fontFace:'Calibri',color:VB.muted,italic:true,margin:0});
-        s3.addShape('oval',{x:9.35,y:y+0.16,w:0.24,h:0.24,fill:{color:m.ok?VB.teal:VB.amber},line:{color:m.ok?VB.teal:VB.amber}});
+        s3.addShape('roundRect',{x:9.32,y:y+0.15,w:0.32,h:0.28,fill:{color:m.ok?VB.teal:VB.amber},line:{color:m.ok?VB.teal:VB.amber},rectRadius:0.04});
+      s3.addText(m.ok?'✓':'!',{x:9.32,y:y+0.15,w:0.32,h:0.28,fontSize:9,fontFace:'Calibri',bold:true,color:VB.white,align:'center',valign:'middle',margin:0});
       });
     if(t){
       s3.addShape('rect',{x:5.0,y:4.82,w:4.75,h:0.28,fill:{color:VB.lred},line:{color:VB.red,pt:0.5}});
@@ -814,8 +815,8 @@ Generate for ids: network, priority, financial, nextsteps`,
         const y=0.18+i*1.21;
         s5.addShape('rect',{x:5.0,y,w:4.75,h:1.08,fill:{color:VB.offwh},line:{color:VB.gray,pt:0.5}});
         s5.addShape('rect',{x:5.0,y,w:0.06,h:1.08,fill:{color:a.color},line:{color:a.color}});
-        s5.addShape('oval',{x:5.1,y:y+0.33,w:0.38,h:0.38,fill:{color:a.color},line:{color:a.color}});
-        s5.addText(a.num,{x:5.1,y:y+0.33,w:0.38,h:0.38,fontSize:9,fontFace:'Calibri',bold:true,color:VB.white,align:'center',valign:'middle',margin:0});
+        s5.addShape('roundRect',{x:5.1,y:y+0.33,w:0.38,h:0.38,fill:{color:a.color},line:{color:a.color},rectRadius:0.04});
+        s5.addText(a.num,{x:5.08,y:y+0.33,w:0.42,h:0.38,fontSize:10,fontFace:'Calibri',bold:true,color:VB.white,align:'center',valign:'middle',margin:0});
         s5.addText(a.title,{x:5.56,y:y+0.1,w:4.1,h:0.28,fontSize:10.5,fontFace:'Calibri',bold:true,color:VB.navy,margin:0});
         s5.addText(a.body,{x:5.56,y:y+0.42,w:4.1,h:0.56,fontSize:8.5,fontFace:'Calibri',color:VB.muted,margin:0});
       });

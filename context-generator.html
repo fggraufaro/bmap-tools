@@ -464,7 +464,6 @@ g('si').addEventListener('keydown',e=>{
 g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
 async function loadBank(ik){
-  console.log('loadBank start:',ik);
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
@@ -486,13 +485,11 @@ async function loadBank(ik){
   set('tm',t?`${t.branches_in_radius} branches exposed · Vuln ${t.avg_vuln_score} · YoY ${(+t.avg_yoy_pct).toFixed(1)}% · ROA ${t.target_roa}% · Efficiency ${t.target_efficiency_ratio}%`:'Run populate_network_top_targets for this institution');
   const sel=g('bselect');sel.innerHTML='<option value="">— select a branch —</option>';
   allBr.forEach(b=>{const o=document.createElement('option');o.value=b.uninumbr;o.textContent=`${b.namebr} — ${b.citybr}, ${b.stalpbr} (${(+b.opportunity_score).toFixed(1)})`;sel.appendChild(o);});
-  console.log('loadBank complete, showing wg');
   show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
 }
 
 function selWf(n){
-  console.log('selWf called:',n,'bankData:',!!bankData);
   selWfN=n;
   document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');
@@ -502,6 +499,7 @@ function selWf(n){
   if(n===5){hide('gb');hide('bsel');loadRRWidget();return;}
   if(n===3){hide('gb');hide('bsel');renderBrief();return;}
   if(n===6){hide('gb');hide('bsel');hide('pptOut');show('pptWidget');return;}
+  if(n===1){hide('gb');hide('bsel');generate();return;}
   show('gb');n===4?show('bsel'):hide('bsel');
 }
 

@@ -493,12 +493,12 @@ function selWf(n){
   selWfN=n;
   document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');
-  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');hide('pptOut');
+  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');
   g('agLd').classList.remove('on');
   if(n===2){hide('gb');hide('bsel');show('agWidget');agLoadAndCompute();return;}
   if(n===5){hide('gb');hide('bsel');loadRRWidget();return;}
   if(n===3){hide('gb');hide('bsel');renderBrief();return;}
-  if(n===6){hide('gb');hide('bsel');hide('pptOut');show('pptWidget');return;}
+  if(n===6){hide('gb');hide('bsel');show('pptWidget');return;}
   if(n===1){hide('gb');hide('bsel');generate();return;}
   show('gb');n===4?show('bsel'):hide('bsel');
 }
@@ -1012,8 +1012,11 @@ function copyBrief(){
 // WF01 + WF04 — GENERATE (text context output)
 // ══════════════════════════════════════════════════════════════
 async function generate(){
-  if(!selBank||!selWfN)return;
-  g('gb').disabled=true;g('ld').classList.add('on');hide('oc');
+  if(!selBank||!selWfN||!bankData)return;
+  // gb may be hidden for WF01 - guard it
+  try{g('gb').disabled=true;}catch(e){}
+  g('ld').classList.add('on');hide('oc');
+  try{
   const{rows,allBr:br,tgt,ik}=bankData;
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
@@ -1046,9 +1049,18 @@ async function generate(){
     const b=bf?.[0]||{};const fn=fin?.[0]||{};
     txt=`BMAP BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%\n\nINSTRUCTION FOR AI:\nGenerate the full Verlocity Branch Deep Dive report.\nInclude: branch strategic position, market opportunity, competitive landscape, recommended growth play, 12-month priority action.\nConfident boardroom tone. Name specific competitors and markets. No methodology. No follow-up questions.`;
   }
-  g('ld').classList.remove('on');g('gb').disabled=false;
+  g('ld').classList.remove('on');
+  try{g('gb').disabled=false;}catch(e){}
   set('ot',title);g('otxt').textContent=txt;show('oc');
   g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');
+  }catch(err){
+    g('ld').classList.remove('on');
+    try{g('gb').disabled=false;}catch(e){}
+    console.error('generate() error:',err);
+    set('ot','ERROR');
+    g('otxt').textContent='Something went wrong: '+err.message+'\n\nCheck the browser console (F12) for details.';
+    show('oc');
+  }
 }
 
 function copyOut(){

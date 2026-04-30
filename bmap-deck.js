@@ -1,6 +1,6 @@
 /**
- * bmap-deck.js — BMAP Snapshot Deck Builder (FIXED)
- * Uses Verlocity-Logo.png from GitHub + improved Chart.js rendering
+ * bmap-deck.js — BMAP Snapshot Deck Builder
+ * Critical fixes: String() conversion on all zone tiles, improved chart rendering
  */
 
 const DC = {
@@ -15,12 +15,9 @@ const DC = {
 const ZONE_C  = {Invest:DC.invest,  Analyze:DC.analyze,  Defend:DC.defend,  Justify:DC.justify};
 const ZONE_L  = {Invest:DC.investL, Analyze:DC.analyzeL, Defend:DC.defendL, Justify:DC.justifyL};
 
-// ── Logo from GitHub (URL-based, not embedded) ─────────────────
 const VLOGO = 'https://raw.githubusercontent.com/fggraufaro/bmap-tools/main/Verlocity-Logo.png';
-
 const mkSh = () => ({type:'outer',blur:6,offset:2,angle:135,color:'000000',opacity:0.10});
 
-// ── IMPROVED Canvas chart → base64 PNG with BMAP colors ─────────
 function vChart(type, labels, datasets, opts={}) {
   return new Promise((resolve, reject) => {
     const c = document.createElement('canvas');
@@ -31,12 +28,11 @@ function vChart(type, labels, datasets, opts={}) {
     
     const ctx = c.getContext('2d');
     
-    // Enhanced Chart.js options for better presentation
     const chartOpts = {
       animation: { duration: 0 },
       responsive: false,
       maintainAspectRatio: false,
-      layout: { padding: { top:16, bottom:opts.pb||20, left:16, right:16 } },
+      layout: { padding: { top:20, bottom:opts.pb||30, left:20, right:20 } },
       plugins: {
         legend: {
           display: opts.legend !== false,
@@ -44,9 +40,9 @@ function vChart(type, labels, datasets, opts={}) {
           labels: { 
             font:{size:16, family:'Calibri', weight:'bold'}, 
             color:'#1A2332',
-            boxWidth:24,
-            boxHeight:16,
-            padding:16,
+            boxWidth:28,
+            boxHeight:18,
+            padding:20,
             usePointStyle: false
           }
         },
@@ -56,21 +52,21 @@ function vChart(type, labels, datasets, opts={}) {
           backgroundColor: '#1A2332',
           titleFont: { size: 14, weight: 'bold' },
           bodyFont: { size: 13 },
-          padding: 12,
-          borderRadius: 6,
+          padding: 14,
+          borderRadius: 8,
           displayColors: true,
           callbacks: opts.tooltipCallback || {}
         }
       },
       scales: (type==='doughnut'||type==='pie') ? {} : {
         x: { 
-          ticks:{color:'#1A2332', font:{size:13, weight:'500', family:'Calibri'}}, 
+          ticks:{color:'#1A2332', font:{size:14, weight:'600', family:'Calibri'}}, 
           grid:{display:false}, 
           border:{display:false} 
         },
         y: { 
-          ticks:{color:'#778899', font:{size:12, family:'Calibri'}}, 
-          grid:{color:'#E8E8E5', lineWidth:1}, 
+          ticks:{color:'#778899', font:{size:13, family:'Calibri'}}, 
+          grid:{color:'#E8E8E5', lineWidth:1.2}, 
           border:{display:false},
           beginAtZero: true
         }
@@ -83,11 +79,10 @@ function vChart(type, labels, datasets, opts={}) {
       options: chartOpts
     });
 
-    // Wait for chart render with frame request
     let attempts = 0;
     const tryCapture = () => {
       attempts++;
-      if (attempts > 5) {
+      if (attempts > 6) {
         try {
           const b64 = c.toDataURL('image/png').split(',')[1];
           if (!b64 || b64.length < 100) {
@@ -105,19 +100,14 @@ function vChart(type, labels, datasets, opts={}) {
       }
     };
     
-    requestAnimationFrame(() => setTimeout(tryCapture, 150));
+    requestAnimationFrame(() => setTimeout(tryCapture, 200));
   });
 }
 
-// ── Slide chrome: Verlocity sidebar + logo ─────────────────────
 function addChrome(slide, pageNum, label) {
-  // Navy sidebar
   slide.addShape('rect', {x:0,y:0,w:0.28,h:5.625, fill:{color:DC.navy}, line:{color:DC.navy}});
-  // Teal accent
   slide.addShape('rect', {x:0.28,y:0,w:0.08,h:5.625, fill:{color:DC.teal}, line:{color:DC.teal}});
-  // Logo bottom-left
   slide.addImage({path:VLOGO, x:0.42,y:5.04,w:1.55,h:0.36});
-  // Section label pill
   if (label) {
     slide.addShape('roundRect',{x:8.16,y:0.14,w:1.76,h:0.3,
       fill:{color:DC.teal},line:{color:DC.teal},rectRadius:0.04});
@@ -125,14 +115,12 @@ function addChrome(slide, pageNum, label) {
       fontSize:7.5,fontFace:'Calibri',bold:true,color:DC.white,
       align:'center',valign:'middle',charSpacing:1.2,margin:0});
   }
-  // Page number
   if (pageNum !== undefined) {
     slide.addText(String(pageNum),{x:9.5,y:5.28,w:0.38,h:0.2,
       fontSize:9,fontFace:'Calibri',color:DC.gray3,align:'right',margin:0});
   }
 }
 
-// ── Narrative left column ─────────────────────────────────────
 function addNarrative(slide, n, y0) {
   slide.addText(n.headline||'', {
     x:0.45,y:y0,w:5.6,h:0.78,
@@ -143,7 +131,6 @@ function addNarrative(slide, n, y0) {
     x:0.45,y:y0+0.96,w:5.6,h:0.6,
     fontSize:9.5,fontFace:'Calibri',color:DC.gray4,italic:true,valign:'top',margin:0
   });
-  // Bullets
   if (n.bullets && n.bullets.length) {
     const ba = n.bullets.map((b,i) => ({
       text:b,
@@ -152,7 +139,6 @@ function addNarrative(slide, n, y0) {
     }));
     slide.addText(ba,{x:0.45,y:y0+1.62,w:5.6,h:1.28,fontFace:'Calibri',valign:'top'});
   }
-  // Close line — navy bar
   slide.addShape('rect',{x:0.45,y:y0+2.98,w:5.6,h:0.46,fill:{color:DC.navy},line:{color:DC.navy}});
   slide.addText(n.close||'',{
     x:0.56,y:y0+2.98,w:5.4,h:0.46,
@@ -160,28 +146,20 @@ function addNarrative(slide, n, y0) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// SLIDE BUILDERS
-// ══════════════════════════════════════════════════════════════
-
 function buildCover(pres, d) {
   const s = pres.addSlide('BLANK');
   s.background = {color:DC.white};
-  // Sidebar
   s.addShape('rect',{x:0,y:0,w:0.28,h:5.625,fill:{color:DC.navy},line:{color:DC.navy}});
   s.addShape('rect',{x:0.28,y:0,w:0.08,h:5.625,fill:{color:DC.teal},line:{color:DC.teal}});
-  // Logo top-left
   s.addImage({path:VLOGO,x:1.2,y:0.28,w:2.45,h:0.54});
-  // Teal rule
   s.addShape('rect',{x:1.2,y:0.96,w:8.6,h:0.05,fill:{color:DC.teal},line:{color:DC.teal}});
-  // Bank name
   s.addText(String(d.bankName),{x:1.2,y:1.1,w:8.5,h:0.88,
     fontSize:36,fontFace:'Calibri',bold:true,color:DC.navy,valign:'middle',margin:0});
   s.addText('BMAP Market Snapshot',{x:1.2,y:2.04,w:8.5,h:0.34,
     fontSize:16,fontFace:'Calibri',color:DC.navy,margin:0});
   s.addText(String(d.date),{x:1.2,y:2.42,w:8.5,h:0.26,
     fontSize:11,fontFace:'Calibri',color:DC.gray3,margin:0});
-  // 4 KPI tiles
+  
   const kpis=[
     {v:String(d.branches),l:'BRANCHES'},
     {v:String(d.deposits),l:'TOTAL DEPOSITS'},
@@ -198,7 +176,7 @@ function buildCover(pres, d) {
       fontSize:7,fontFace:'Calibri',bold:true,color:DC.gray3,
       align:'center',charSpacing:0.8,margin:0});
   });
-  // Zone tiles
+  
   const zones=[
     {v:String(d.invest), l:'INVEST', c:DC.invest, bg:DC.investL},
     {v:String(d.analyze),l:'ANALYZE',c:DC.analyze,bg:DC.analyzeL},
@@ -214,7 +192,7 @@ function buildCover(pres, d) {
       fontSize:8,fontFace:'Calibri',bold:true,color:z.c,
       align:'center',charSpacing:0.8,margin:0});
   });
-  // Logo bottom-left + footer
+  
   s.addImage({path:VLOGO,x:0.42,y:5.04,w:1.55,h:0.36});
   s.addText('Confidential  ·  Verlocity Princeton Partners Group  ·  '+new Date().getFullYear(),{
     x:1.2,y:5.3,w:8.5,h:0.2,fontSize:7.5,fontFace:'Calibri',
@@ -243,7 +221,6 @@ async function buildNetwork(pres, d) {
       align:'center',charSpacing:0.6,margin:0});
   });
 
-  // Zone pie chart with BMAP colors and data labels
   try {
     const zoneData = [d.invest, d.analyze, d.defend, d.justify];
     const total = zoneData.reduce((a,b) => a+b, 0);
@@ -254,11 +231,11 @@ async function buildNetwork(pres, d) {
         data: zoneData,
         backgroundColor: ['#27500A', '#185FA5', '#854F0B', '#A32D2D'],
         borderColor: '#FFFFFF',
-        borderWidth: 3,
-        borderRadius: 4
+        borderWidth: 4,
+        borderRadius: 5
       }],
       {
-        w: 1000, h: 580, pb: 40,
+        w: 1100, h: 620, pb: 50,
         legend: true,
         lp: 'bottom',
         tooltipCallback: {
@@ -271,7 +248,7 @@ async function buildNetwork(pres, d) {
       });
     
     if (pieImg && pieImg.length > 100) {
-      s.addImage({data: pieImg, x: 6.22, y: 1.88, w: 3.6, h: 2.94});
+      s.addImage({data: pieImg, x: 6.0, y: 1.8, w: 3.8, h: 3.1});
     }
   } catch(e) {
     console.warn('Pie chart failed:', e.message);
@@ -374,7 +351,6 @@ async function buildGap(pres, d) {
       fontSize:7,fontFace:'Calibri',bold:true,color:'3A5A7A',align:'center',charSpacing:0.8,margin:0});
   });
 
-  // Bar chart with BMAP colors
   try {
     const gapImg = await vChart('bar',
       ['This Bank','Peer Avg'],
@@ -383,11 +359,11 @@ async function buildGap(pres, d) {
         data: [parseFloat(d.bankYoY), parseFloat(d.peerYoY)],
         backgroundColor: [d.gapNeg ? '#A32D2D' : '#1D9E75', '#778899'],
         borderWidth: 0,
-        borderRadius: 6,
-        barThickness: 80
+        borderRadius: 8,
+        barThickness: 100
       }],
       {
-        w: 1000, h: 540, pb: 40,
+        w: 1150, h: 580, pb: 50,
         legend: false,
         tooltipCallback: {
           label: (ctx) => `${ctx.parsed.y.toFixed(1)}%`
@@ -395,7 +371,7 @@ async function buildGap(pres, d) {
       });
     
     if (gapImg && gapImg.length > 100) {
-      s.addImage({data: gapImg, x: 5.6, y: 0.18, w: 4.24, h: 4.88});
+      s.addImage({data: gapImg, x: 5.4, y: 0.15, w: 4.4, h: 5.0});
     }
   } catch(e) {
     console.warn('Gap chart failed:', e.message);
@@ -430,9 +406,6 @@ function buildNextSteps(pres, d) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// MAIN ENTRY — called by context-generator WF06
-// ══════════════════════════════════════════════════════════════
 async function snapshotExport() {
   if (!window.selBank || !window.bankData) return;
 

@@ -20,57 +20,74 @@ const VLOGO = 'https://raw.githubusercontent.com/fggraufaro/bmap-tools/main/Verl
 
 const mkSh = () => ({type:'outer',blur:6,offset:2,angle:135,color:'000000',opacity:0.10});
 
-// ── IMPROVED Canvas chart → base64 PNG ─────────────────────────
+// ── IMPROVED Canvas chart → base64 PNG with BMAP colors ─────────
 function vChart(type, labels, datasets, opts={}) {
   return new Promise((resolve, reject) => {
     const c = document.createElement('canvas');
-    c.width  = opts.w || 900;
-    c.height = opts.h || 420;
+    c.width  = opts.w || 1000;
+    c.height = opts.h || 500;
     c.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
     document.body.appendChild(c);
     
     const ctx = c.getContext('2d');
+    
+    // Enhanced Chart.js options for better presentation
+    const chartOpts = {
+      animation: { duration: 0 },
+      responsive: false,
+      maintainAspectRatio: false,
+      layout: { padding: { top:16, bottom:opts.pb||20, left:16, right:16 } },
+      plugins: {
+        legend: {
+          display: opts.legend !== false,
+          position: opts.lp || 'bottom',
+          labels: { 
+            font:{size:16, family:'Calibri', weight:'bold'}, 
+            color:'#1A2332',
+            boxWidth:24,
+            boxHeight:16,
+            padding:16,
+            usePointStyle: false
+          }
+        },
+        title: { display: false },
+        tooltip: {
+          enabled: opts.tooltip !== false,
+          backgroundColor: '#1A2332',
+          titleFont: { size: 14, weight: 'bold' },
+          bodyFont: { size: 13 },
+          padding: 12,
+          borderRadius: 6,
+          displayColors: true,
+          callbacks: opts.tooltipCallback || {}
+        }
+      },
+      scales: (type==='doughnut'||type==='pie') ? {} : {
+        x: { 
+          ticks:{color:'#1A2332', font:{size:13, weight:'500', family:'Calibri'}}, 
+          grid:{display:false}, 
+          border:{display:false} 
+        },
+        y: { 
+          ticks:{color:'#778899', font:{size:12, family:'Calibri'}}, 
+          grid:{color:'#E8E8E5', lineWidth:1}, 
+          border:{display:false},
+          beginAtZero: true
+        }
+      }
+    };
+
     const ch = new Chart(ctx, {
       type,
       data: { labels, datasets },
-      options: {
-        animation: { duration: 0 },
-        responsive: false,
-        maintainAspectRatio: false,
-        layout: { padding: { top:8, bottom:opts.pb||0, left:8, right:8 } },
-        plugins: {
-          legend: {
-            display: opts.legend !== false,
-            position: opts.lp || 'bottom',
-            labels: { 
-              font:{size:13,family:'Calibri',weight:'600'}, 
-              color:'#1A2332', 
-              boxWidth:16, 
-              padding:10 
-            }
-          },
-          title: { display: false }
-        },
-        scales: (type==='doughnut'||type==='pie') ? {} : {
-          x: { 
-            ticks:{color:'#555',font:{size:12,family:'Calibri'}}, 
-            grid:{display:false}, 
-            border:{display:false} 
-          },
-          y: { 
-            ticks:{color:'#778899',font:{size:11}}, 
-            grid:{color:'#E8E8E5',lineWidth:0.8}, 
-            border:{display:false} 
-          }
-        }
-      }
+      options: chartOpts
     });
 
-    // Wait for chart render with frame request — not fixed timeout
+    // Wait for chart render with frame request
     let attempts = 0;
     const tryCapture = () => {
       attempts++;
-      if (attempts > 4) {
+      if (attempts > 5) {
         try {
           const b64 = c.toDataURL('image/png').split(',')[1];
           if (!b64 || b64.length < 100) {
@@ -88,8 +105,7 @@ function vChart(type, labels, datasets, opts={}) {
       }
     };
     
-    // Start capture loop after initial render
-    requestAnimationFrame(() => setTimeout(tryCapture, 100));
+    requestAnimationFrame(() => setTimeout(tryCapture, 150));
   });
 }
 
@@ -159,23 +175,23 @@ function buildCover(pres, d) {
   // Teal rule
   s.addShape('rect',{x:1.2,y:0.96,w:8.6,h:0.05,fill:{color:DC.teal},line:{color:DC.teal}});
   // Bank name
-  s.addText(d.bankName,{x:1.2,y:1.1,w:8.5,h:0.88,
+  s.addText(String(d.bankName),{x:1.2,y:1.1,w:8.5,h:0.88,
     fontSize:36,fontFace:'Calibri',bold:true,color:DC.navy,valign:'middle',margin:0});
   s.addText('BMAP Market Snapshot',{x:1.2,y:2.04,w:8.5,h:0.34,
     fontSize:16,fontFace:'Calibri',color:DC.navy,margin:0});
-  s.addText(d.date,{x:1.2,y:2.42,w:8.5,h:0.26,
+  s.addText(String(d.date),{x:1.2,y:2.42,w:8.5,h:0.26,
     fontSize:11,fontFace:'Calibri',color:DC.gray3,margin:0});
   // 4 KPI tiles
   const kpis=[
-    {v:d.branches,l:'BRANCHES'},
-    {v:d.deposits,l:'TOTAL DEPOSITS'},
-    {v:d.avgScore,l:'AVG OPP SCORE'},
-    {v:d.gap,     l:'VS PEER AVG', red:d.gapNeg},
+    {v:String(d.branches),l:'BRANCHES'},
+    {v:String(d.deposits),l:'TOTAL DEPOSITS'},
+    {v:String(d.avgScore),l:'AVG OPP SCORE'},
+    {v:String(d.gap),     l:'VS PEER AVG', red:d.gapNeg},
   ];
   kpis.forEach((k,i)=>{
     const kx=1.2+i*2.14;
     s.addShape('rect',{x:kx,y:2.82,w:2.0,h:0.88,fill:{color:DC.gray1},line:{color:DC.gray2,pt:0.5}});
-    s.addText(String(k.v),{x:kx,y:2.88,w:2.0,h:0.48,
+    s.addText(k.v,{x:kx,y:2.88,w:2.0,h:0.48,
       fontSize:22,fontFace:'Calibri',bold:true,
       color:k.red?DC.justify:DC.navy,align:'center',margin:0});
     s.addText(k.l,{x:kx,y:3.34,w:2.0,h:0.26,
@@ -184,15 +200,15 @@ function buildCover(pres, d) {
   });
   // Zone tiles
   const zones=[
-    {v:d.invest, l:'INVEST', c:DC.invest, bg:DC.investL},
-    {v:d.analyze,l:'ANALYZE',c:DC.analyze,bg:DC.analyzeL},
-    {v:d.defend, l:'DEFEND', c:DC.defend, bg:DC.defendL},
-    {v:d.justify,l:'JUSTIFY',c:DC.justify,bg:DC.justifyL},
+    {v:String(d.invest), l:'INVEST', c:DC.invest, bg:DC.investL},
+    {v:String(d.analyze),l:'ANALYZE',c:DC.analyze,bg:DC.analyzeL},
+    {v:String(d.defend), l:'DEFEND', c:DC.defend, bg:DC.defendL},
+    {v:String(d.justify),l:'JUSTIFY',c:DC.justify,bg:DC.justifyL},
   ];
   zones.forEach((z,i)=>{
     const zx=1.2+i*2.14;
     s.addShape('rect',{x:zx,y:3.82,w:2.0,h:0.72,fill:{color:z.bg},line:{color:z.c,pt:0.8}});
-    s.addText(String(z.v),{x:zx,y:3.86,w:2.0,h:0.36,
+    s.addText(z.v,{x:zx,y:3.86,w:2.0,h:0.36,
       fontSize:20,fontFace:'Calibri',bold:true,color:z.c,align:'center',margin:0});
     s.addText(z.l,{x:zx,y:4.22,w:2.0,h:0.24,
       fontSize:8,fontFace:'Calibri',bold:true,color:z.c,
@@ -212,31 +228,50 @@ async function buildNetwork(pres, d) {
   addNarrative(s, d.network, 0.14);
 
   const kpis=[
-    {v:d.deposits,  l:'TOTAL DEPOSITS', bg:DC.gray1,   vc:DC.navy},
-    {v:d.avgScore,  l:'AVG OPP SCORE',  bg:DC.gray1,   vc:DC.navy},
-    {v:d.depositYoY,l:'DEPOSIT YoY',    bg:d.gapNeg?DC.justifyL:DC.investL, vc:d.gapNeg?DC.justify:DC.invest},
-    {v:d.gap,       l:'GAP VS PEERS',   bg:d.gapNeg?DC.justifyL:DC.investL, vc:d.gapNeg?DC.justify:DC.invest},
+    {v:String(d.deposits),  l:'TOTAL DEPOSITS', bg:DC.gray1,   vc:DC.navy},
+    {v:String(d.avgScore),  l:'AVG OPP SCORE',  bg:DC.gray1,   vc:DC.navy},
+    {v:String(d.depositYoY),l:'DEPOSIT YoY',    bg:d.gapNeg?DC.justifyL:DC.investL, vc:d.gapNeg?DC.justify:DC.invest},
+    {v:String(d.gap),       l:'GAP VS PEERS',   bg:d.gapNeg?DC.justifyL:DC.investL, vc:d.gapNeg?DC.justify:DC.invest},
   ];
   kpis.forEach((k,i)=>{
     const kx=6.46+(i%2)*1.76, ky=0.14+Math.floor(i/2)*0.9;
     s.addShape('rect',{x:kx,y:ky,w:1.62,h:0.78,fill:{color:k.bg},line:{color:DC.gray2,pt:0.4}});
-    s.addText(String(k.v),{x:kx,y:ky+0.06,w:1.62,h:0.42,
+    s.addText(k.v,{x:kx,y:ky+0.06,w:1.62,h:0.42,
       fontSize:19,fontFace:'Calibri',bold:true,color:k.vc,align:'center',margin:0});
     s.addText(k.l,{x:kx,y:ky+0.52,w:1.62,h:0.2,
       fontSize:6.5,fontFace:'Calibri',bold:true,color:DC.gray3,
       align:'center',charSpacing:0.6,margin:0});
   });
 
-  // Zone pie chart
+  // Zone pie chart with BMAP colors and data labels
   try {
+    const zoneData = [d.invest, d.analyze, d.defend, d.justify];
+    const total = zoneData.reduce((a,b) => a+b, 0);
+    
     const pieImg = await vChart('pie',
       ['Invest','Analyze','Defend','Justify'],
-      [{data:[d.invest,d.analyze,d.defend,d.justify],
-        backgroundColor:['#27500A','#185FA5','#854F0B','#A32D2D'],
-        borderWidth:2, borderColor:'#fff'}],
-      {w:520,h:520,pb:10});
+      [{
+        data: zoneData,
+        backgroundColor: ['#27500A', '#185FA5', '#854F0B', '#A32D2D'],
+        borderColor: '#FFFFFF',
+        borderWidth: 3,
+        borderRadius: 4
+      }],
+      {
+        w: 1000, h: 580, pb: 40,
+        legend: true,
+        lp: 'bottom',
+        tooltipCallback: {
+          label: (ctx) => {
+            const val = ctx.parsed || 0;
+            const pct = total ? ((val / total) * 100).toFixed(1) : '0';
+            return `${ctx.label}: ${val} (${pct}%)`;
+          }
+        }
+      });
+    
     if (pieImg && pieImg.length > 100) {
-      s.addImage({data:pieImg, x:6.22,y:1.88,w:3.6,h:2.94});
+      s.addImage({data: pieImg, x: 6.22, y: 1.88, w: 3.6, h: 2.94});
     }
   } catch(e) {
     console.warn('Pie chart failed:', e.message);
@@ -260,15 +295,15 @@ async function buildBranches(pres, d) {
     s.addText(String(i+1),{x:6.34,y:by+0.26,w:0.34,h:0.34,
       fontSize:11,fontFace:'Calibri',bold:true,color:DC.white,
       align:'center',valign:'middle',margin:0});
-    s.addText(b.name,{x:6.76,y:by+0.07,w:2.18,h:0.26,
+    s.addText(String(b.name),{x:6.76,y:by+0.07,w:2.18,h:0.26,
       fontSize:10,fontFace:'Calibri',bold:true,color:DC.navy,margin:0});
-    s.addText(b.city,{x:6.76,y:by+0.33,w:2.18,h:0.18,
+    s.addText(String(b.city),{x:6.76,y:by+0.33,w:2.18,h:0.18,
       fontSize:8,fontFace:'Calibri',color:DC.gray3,margin:0});
-    s.addText(`${b.dep}  ·  ${b.yoy}% YoY`,{x:6.76,y:by+0.54,w:2.18,h:0.22,
+    s.addText(`${String(b.dep)}  ·  ${String(b.yoy)}% YoY`,{x:6.76,y:by+0.54,w:2.18,h:0.22,
       fontSize:9,fontFace:'Calibri',color:DC.navy,margin:0});
     s.addShape('roundRect',{x:9.0,y:by+0.3,w:0.72,h:0.24,
       fill:{color:zbg},line:{color:zc,pt:0.5},rectRadius:0.04});
-    s.addText(b.zone,{x:9.0,y:by+0.3,w:0.72,h:0.24,
+    s.addText(String(b.zone),{x:9.0,y:by+0.3,w:0.72,h:0.24,
       fontSize:7,fontFace:'Calibri',bold:true,color:zc,
       align:'center',valign:'middle',margin:0});
   });
@@ -291,10 +326,10 @@ function buildFinancial(pres, d) {
   d.metrics.forEach((m,i)=>{
     const my=0.48+i*0.64, bg=i%2===0?DC.gray1:DC.white;
     s.addShape('rect',{x:6.22,y:my,w:3.56,h:0.58,fill:{color:bg},line:{color:DC.gray2,pt:0.3}});
-    s.addText(m.label,{x:6.3,y:my+0.13,w:1.0,h:0.28,fontSize:9.5,fontFace:'Calibri',color:DC.navy,margin:0});
-    s.addText(m.value,{x:7.38,y:my+0.1,w:1.26,h:0.32,
+    s.addText(String(m.label),{x:6.3,y:my+0.13,w:1.0,h:0.28,fontSize:9.5,fontFace:'Calibri',color:DC.navy,margin:0});
+    s.addText(String(m.value),{x:7.38,y:my+0.1,w:1.26,h:0.32,
       fontSize:13,fontFace:'Calibri',bold:true,color:DC.navy,align:'center',margin:0});
-    s.addText(m.bench,{x:8.68,y:my+0.13,w:1.0,h:0.28,
+    s.addText(String(m.bench),{x:8.68,y:my+0.13,w:1.0,h:0.28,
       fontSize:9,fontFace:'Calibri',color:DC.gray3,align:'center',italic:true,margin:0});
     const sc = m.ok ? DC.teal : DC.amber;
     s.addShape('roundRect',{x:9.74,y:my+0.13,w:0.3,h:0.3,fill:{color:sc},line:{color:sc},rectRadius:0.04});
@@ -306,7 +341,7 @@ function buildFinancial(pres, d) {
   if (d.competitor) {
     s.addShape('rect',{x:6.22,y:4.88,w:3.56,h:0.34,
       fill:{color:DC.justifyL},line:{color:DC.justify,pt:0.5}});
-    s.addText(`⚠  Key Competitor  ·  ${d.competitor.branches} branch overlap  ·  Peer avg YoY ${d.competitor.yoy}%`,{
+    s.addText(`⚠  Key Competitor  ·  ${String(d.competitor.branches)} branch overlap  ·  Peer avg YoY ${String(d.competitor.yoy)}%`,{
       x:6.32,y:4.9,w:3.36,h:0.28,
       fontSize:8.5,fontFace:'Calibri',bold:true,color:DC.justify,valign:'middle',margin:0});
   }
@@ -317,44 +352,56 @@ async function buildGap(pres, d) {
   s.background = {color:DC.navy};
   s.addShape('rect',{x:0,y:0,w:0.12,h:5.625,fill:{color:DC.teal},line:{color:DC.teal}});
 
-  s.addText(d.gap,{x:0.28,y:0.16,w:5.2,h:1.86,
+  s.addText(String(d.gap),{x:0.28,y:0.16,w:5.2,h:1.86,
     fontSize:96,fontFace:'Calibri',bold:true,color:DC.teal,valign:'middle',margin:0});
   s.addText('GAP VS PEER AVERAGE',{x:0.28,y:2.08,w:5.2,h:0.34,
     fontSize:13,fontFace:'Calibri',bold:true,color:DC.white,charSpacing:3,margin:0});
-  s.addText(d.gapSubtitle,{x:0.28,y:2.5,w:5.2,h:0.26,
+  s.addText(String(d.gapSubtitle),{x:0.28,y:2.5,w:5.2,h:0.26,
     fontSize:9.5,fontFace:'Calibri',color:'4A6A8A',italic:true,margin:0});
 
   const tiles=[
-    {v:d.bankYoY+'%',  l:'THIS BANK YoY', c:d.gapNeg?'F87171':DC.teal},
-    {v:d.peerYoY+'%',  l:'PEER AVG',      c:DC.gray3},
-    {v:d.gap,          l:'GAP',           c:DC.amber},
+    {v:String(d.bankYoY)+'%',  l:'THIS BANK YoY', c:d.gapNeg?'F87171':DC.teal},
+    {v:String(d.peerYoY)+'%',  l:'PEER AVG',      c:DC.gray3},
+    {v:String(d.gap),          l:'GAP',           c:DC.amber},
   ];
   tiles.forEach((t,i)=>{
     const tx=0.28+i*1.78;
     s.addShape('rect',{x:tx,y:2.96,w:1.62,h:1.12,fill:{color:'162436'},line:{color:'1E3A5F',pt:0.5}});
     s.addShape('rect',{x:tx,y:2.96,w:1.62,h:0.06,fill:{color:t.c},line:{color:t.c}});
-    s.addText(String(t.v),{x:tx,y:3.06,w:1.62,h:0.58,
+    s.addText(t.v,{x:tx,y:3.06,w:1.62,h:0.58,
       fontSize:20,fontFace:'Calibri',bold:true,color:t.c,align:'center',valign:'middle',margin:0});
     s.addText(t.l,{x:tx,y:3.7,w:1.62,h:0.26,
       fontSize:7,fontFace:'Calibri',bold:true,color:'3A5A7A',align:'center',charSpacing:0.8,margin:0});
   });
 
-  // Bar chart
+  // Bar chart with BMAP colors
   try {
     const gapImg = await vChart('bar',
       ['This Bank','Peer Avg'],
-      [{data:[parseFloat(d.bankYoY),parseFloat(d.peerYoY)],
-        backgroundColor:[d.gapNeg?'#A32D2D':'#1D9E75','#778899'],
-        borderWidth:0}],
-      {w:580,h:460,legend:false});
+      [{
+        label: 'Deposit YoY %',
+        data: [parseFloat(d.bankYoY), parseFloat(d.peerYoY)],
+        backgroundColor: [d.gapNeg ? '#A32D2D' : '#1D9E75', '#778899'],
+        borderWidth: 0,
+        borderRadius: 6,
+        barThickness: 80
+      }],
+      {
+        w: 1000, h: 540, pb: 40,
+        legend: false,
+        tooltipCallback: {
+          label: (ctx) => `${ctx.parsed.y.toFixed(1)}%`
+        }
+      });
+    
     if (gapImg && gapImg.length > 100) {
-      s.addImage({data:gapImg,x:5.6,y:0.18,w:4.24,h:4.88});
+      s.addImage({data: gapImg, x: 5.6, y: 0.18, w: 4.24, h: 4.88});
     }
   } catch(e) {
     console.warn('Gap chart failed:', e.message);
   }
 
-  s.addText('Verlocity Princeton Partners Group   ·   BMAP Intelligence   ·   '+d.bankName,{
+  s.addText('Verlocity Princeton Partners Group   ·   BMAP Intelligence   ·   '+String(d.bankName),{
     x:0.28,y:5.3,w:9.5,h:0.22,fontSize:7.5,fontFace:'Calibri',color:'2A4060',margin:0});
   s.addText('5',{x:9.5,y:5.3,w:0.38,h:0.22,
     fontSize:9,fontFace:'Calibri',color:'2A4060',align:'right',margin:0});
@@ -376,9 +423,9 @@ function buildNextSteps(pres, d) {
     s.addText(String(i+1).padStart(2,'0'),{x:6.34,y:ay+0.36,w:0.34,h:0.34,
       fontSize:9,fontFace:'Calibri',bold:true,color:DC.white,
       align:'center',valign:'middle',margin:0});
-    s.addText(a.title,{x:6.76,y:ay+0.1,w:2.98,h:0.28,
+    s.addText(String(a.title),{x:6.76,y:ay+0.1,w:2.98,h:0.28,
       fontSize:10.5,fontFace:'Calibri',bold:true,color:DC.navy,margin:0});
-    s.addText(a.body,{x:6.76,y:ay+0.42,w:2.98,h:0.62,
+    s.addText(String(a.body),{x:6.76,y:ay+0.42,w:2.98,h:0.62,
       fontSize:8.5,fontFace:'Calibri',color:DC.gray4,valign:'top',margin:0});
   });
 }
@@ -398,7 +445,6 @@ async function snapshotExport() {
     const {rows, allBr:br, tgt, ik} = window.bankData;
     const bankName = rows[0]?.namefull || '—';
 
-    // ── Stats ──────────────────────────────────────────────────
     const tot      = rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
     const avg      = v => rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
     const invest   = rows.filter(r=>r.opportunity_zone==='Invest').length;
@@ -517,7 +563,6 @@ Return ONLY valid JSON — no markdown, no explanation:
     await buildGap(pres, DATA);
     buildNextSteps(pres, DATA);
 
-    // Generate without XML manipulation — PptxGenJS handles it
     const blob = await pres.write('blob');
     const safeName = bankName.replace(/[^a-z0-9]/gi,'_');
     const url = URL.createObjectURL(blob);

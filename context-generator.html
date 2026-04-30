@@ -180,6 +180,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ppt-copy-all:hover{opacity:.88}
 .ppt-copy-all.ok{background:var(--green)}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://fggraufaro.github.io/bmap-tools/bmap-deck.js"></script>
@@ -329,13 +330,35 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 
   <!-- WF06 — BMAP SNAPSHOT DECK -->
   <div class="dn" id="pptWidget">
+    <!-- Single bank export -->
     <div class="card card-pad" style="margin-bottom:14px">
-      <div class="label" style="margin-bottom:6px">BMAP Snapshot Deck</div>
+      <div class="label" style="margin-bottom:6px">BMAP Snapshot Deck — Single Bank</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:14px">
-        One-click branded PPTX — network overview, zone distribution, financial health, audience signals and top competitors. A leave-behind that earns the next conversation.
+        Branded leave-behind PPTX — network overview, zone distribution, financial health, audience signals and top competitors. Built server-side with vector charts. Opens directly in PowerPoint.
       </div>
       <button class="gen-btn" style="margin-bottom:0" id="snapBtn" onclick="snapshotExport()">⬇ Generate & Export BMAP Snapshot</button>
-      <div class="loading" id="snapLd" style="margin-top:8px"><span class="spin"></span><span id="snapMsg">Pulling data...</span></div>
+      <div class="loading" id="snapLd" style="margin-top:8px"><span class="spin"></span><span id="snapMsg">Building deck on server...</span></div>
+    </div>
+    <!-- Batch export -->
+    <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--teal)">
+      <div class="label" style="margin-bottom:6px">Batch Export — Multiple Banks from CSV</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px">
+        Upload a CSV with one <code style="font-family:IBM Plex Mono,monospace;background:var(--gray);padding:1px 4px;border-radius:3px">inst_key</code> per line (optional second column: bank name). All decks are built server-side and downloaded as a single ZIP.
+      </div>
+      <div style="background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:12px;line-height:1.8">
+        <strong>CSV format:</strong><br>
+        bank_123,Country Bank for Savings<br>
+        bank_456,Carver Federal Savings<br>
+        bank_789
+      </div>
+      <label style="display:block;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:600;color:var(--navy)">Select CSV file</span><br>
+        <input type="file" id="batchCsvInput" accept=".csv,.txt"
+          style="margin-top:6px;font-size:12px;font-family:IBM Plex Mono,monospace">
+      </label>
+      <button class="gen-btn" style="margin-bottom:0;background:var(--teal)" id="batchBtn" onclick="runBatchExport()">⬇ Generate All Decks → ZIP</button>
+      <div class="loading" id="batchLd" style="margin-top:8px"><span class="spin"></span><span id="batchMsg">Building decks on server...</span></div>
+      <div id="batchResults" style="margin-top:10px;display:none"></div>
     </div>
   </div>
 
@@ -511,7 +534,113 @@ function selWf(n){
 
 
 
-// WF06 handled by bmap-deck.js
+// ── WF06 — BMAP SNAPSHOT DECK (Railway API) ───────────────────
+const BMAP_API = 'bmap-snapshot-production.up.railway.app';  // ← update after deploy
+
+async function snapshotExport() {
+  if (!window.selBank || !window.bankData) return;
+  const btn   = document.getElementById('snapBtn');
+  const ld    = document.getElementById('snapLd');
+  const msg   = document.getElementById('snapMsg');
+  const {rows, ik} = window.bankData;
+  const bankName   = rows[0]?.namefull || '—';
+
+  btn.disabled = true;
+  ld.classList.add('on');
+  msg.textContent = 'Building deck on server...';
+
+  try {
+    const resp = await fetch(`${BMAP_API}/generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({inst_key: ik, bank_name: bankName})
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({error: resp.statusText}));
+      throw new Error(err.error || resp.statusText);
+    }
+
+    const blob = await resp.blob();
+    const safe = bankName.replace(/[^a-z0-9]/gi,'_');
+    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `BMAP_Snapshot_${safe}_${date}.pptx`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    btn.textContent = '✓ Downloaded';
+    btn.style.background = '#1D9E75';
+    setTimeout(()=>{ btn.textContent='⬇ Generate & Export BMAP Snapshot'; btn.style.background=''; btn.disabled=false; }, 3500);
+
+  } catch(err) {
+    console.error('snapshotExport error:', err);
+    alert('Export failed: ' + err.message);
+    btn.disabled = false;
+  }
+  ld.classList.remove('on');
+}
+
+// ── BATCH EXPORT ───────────────────────────────────────────────
+async function runBatchExport() {
+  const fileInput = document.getElementById('batchCsvInput');
+  const btn       = document.getElementById('batchBtn');
+  const ld        = document.getElementById('batchLd');
+  const msgEl     = document.getElementById('batchMsg');
+  const resultsEl = document.getElementById('batchResults');
+
+  if (!fileInput.files.length) { alert('Please select a CSV file first.'); return; }
+
+  btn.disabled = true;
+  ld.classList.add('on');
+  resultsEl.style.display = 'none';
+
+  try {
+    const csvText = await fileInput.files[0].text();
+
+    // Parse CSV into banks array
+    const banks = csvText.trim().split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#') && !l.toLowerCase().startsWith('inst_key'))
+      .map(l => { const p = l.split(','); return {inst_key: p[0].trim(), name: (p[1]||'').trim()}; });
+
+    if (!banks.length) { alert('No banks found in CSV.'); btn.disabled=false; ld.classList.remove('on'); return; }
+
+    msgEl.textContent = `Sending ${banks.length} banks to server...`;
+
+    const resp = await fetch(`${BMAP_API}/generate-batch`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({banks})
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({error: resp.statusText}));
+      throw new Error(err.error || resp.statusText);
+    }
+
+    const blob = await resp.blob();
+    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `BMAP_Batch_${date}.zip`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    resultsEl.innerHTML = `<div style="background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:11px;font-family:IBM Plex Mono,monospace;color:var(--navy)">✓ ${banks.length} decks built and downloaded as ZIP</div>`;
+    resultsEl.style.display = 'block';
+    btn.textContent = `✓ ${banks.length} decks downloaded`;
+    btn.style.background = 'var(--green)';
+    setTimeout(()=>{ btn.textContent='⬇ Generate All Decks → ZIP'; btn.style.background='var(--teal)'; btn.disabled=false; }, 4000);
+
+  } catch(err) {
+    console.error('Batch export failed:', err);
+    alert('Batch failed: ' + err.message);
+    btn.disabled = false;
+  }
+  ld.classList.remove('on');
+}
 
 
 // ══════════════════════════════════════════════════════════════

@@ -334,7 +334,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="card card-pad" style="margin-bottom:14px">
       <div class="label" style="margin-bottom:6px">BMAP Snapshot Deck — Single Bank</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:14px">
-        Branded leave-behind PPTX — network overview, zone distribution, financial health, audience signals and top competitors. Built server-side with vector charts. Opens directly in PowerPoint.
+        Branded outreach deck — bank's own deposit data, competitive gap, branch priorities, financial health, and an introduction to the Verlocity Growth System. Built server-side with vector charts. Opens directly in PowerPoint.
       </div>
       <button class="gen-btn" style="margin-bottom:0" id="snapBtn" onclick="snapshotExport()">⬇ Generate & Export BMAP Snapshot</button>
       <div class="loading" id="snapLd" style="margin-top:8px"><span class="spin"></span><span id="snapMsg">Building deck on server...</span></div>
@@ -343,7 +343,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--teal)">
       <div class="label" style="margin-bottom:6px">Batch Export — Multiple Banks from CSV</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px">
-        Upload a CSV with one <code style="font-family:IBM Plex Mono,monospace;background:var(--gray);padding:1px 4px;border-radius:3px">inst_key</code> per line (optional second column: bank name). All decks are built server-side and downloaded as a single ZIP.
+        Upload a CSV with one <code style="font-family:IBM Plex Mono,monospace;background:var(--gray);padding:1px 4px;border-radius:3px">inst_key</code> per line (optional second column: bank name). Each deck includes brokered deposit analysis where applicable. All built server-side and downloaded as a single ZIP.
       </div>
       <div style="background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:12px;line-height:1.8">
         <strong>CSV format:</strong><br>
@@ -535,7 +535,7 @@ function selWf(n){
 
 
 // ── WF06 — BMAP SNAPSHOT DECK (Railway API) ───────────────────
-const BMAP_API = 'https://bmap-snapshot-production.up.railway.app';  // ← update after deploy
+const BMAP_API = 'https://bmap-snapshot.up.railway.app';  // ← update after deploy
 
 async function snapshotExport() {
   if (!window.selBank || !window.bankData) return;

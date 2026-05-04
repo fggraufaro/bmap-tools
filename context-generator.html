@@ -339,6 +339,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <button class="gen-btn" style="margin-bottom:0" id="snapBtn" onclick="snapshotExport()">⬇ Generate & Export BMAP Snapshot</button>
       <div class="loading" id="snapLd" style="margin-top:8px"><span class="spin"></span><span id="snapMsg">Building deck on server...</span></div>
     </div>
+    <!-- Board brief -->
+    <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--navy)">
+      <div class="label" style="margin-bottom:6px">Board Brief PDF — Executive &amp; CFO</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:14px">
+        5-page confidential PDF for board-level review. Deposit gap analysis, branch risk exposure, strategic questions, and the engagement ask. No agency language — written for the CFO.
+      </div>
+      <button class="gen-btn" style="margin-bottom:0;background:var(--navy)" id="briefBtn" onclick="boardBriefExport()">⬇ Generate Board Brief PDF</button>
+      <div class="loading" id="briefLd" style="margin-top:8px"><span class="spin"></span><span id="briefMsg">Building board brief...</span></div>
+    </div>
+
     <!-- Batch export -->
     <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--teal)">
       <div class="label" style="margin-bottom:6px">Batch Export — Multiple Banks from CSV</div>
@@ -577,6 +587,52 @@ async function snapshotExport() {
   } catch(err) {
     console.error('snapshotExport error:', err);
     alert('Export failed: ' + err.message);
+    btn.disabled = false;
+  }
+  ld.classList.remove('on');
+}
+
+// ── BOARD BRIEF EXPORT ────────────────────────────────────────
+async function boardBriefExport() {
+  if (!window.selBank || !window.bankData) return;
+  const btn   = document.getElementById('briefBtn');
+  const ld    = document.getElementById('briefLd');
+  const msg   = document.getElementById('briefMsg');
+  const {rows, ik} = window.bankData;
+  const bankName   = rows[0]?.namefull || '—';
+
+  btn.disabled = true;
+  ld.classList.add('on');
+  msg.textContent = 'Building board brief...';
+
+  try {
+    const resp = await fetch(`${BMAP_API}/generate-brief`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({inst_key: ik, bank_name: bankName})
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({error: resp.statusText}));
+      throw new Error(err.error || resp.statusText);
+    }
+
+    const blob = await resp.blob();
+    const safe = bankName.replace(/[^a-z0-9]/gi,'_');
+    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `Board_Brief_${safe}_${date}.pdf`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    btn.textContent = '✓ Downloaded';
+    btn.style.background = '#1D9E75';
+    setTimeout(()=>{ btn.textContent='⬇ Generate Board Brief PDF'; btn.style.background='var(--navy)'; btn.disabled=false; }, 3500);
+
+  } catch(err) {
+    console.error('boardBriefExport error:', err);
+    alert('Brief failed: ' + err.message);
     btn.disabled = false;
   }
   ld.classList.remove('on');

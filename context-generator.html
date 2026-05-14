@@ -107,7 +107,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ag-field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .ag-field select{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--white);color:var(--text);font-family:'Inter',system-ui,sans-serif}
 .ag-field select:focus{border-color:var(--navy);outline:none}
-.ag-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.ag-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .ag-scard{background:var(--gray);border-radius:7px;padding:9px 12px}
 .ag-scard-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:'IBM Plex Mono',monospace}
 .ag-scard-v{font-size:17px;font-weight:800;color:var(--navy)}
@@ -298,7 +298,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <button class="ag-gen-btn" id="agGenBtn" onclick="agGenerate()">Generate Resonate audience brief for Pete →</button>
     <div class="loading" id="agLd"><span class="spin"></span>Building audience brief with AI...</div>
     <div class="out-card dn" id="agOut">
-      <div class="out-hdr"><div class="out-t">RESONATE AUDIENCE BRIEF</div><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button></div>
+      <div class="out-hdr"><div class="out-t">RESONATE AUDIENCE BRIEF</div><div style="display:flex;gap:6px"><button class="copy-btn" id="agZipBtn" onclick="agDownloadZips()" style="display:none;background:var(--teal)">⬇ ZIP list</button><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button></div></div>
       <div class="out-body"><div class="out-txt" id="agOutTxt"></div></div>
     </div>
   </div>
@@ -596,16 +596,56 @@ async function runBatchExport() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// WF02 — AUDIENCE GENERATOR
+// WF02 — AUDIENCE GENERATOR (enhanced)
 // ══════════════════════════════════════════════════════════════
-let agBranchData=null;
+let agBranchData=null, agRateData=null;
+
+// Household sizing — estimate targetable HH per segment
+function agEstHH(rows, incomeFiltK=0, popFrac=1.0){
+  const HH=2.53;
+  return Math.round(rows.reduce((s,r)=>{
+    const pop=+r.total_population||0;
+    const inc=(+r.household_income||0)/1000;
+    return s+(inc>=incomeFiltK?(pop/HH)*popFrac:0);
+  },0));
+}
+function agFmtHH(n){
+  if(n>=1000000)return`~${(n/1e6).toFixed(1)}M HH`;
+  if(n>=1000)return`~${Math.round(n/1000)}K HH`;
+  return`~${n} HH`;
+}
+
+// Life stage from income + ZHVI
+function agLifeStage(income,zhvi){
+  if(income>=100&&zhvi>=450)return'45–65, wealth accumulation';
+  if(income>=85&&zhvi>=350)return'35–55, established homeowner';
+  if(income>=65&&zhvi>=250)return'30–50, building household';
+  if(income>=50)return'25–45, early career / family formation';
+  return'25–55, broad working age';
+}
+
+// Channel rec from income + pop growth
+function agChannels(income,zhvi,popGrowth){
+  const ch=['Digital display','Paid social (Meta)'];
+  if(income>=85)ch.splice(1,1,'Paid social (Meta/LinkedIn)');
+  if(zhvi>=400)ch.push('Direct mail');
+  if(popGrowth>0)ch.push('Search/SEM');
+  if(income>=100)ch.push('CTV/Streaming');
+  ch.push('Local broadcast');
+  return ch.slice(0,4).join(' · ');
+}
+
 async function agLoadAndCompute(){
   if(!selBank||!bankData)return;
   const{ik}=bankData;
   if(!agBranchData||agBranchData.ik!==ik){
     agBranchData=null;
-    const rows=await api('branch_opportunity_base',`inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
+    const [rows,rateRows]=await Promise.all([
+      api('branch_opportunity_base',`inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`),
+      api('vw_rate_radar_latest',`status=eq.Found&select=bank_name,savings_apy,cd_apy,cd_term,checking_apy&order=savings_apy.desc.nullslast&limit=5`).catch(()=>[])
+    ]);
     agBranchData={ik,rows};
+    agRateData=rateRows||[];
   }
   agCompute();
 }
@@ -631,23 +671,95 @@ function agCompute(){
   const audType=g('agAudType').value,zoneFocus=g('agZoneFocus').value;
   const focusRows=allRows.filter(r=>zoneFocus==='invest'?r.opportunity_zone==='Invest':r.opportunity_zone==='Invest'||r.opportunity_zone==='Analyze');
   if(!focusRows.length)return;
-  const d={bankYoy:agAvg(focusRows,'yoy_deposits')*100,compYoy:agAvg(focusRows,'avg_comp_yoy')*100,oppScore:agAvg(focusRows,'opportunity_score'),investBr:allRows.filter(r=>r.opportunity_zone==='Invest').length,income:agAvg(focusRows,'household_income')/1000,zhvi:agAvg(focusRows,'zhvi')/1000,zhviYoy:agAvg(focusRows,'zhvi_yoy_pct'),smbZone:agTopSmbZone(focusRows),smbEstab:Math.round(agAvg(focusRows,'smb_establishments')),smbDensity:agAvg(focusRows,'estab_per_1k_pop').toFixed(1),audType};
-  const gap=d.bankYoy-d.compYoy;const gapCls=gap<-5?'bad':gap<0?'warn':'good';const scoreCls=d.oppScore>=55?'good':d.oppScore>=35?'warn':'bad';
+  const investRows=allRows.filter(r=>r.opportunity_zone==='Invest');
+  const analyzeRows=allRows.filter(r=>r.opportunity_zone==='Analyze');
+  const d={
+    bankYoy:agAvg(focusRows,'yoy_deposits')*100,
+    compYoy:agAvg(focusRows,'avg_comp_yoy')*100,
+    oppScore:agAvg(focusRows,'opportunity_score'),
+    investBr:investRows.length,
+    income:agAvg(focusRows,'household_income')/1000,
+    zhvi:agAvg(focusRows,'zhvi')/1000,
+    zhviYoy:agAvg(focusRows,'zhvi_yoy_pct'),
+    smbZone:agTopSmbZone(focusRows),
+    smbEstab:Math.round(agAvg(focusRows,'smb_establishments')),
+    smbDensity:agAvg(focusRows,'estab_per_1k_pop').toFixed(1),
+    popGrowth:agAvg(focusRows,'yoy_pop_growth')*100,
+    totalPop:focusRows.reduce((s,r)=>s+(+r.total_population||0),0),
+    audType,
+    // Household estimates
+    hhTotal:agEstHH(focusRows,0,1.0),
+    hhHighIncome:agEstHH(focusRows,Math.max(50,Math.round(agAvg(focusRows,'household_income')/1000-20)),1.0),
+    hhWealthy:agEstHH(focusRows,85,0.8),
+    hhSmb:Math.round(focusRows.reduce((s,r)=>s+(+r.smb_establishments||0),0)),
+    // ZIPs
+    investZips:[...new Set(investRows.filter(r=>r.zipbr).map(r=>r.zipbr))],
+    analyzeZips:[...new Set(analyzeRows.filter(r=>r.zipbr).map(r=>r.zipbr))],
+    allZips:[...new Set(focusRows.filter(r=>r.zipbr).map(r=>r.zipbr))],
+    // Rate context
+    rateData:agRateData||[],
+    lifeStage:agLifeStage(agAvg(focusRows,'household_income')/1000,agAvg(focusRows,'zhvi')/1000),
+    channels:agChannels(agAvg(focusRows,'household_income')/1000,agAvg(focusRows,'zhvi')/1000,agAvg(focusRows,'yoy_pop_growth'))
+  };
+
+  const gap=d.bankYoy-d.compYoy;
+  const gapCls=gap<-5?'bad':gap<0?'warn':'good';
+  const scoreCls=d.oppScore>=55?'good':d.oppScore>=35?'warn':'bad';
   const smbPill=d.smbZone?`<span class="ag-smb-pill ag-smb-${d.smbZone.toLowerCase()}">${d.smbZone}</span>`:`<span class="ag-smb-pill ag-smb-medium">—</span>`;
-  g('agSummary').innerHTML=`<div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div><div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div><div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div><div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div><div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>`;
+  const popGrowthFmt=(d.popGrowth>=0?'+':'')+d.popGrowth.toFixed(1)+'%';
+
+  // Enhanced summary cards — now includes HH estimate and ZIP count
+  g('agSummary').innerHTML=`
+    <div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">HH universe</div><div class="ag-scard-v" style="font-size:14px">${agFmtHH(d.hhTotal)}</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">Priority ZIPs</div><div class="ag-scard-v" style="font-size:14px">${d.allZips.length}</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">Pop growth</div><div class="ag-scard-v ${d.popGrowth>0?'good':d.popGrowth<-1?'bad':'warn'}">${popGrowthFmt}</div></div>
+    <div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>
+  `;
+
+  // Rate signal banner — shows if Rate Radar has data
+  let rateBanner='';
+  if(d.rateData.length){
+    const topSavings=d.rateData.filter(r=>r.savings_apy).sort((a,b)=>b.savings_apy-a.savings_apy)[0];
+    const topCD=d.rateData.filter(r=>r.cd_apy).sort((a,b)=>b.cd_apy-a.cd_apy)[0];
+    rateBanner=`<div style="background:#F0FBF7;border:1px solid #9FE1CB;border-radius:7px;padding:8px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;margin-bottom:10px;color:#085041">
+      ⚡ Rate Radar signal — top competitor: ${topSavings?`Savings ${topSavings.savings_apy}% APY (${topSavings.bank_name})`:'—'} &nbsp;·&nbsp; ${topCD?`CD ${topCD.cd_apy}% APY (${topCD.bank_name})`:'—'}
+    </div>`;
+  }
+  g('agNote').innerHTML=rateBanner+(agBranchData.rows.some(r=>r.smb_index!=null)?
+    `<span style="font-size:11px;color:var(--muted)">SMB data from Census Business Patterns · ${d.smbEstab} avg establishments in priority markets · Life stage: ${d.lifeStage} · Channels: ${d.channels}</span>`:
+    `<span style="font-size:11px;color:var(--muted)">Life stage: ${d.lifeStage} · Channels: ${d.channels}</span>`);
+
   const results=AG_SEGS.map(s=>({...s,result:s.logic(d)})).sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
   const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
   g('agSegLabel').textContent=`${primary.length} primary · ${secondary.length} secondary`;
   const metro=agTopMetro(focusRows);
+
   g('agSegGrid').innerHTML=results.map((s,idx)=>{
-    const r=s.result;const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
+    const r=s.result;
+    const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
     const badge=r.rank==='primary'?'<span class="ag-badge bp">Primary</span>':r.rank==='secondary'?'<span class="ag-badge bs">Secondary</span>':'<span class="ag-badge bo">Not recommended</span>';
+    // Household estimate per segment
+    let hhEst='';
+    if(r.rank!=='off'){
+      let hh=0;
+      if(s.key==='switcher') hh=agEstHH(focusRows,Math.max(50,Math.round(d.income-20)),0.15);
+      else if(s.key==='cd')   hh=agEstHH(focusRows,d.income>=80?65:50,0.12);
+      else if(s.key==='hys')  hh=agEstHH(focusRows,Math.max(55,Math.round(d.income-15)),0.20);
+      else if(s.key==='checking') hh=agEstHH(focusRows,0,0.25);
+      else if(s.key==='wealth')   hh=agEstHH(focusRows,85,0.10);
+      else if(s.key==='digital')  hh=agEstHH(focusRows,0,0.18);
+      else if(s.key==='rate')     hh=agEstHH(focusRows,Math.max(45,Math.round(d.income-25)),0.22);
+      else if(s.key==='smb')      hh=d.hhSmb;
+      if(hh>0) hhEst=`<div style="font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 0;color:var(--muted)">Est. universe: <strong style="color:var(--navy)">${agFmtHH(hh)}</strong></div>`;
+    }
     const raiBlock=r.rank!=='off'?`<div class="ag-rai"><span class="ag-rai-lbl">rAI prompt — paste into Resonate Ignite</span>"${s.rAI(d).replace('[METRO]',metro)}"</div>`:'';
-    const paramsBlock=(r.rank!=='off'&&s.params)?(()=>{const rows=s.params(d).map(p=>`<div class="ag-param-row"><span class="ag-param-k">${p.k}</span><span class="ag-param-v">${p.v}</span></div>`).join('');return`<div class="ag-params-toggle" onclick="agToggleParams(this)" data-idx="${idx}">▸ Manual build values</div><div class="ag-params-body">${rows}</div>`;})():'';
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${raiBlock}${paramsBlock}</div>`;
+    const paramsBlock=(r.rank!=='off'&&s.params)?(()=>{const rows=s.params(d).map(p=>`<div class="ag-param-row"><span class="ag-param-k">${p.k}</span><span class="ag-param-v">${p.v}</span></div>`).join('');return`<div class="ag-params-toggle" onclick="agToggleParams(this)">▸ Manual build values</div><div class="ag-params-body">${rows}</div>`;})():'';
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${hhEst}${raiBlock}${paramsBlock}</div>`;
   }).join('');
-  const hasSmbData=focusRows.some(r=>r.smb_index!=null);
-  g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
   window._agState={d,results,primary,secondary,focusRows,metro};
 }
 
@@ -659,15 +771,109 @@ async function agGenerate(){
   const{d,primary,secondary,focusRows,metro}=s;
   const maxAud=parseInt(g('agMaxAud').value),crm=g('agCrm').value;
   const{rows,ik}=bankData;
-  const investZips=focusRows.filter(r=>r.opportunity_zone==='Invest').slice(0,6).map(r=>`${r.citybr} ${r.zipbr||''}`.trim()).join(', ');
+  const bankName=rows[0]?.namefull||'—';
+
+  // Build ZIP lists
+  const investZipList=d.investZips.join(', ')||'—';
+  const allZipList=d.allZips.join(', ')||'—';
+
+  // Rate signal for context
+  const rateCtx=d.rateData.length?
+    'Rate Radar — top competitor rates:
+'+d.rateData.slice(0,3).map(r=>`  ${r.bank_name}: Savings ${r.savings_apy||'—'}% | CD ${r.cd_apy||'—'}% ${r.cd_term||''}`).join('
+'):
+    'Rate Radar data not yet available for this market.';
+
   const primarySegs=primary.slice(0,maxAud);
   const secondarySegs=secondary.slice(0,Math.max(0,maxAud-primarySegs.length));
-  const context=`BANK: ${rows[0]?.namefull}\nTotal branches: ${rows.length} | Invest zone: ${d.investBr}\nDeposit gap vs competitors: ${(d.bankYoy-d.compYoy).toFixed(1)}pp\nBank deposit YoY: ${d.bankYoy.toFixed(1)}% | Competitor avg: ${d.compYoy.toFixed(1)}%\nAvg opportunity score: ${Math.round(d.oppScore)}/100\nAvg household income: $${Math.round(d.income)}k | Avg ZHVI: $${Math.round(d.zhvi)}k (${d.zhviYoy.toFixed(1)}% YoY)\nSMB zone: ${d.smbZone||'—'} | Establishments: ${d.smbEstab} | Density: ${d.smbDensity}/1k\nTop metro: ${metro} | Priority ZIPs: ${investZips||'—'}\nAudience type: ${d.audType} | CRM: ${crm==='yes'?'provided':'not yet provided'}\n\nPRIMARY SEGMENTS: ${primarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}\n   rAI: "${seg.rAI(d).replace('[METRO]',metro)}"`).join('\n')}\n\nSECONDARY: ${secondarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}`).join('\n')||'None within cap'}`;
+
+  const context=`BANK: ${bankName}
+Total branches: ${rows.length} | Invest zone: ${d.investBr} branches | Analyze zone: ${rows.filter(r=>r.opportunity_zone==='Analyze').length} branches
+Deposit YoY: ${d.bankYoy.toFixed(1)}% vs competitor avg: ${d.compYoy.toFixed(1)}% → Gap: ${(d.bankYoy-d.compYoy).toFixed(1)}pp
+Avg opportunity score: ${Math.round(d.oppScore)}/100
+Avg household income: $${Math.round(d.income)}k | Avg ZHVI: $${Math.round(d.zhvi)}k (${d.zhviYoy.toFixed(1)}% YoY)
+Population growth (priority markets): ${d.popGrowth>=0?'+':''}${d.popGrowth.toFixed(1)}%
+Est. total HH universe (priority zones): ${agFmtHH(d.hhTotal)}
+Inferred life stage: ${d.lifeStage}
+SMB zone: ${d.smbZone||'—'} | Avg establishments: ${d.smbEstab} | Density: ${d.smbDensity}/1k
+CRM suppression list: ${crm==='yes'?'provided — suppress existing customers':'not yet provided'}
+Audience type: ${d.audType}
+
+PRIORITY GEOGRAPHIES:
+Top metro: ${metro}
+Invest zone ZIPs (${d.investZips.length}): ${investZipList}
+All priority ZIPs (${d.allZips.length}): ${allZipList}
+
+${rateCtx}
+
+PRIMARY SEGMENTS (${primarySegs.length}):
+${primarySegs.map((seg,i)=>{
+  let hh=0;
+  if(seg.key==='switcher') hh=agEstHH(focusRows,Math.max(50,Math.round(d.income-20)),0.15);
+  else if(seg.key==='cd')   hh=agEstHH(focusRows,d.income>=80?65:50,0.12);
+  else if(seg.key==='hys')  hh=agEstHH(focusRows,Math.max(55,Math.round(d.income-15)),0.20);
+  else if(seg.key==='checking') hh=agEstHH(focusRows,0,0.25);
+  else if(seg.key==='wealth')   hh=agEstHH(focusRows,85,0.10);
+  else if(seg.key==='digital')  hh=agEstHH(focusRows,0,0.18);
+  else if(seg.key==='rate')     hh=agEstHH(focusRows,Math.max(45,Math.round(d.income-25)),0.22);
+  else if(seg.key==='smb')      hh=d.hhSmb;
+  return`${i+1}. ${seg.name} — ${seg.result.why}
+   Est. universe: ${agFmtHH(hh)} | Life stage: ${d.lifeStage}
+   rAI: "${seg.rAI(d).replace('[METRO]',metro)}"
+   Params: ${seg.params?seg.params(d).map(p=>p.k+': '+p.v).join(' | '):''}`
+}).join('
+
+')}
+
+SECONDARY SEGMENTS:
+${secondarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}`).join('
+')||'None within cap'}
+
+CHANNEL RECOMMENDATION: ${d.channels}`;
+
   try{
-    const txt=await aiCall(`You are the Verlocity audience strategist. Build a Resonate audience brief for Pete Vazquez. Write in clear structured format. Be specific with data. Direct colleague tone. Return ONLY the brief.`,`Build a complete Resonate audience brief from these BMAP signals:\n\n${context}\n\nInclude: BANK SNAPSHOT (3 lines), PRIORITY GEOGRAPHY, AUDIENCES (${maxAud} total with rAI prompts), SUPPRESSION, NEXT STEPS (3 bullets).`,1400);
-    g('agOutTxt').textContent=txt;show('agOut');
-  }catch(e){g('agOutTxt').textContent='Error connecting to AI: '+e.message;show('agOut');}
+    const txt=await aiCall(
+      `You are the Verlocity audience strategist. Build a structured Resonate audience brief for Pete Vazquez.
+Be specific with data. Use the BMAP signals exactly as given. Direct colleague tone.
+Format with clear sections. Include actual ZIP codes and household estimates.
+Return ONLY the brief — no preamble, no sign-off.`,
+      `Build a complete Resonate audience brief from these BMAP signals:
+
+${context}
+
+Include these exact sections:
+1. BANK SNAPSHOT (3 lines — name, deposit gap, top market)
+2. PRIORITY GEOGRAPHY (top 5 markets, ZIP lists for Invest zone, all priority ZIPs)
+3. AUDIENCE SEGMENTS (${maxAud} total — for each: segment name, est. HH size, income band, life stage, product hook, rAI prompt, manual build params)
+4. COMPETITIVE RATE CONTEXT (from rate data provided — what the market is offering vs. what this bank should communicate)
+5. SUPPRESSION (CRM status, exclusion recommendations)
+6. CHANNEL MIX (specific recommendations per segment based on income and market data)
+7. NEXT STEPS (3 bullets — what Pete does first in Resonate)`,
+      2000
+    );
+    g('agOutTxt').textContent=txt;
+    show('agOut');
+    // Show ZIP download button after brief generates
+    g('agZipBtn').style.display='inline-block';
+    window._agZips={invest:d.investZips,all:d.allZips,bank:bankName};
+  }catch(e){
+    g('agOutTxt').textContent='Error connecting to AI: '+e.message;
+    show('agOut');
+  }
   g('agLd').classList.remove('on');g('agGenBtn').disabled=false;
+}
+
+function agDownloadZips(){
+  const z=window._agZips;if(!z)return;
+  const lines=['ZIP,Zone,Count'];
+  z.invest.forEach(zip=>lines.push(`${zip},Invest,1`));
+  z.all.filter(zip=>!z.invest.includes(zip)).forEach(zip=>lines.push(`${zip},Analyze,1`));
+  const blob=new Blob([lines.join('
+')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`ZIPs_${(z.bank||'bank').replace(/[^a-z0-9]/gi,'_')}.csv`;
+  a.click();
 }
 
 function agCopyOut(){navigator.clipboard.writeText(g('agOutTxt').textContent).then(()=>{g('agCb').textContent='✓ Copied';g('agCb').classList.add('ok');setTimeout(()=>{g('agCb').textContent='Copy to clipboard';g('agCb').classList.remove('ok');},2000);});}

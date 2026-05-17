@@ -99,7 +99,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .dn{display:none}
 
 /* ── WF02 AUDIENCE GENERATOR ── */
-.ag-section{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.ag-section{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:visible}
 .ag-sec-hdr{background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
 .ag-sec-body{padding:14px 16px}
 .ag-input-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px}
@@ -134,12 +134,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ag-seg.primary .ag-rai{background:rgba(12,68,124,.07);color:#0C447C}
 .ag-seg.secondary .ag-rai{background:rgba(15,110,86,.07);color:#085041}
 .ag-rai-lbl{font-weight:700;font-size:9px;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:2px;opacity:.7}
-.ag-city-wrap{margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+.ag-city-wrap{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;position:relative}
 .ag-city-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
 .ag-city-search-row{display:flex;gap:6px;align-items:center;position:relative}
 .ag-city-input{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--white);color:var(--text);font-family:'Inter',system-ui,sans-serif;outline:none}
 .ag-city-input:focus{border-color:var(--navy)}
-.ag-city-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--navy);border-radius:7px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none}
+.ag-city-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--navy);border-radius:7px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none}
 .ag-city-dd.open{display:block}
 .ag-city-opt{padding:8px 12px;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ag-city-opt:hover{background:var(--gray)}
@@ -150,6 +150,13 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ag-city-chip button:hover{color:#fff}
 .ag-city-clear{font-size:10px;color:var(--muted);cursor:pointer;text-decoration:underline;margin-left:4px;white-space:nowrap}
 .ag-city-clear:hover{color:var(--navy)}
+.ag-seg-sentence{font-size:12px;color:var(--text);margin:6px 0 5px;line-height:1.5;font-style:italic}
+.ag-seg.primary .ag-seg-sentence{color:#1a3a5c}
+.ag-seg.secondary .ag-seg-sentence{color:#085041}
+.ag-seg-bullets{margin:0;padding:0 0 0 16px;font-size:11px;line-height:1.8;color:var(--text)}
+.ag-seg.primary .ag-seg-bullets{color:#1a3a5c}
+.ag-seg.secondary .ag-seg-bullets{color:#085041}
+.ag-seg-bullets li{padding:0}
 .ag-params-toggle{margin-top:6px;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;opacity:.6;font-family:'IBM Plex Mono',monospace;user-select:none}
 .ag-params-toggle:hover{opacity:1}
 .ag-params-body{display:none;margin-top:6px;border-top:1px solid rgba(0,0,0,.08);padding-top:6px}
@@ -313,17 +320,17 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       </div>
     </div>
     <div class="ag-section">
-      <div class="ag-sec-hdr"><span>Suggested Resonate segments</span><span id="agSegLabel" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></div>
+      <div class="ag-sec-hdr"><span>Audience segments</span><span id="agSegLabel" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></div>
       <div class="ag-sec-body">
         <div class="ag-summary" id="agSummary"></div>
         <div class="ag-seg-grid" id="agSegGrid"></div>
         <div class="ag-note" id="agNote"></div>
       </div>
     </div>
-    <button class="ag-gen-btn" id="agGenBtn" onclick="agGenerate()">Generate Resonate audience brief for Pete →</button>
-    <div class="loading" id="agLd"><span class="spin"></span>Building audience brief with AI...</div>
+    <button class="ag-gen-btn" id="agGenBtn" onclick="agGenerate()">Generate audience brief →</button>
+    <div class="loading" id="agLd"><span class="spin"></span>Building audience brief...</div>
     <div class="out-card dn" id="agOut">
-      <div class="out-hdr"><div class="out-t">RESONATE AUDIENCE BRIEF</div><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button></div>
+      <div class="out-hdr"><div class="out-t">AUDIENCE BRIEF</div><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button></div>
       <div class="out-body"><div class="out-txt" id="agOutTxt"></div></div>
     </div>
   </div>
@@ -637,14 +644,38 @@ async function agLoadAndCompute(){
 }
 
 const AG_SEGS=[
-  {key:'switcher',name:'Likely bank switcher',desc:'Planning to move primary bank in 3–12 months',logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<=-8)return{rank:'primary',why:`Severe ${gap.toFixed(1)}pp deposit gap — large switcher pool in market`};if(gap<=-3)return{rank:'primary',why:`Bank losing ${Math.abs(gap).toFixed(1)}pp to competitors`};if(gap<0)return{rank:'secondary',why:`Slight negative gap vs competitors`};return{rank:'off',why:`Bank growing ahead of market`};},rAI:d=>`People in [METRO] planning to switch their primary bank in the next 3–12 months, household income above $${Math.max(50,Math.round(d.income-20))}k`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — Invest zone markets`},{k:'Intent signal',v:`Likely to switch banks — 3 to 12 months`},{k:'Household income',v:`$${Math.max(50,Math.round(d.income-20))}k+`},{k:'Audience type',v:d.audType==='smb'?'Business':'Consumer'},{k:'Suppress',v:`Bank CRM list — existing customers`}]},
-  {key:'cd',name:'CD opener',desc:'Actively shopping for a certificate of deposit',logic:d=>{if(d.income>=80&&d.zhviYoy>=3)return{rank:'primary',why:`Income $${Math.round(d.income)}k + rising home values (${Math.round(d.zhviYoy)}% YoY) — wealth accumulation drives CD demand`};if(d.income>=65)return{rank:'primary',why:`Income profile supports CD commitment`};if(d.income>=50)return{rank:'secondary',why:`Mid-income bracket — CD viable with rate-first messaging`};return{rank:'off',why:`Income below CD threshold`};},rAI:d=>`People in [METRO] planning to open a certificate of deposit in the next 6 months, household income $${Math.round(d.income)}k or higher`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — Invest + Analyze markets`},{k:'Intent signal',v:`Planning to open a CD — 3 to 6 months`},{k:'Household income',v:`$${Math.round(d.income)}k+`},{k:'Home value (ZHVI)',v:`$${Math.round(d.zhvi)}k avg (+${d.zhviYoy.toFixed(1)}% YoY)`},{k:'Audience type',v:`Consumer`},{k:'Suppress',v:`Bank CRM list`}]},
-  {key:'hys',name:'High-yield savings seeker',desc:'Wants better APY without locking into a term',logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<-3&&d.income>=60)return{rank:'primary',why:`Rate-sensitive market + competitor deposit growth — HYS is the entry hook`};if(d.income>=55)return{rank:'secondary',why:`Middle-income market responds to savings rate messaging`};return{rank:'off',why:`Lower income or growing market`};},rAI:d=>`People in [METRO] looking for a high-yield savings account, dissatisfied with their current bank's savings rate`,params:d=>[{k:'Geography',v:`[METRO] ZIPs`},{k:'Intent signal',v:`Seeking high-yield savings / money market`},{k:'Household income',v:`$${Math.round(Math.max(55,d.income-15))}k+`},{k:'Suppress',v:`Bank CRM list`}]},
-  {key:'checking',name:'New checking opener',desc:'Opening or switching primary checking account',logic:d=>{if(d.oppScore>=55)return{rank:'primary',why:`High opportunity score ${Math.round(d.oppScore)} — active growth market`};if(d.oppScore>=35)return{rank:'primary',why:`Solid opportunity score — checking anchors the relationship`};if(d.oppScore>=20)return{rank:'secondary',why:`Moderate score — checking viable but higher CAC`};return{rank:'off',why:`Low opportunity score`};},rAI:d=>`People in [METRO] likely to open a new checking account or switch primary bank within 6 months`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — Invest zone`},{k:'Intent signal',v:`Likely to open new checking`},{k:'Opp score',v:`${Math.round(d.oppScore)}/100`},{k:'Suppress',v:`Bank CRM list`}]},
-  {key:'smb',name:'SMB banking decision-maker',desc:'Owner or CFO evaluating business checking or sweep account',logic:d=>{if(d.audType==='consumer')return{rank:'off',why:`Consumer-only audience selected`};const sz=d.smbZone;if(sz==='Top'||d.audType==='smb')return{rank:'primary',why:`SMB zone: ${sz||'Top'} · ${d.smbEstab} avg establishments · ${d.smbDensity}/1k pop`};if(sz==='High')return{rank:'secondary',why:`SMB zone: High — solid business presence`};if(sz==='Medium')return{rank:'secondary',why:`SMB zone: Medium — include alongside consumer`};return{rank:'off',why:`SMB zone: Low — consumer-first recommended`};},rAI:d=>`Small business owners or CFOs in [METRO] evaluating business checking, savings, or sweep accounts at a community bank`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — SMB zone ${d.smbZone||'—'}`},{k:'Intent signal',v:`Evaluating business banking`},{k:'Occupation',v:`Small business owner / CFO`},{k:'SMB density',v:`${d.smbEstab} avg establishments`},{k:'Suppress',v:`Bank CRM — existing business accounts`}]},
-  {key:'wealth',name:'Wealth consolidator',desc:'Moving assets to a single trusted institution',logic:d=>{if(d.income>=100&&d.zhvi>=450)return{rank:'primary',why:`High income $${Math.round(d.income)}k + home value $${Math.round(d.zhvi)}k — wealth consolidation top motive`};if(d.income>=85&&d.zhviYoy>=5)return{rank:'secondary',why:`Rising wealth market`};if(d.income>=85)return{rank:'secondary',why:`Income supports wealth consolidation`};return{rank:'off',why:`Income/wealth below threshold`};},rAI:d=>`People in [METRO] with income above $${Math.round(Math.max(80,d.income))}k consolidating accounts into a single trusted community bank`,params:d=>[{k:'Geography',v:`[METRO] ZIPs — highest ZHVI`},{k:'Household income',v:`$${Math.round(Math.max(80,d.income))}k+`},{k:'Life stage',v:`45–65, pre-retirement`},{k:'Suppress',v:`Bank CRM list`}]},
-  {key:'digital',name:'Digital-first big bank leaver',desc:'Leaving a national bank for a community alternative',logic:d=>{const gap=d.bankYoy-d.compYoy;if(d.investBr>=2&&gap<-2)return{rank:'primary',why:`${d.investBr} Invest branches + competitor growth`};if(d.investBr>=1&&gap<0)return{rank:'primary',why:`Invest zone + negative gap — community bank differentiation works`};if(d.investBr>=1)return{rank:'secondary',why:`Invest zone footprint`};return{rank:'off',why:`Limited Invest zone presence`};},rAI:d=>`People in [METRO] who are current customers of national banks and considering switching to a community bank`,params:d=>[{k:'Geography',v:`[METRO] — Invest zone`},{k:'Current institution',v:`Chase, BofA, Wells Fargo, Citizens`},{k:'Suppress',v:`Bank CRM list`}]},
-  {key:'rate',name:'Rate-sensitive depositor',desc:'APY-driven — shops rates actively',logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<=-8)return{rank:'primary',why:`Severe deposit gap ${gap.toFixed(1)}pp — market is rate-shopping`};if(gap<=-4)return{rank:'primary',why:`Significant negative gap`};if(gap<0)return{rank:'secondary',why:`Mild negative gap`};return{rank:'off',why:`Bank holding or growing share`};},rAI:d=>`People in [METRO] actively comparing savings and CD rates, likely to move money for better APY`,params:d=>[{k:'Geography',v:`[METRO] — all Invest/Analyze`},{k:'Intent signal',v:`Actively rate-shopping`},{k:'Deposit gap',v:`Bank ${(d.bankYoy-d.compYoy).toFixed(1)}pp behind competitors`},{k:'Suppress',v:`Bank CRM list`}]}
+  {key:'switcher',name:'Likely bank switcher',desc:'Planning to move primary bank in 3–12 months',
+   logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<=-8)return{rank:'primary',why:`Severe ${gap.toFixed(1)}pp deposit gap — large switcher pool in market`};if(gap<=-3)return{rank:'primary',why:`Bank losing ${Math.abs(gap).toFixed(1)}pp to competitors`};if(gap<0)return{rank:'secondary',why:`Slight negative gap vs competitors`};return{rank:'off',why:`Bank growing ahead of market`};},
+   sentence:(d,metro)=>`Target adults in ${metro} who are actively considering leaving their current bank within the next 3–12 months.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Household income: $${Math.max(50,Math.round(d.income-20))}k+`,`Intent signal: Likely to switch primary bank — 3 to 12 months`,`Suppression: Bank CRM list (existing customers)`]},
+  {key:'cd',name:'CD opener',desc:'Actively shopping for a certificate of deposit',
+   logic:d=>{if(d.income>=80&&d.zhviYoy>=3)return{rank:'primary',why:`Income $${Math.round(d.income)}k + rising home values (${Math.round(d.zhviYoy)}% YoY) — wealth accumulation drives CD demand`};if(d.income>=65)return{rank:'primary',why:`Income profile supports CD commitment`};if(d.income>=50)return{rank:'secondary',why:`Mid-income bracket — CD viable with rate-first messaging`};return{rank:'off',why:`Income below CD threshold`};},
+   sentence:(d,metro)=>`Target adults in ${metro} with strong income profiles who are actively planning to open a certificate of deposit.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Household income: $${Math.round(d.income)}k+ avg (home value $${Math.round(d.zhvi)}k, +${d.zhviYoy.toFixed(1)}% YoY)`,`Intent signal: Planning to open a CD in the next 3–6 months`,`Suppression: Bank CRM list`]},
+  {key:'hys',name:'High-yield savings seeker',desc:'Wants better APY without locking into a term',
+   logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<-3&&d.income>=60)return{rank:'primary',why:`Rate-sensitive market + competitor deposit growth — HYS is the entry hook`};if(d.income>=55)return{rank:'secondary',why:`Middle-income market responds to savings rate messaging`};return{rank:'off',why:`Lower income or growing market`};},
+   sentence:(d,metro)=>`Target adults in ${metro} dissatisfied with their current savings rate and actively comparing high-yield alternatives.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Household income: $${Math.round(Math.max(55,d.income-15))}k+`,`Intent signal: Seeking high-yield savings or money market account`,`Suppression: Bank CRM list`]},
+  {key:'checking',name:'New checking opener',desc:'Opening or switching primary checking account',
+   logic:d=>{if(d.oppScore>=55)return{rank:'primary',why:`High opportunity score ${Math.round(d.oppScore)} — active growth market`};if(d.oppScore>=35)return{rank:'primary',why:`Solid opportunity score — checking anchors the relationship`};if(d.oppScore>=20)return{rank:'secondary',why:`Moderate score — checking viable but higher CAC`};return{rank:'off',why:`Low opportunity score`};},
+   sentence:(d,metro)=>`Target adults in ${metro} likely to open a new primary checking account or switch banks within 6 months.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Opportunity score: ${Math.round(d.oppScore)}/100 — active growth market`,`Intent signal: Likely to open new checking or switch primary bank`,`Suppression: Bank CRM list`]},
+  {key:'smb',name:'SMB banking decision-maker',desc:'Owner or CFO evaluating business checking or sweep account',
+   logic:d=>{if(d.audType==='consumer')return{rank:'off',why:`Consumer-only audience selected`};const sz=d.smbZone;if(sz==='Top'||d.audType==='smb')return{rank:'primary',why:`SMB zone: ${sz||'Top'} · ${d.smbEstab} avg establishments · ${d.smbDensity}/1k pop`};if(sz==='High')return{rank:'secondary',why:`SMB zone: High — solid business presence`};if(sz==='Medium')return{rank:'secondary',why:`SMB zone: Medium — include alongside consumer`};return{rank:'off',why:`SMB zone: Low — consumer-first recommended`};},
+   sentence:(d,metro)=>`Target small business owners and financial decision-makers in ${metro} evaluating business banking options.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`SMB density: ${d.smbEstab} avg establishments (${d.smbDensity}/1k pop) — zone: ${d.smbZone||'—'}`,`Occupation: Small business owner / CFO / financial decision-maker`,`Suppression: Bank CRM (existing business accounts)`]},
+  {key:'wealth',name:'Wealth consolidator',desc:'Moving assets to a single trusted institution',
+   logic:d=>{if(d.income>=100&&d.zhvi>=450)return{rank:'primary',why:`High income $${Math.round(d.income)}k + home value $${Math.round(d.zhvi)}k — wealth consolidation top motive`};if(d.income>=85&&d.zhviYoy>=5)return{rank:'secondary',why:`Rising wealth market`};if(d.income>=85)return{rank:'secondary',why:`Income supports wealth consolidation`};return{rank:'off',why:`Income/wealth below threshold`};},
+   sentence:(d,metro)=>`Target high-income adults in ${metro} aged 45–65 looking to consolidate accounts into one trusted community institution.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Household income: $${Math.round(Math.max(80,d.income))}k+ | Home value: $${Math.round(d.zhvi)}k`,`Life stage: 45–65, pre-retirement wealth consolidation`,`Suppression: Bank CRM list`]},
+  {key:'digital',name:'Digital-first big bank leaver',desc:'Leaving a national bank for a community alternative',
+   logic:d=>{const gap=d.bankYoy-d.compYoy;if(d.investBr>=2&&gap<-2)return{rank:'primary',why:`${d.investBr} Invest branches + competitor growth`};if(d.investBr>=1&&gap<0)return{rank:'primary',why:`Invest zone + negative gap — community bank differentiation works`};if(d.investBr>=1)return{rank:'secondary',why:`Invest zone footprint`};return{rank:'off',why:`Limited Invest zone presence`};},
+   sentence:(d,metro)=>`Target current national bank customers in ${metro} who are open to switching to a community bank alternative.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Current institution: Chase, BofA, Wells Fargo, Citizens (national banks)`,`Intent signal: Considering switch to community or regional bank`,`Suppression: Bank CRM list`]},
+  {key:'rate',name:'Rate-sensitive depositor',desc:'APY-driven — shops rates actively',
+   logic:d=>{const gap=d.bankYoy-d.compYoy;if(gap<=-8)return{rank:'primary',why:`Severe deposit gap ${gap.toFixed(1)}pp — market is rate-shopping`};if(gap<=-4)return{rank:'primary',why:`Significant negative gap`};if(gap<0)return{rank:'secondary',why:`Mild negative gap`};return{rank:'off',why:`Bank holding or growing share`};},
+   sentence:(d,metro)=>`Target adults in ${metro} actively comparing savings and CD rates across institutions, likely to move money for a better APY.`,
+   bullets:(d,metro,zips)=>[`Geography: ${metro} — ZIP codes ${zips}`,`Deposit gap: Bank ${(d.bankYoy-d.compYoy).toFixed(1)}pp behind competitors — rate-shopping market`,`Intent signal: Actively comparing rates, likely to move deposits`,`Suppression: Bank CRM list`]}
 ];
 
 function agAvg(rows,col){const vals=rows.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));return vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:0;}
@@ -779,12 +810,15 @@ function agCompute(){
   const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
   g('agSegLabel').textContent=`${primary.length} primary · ${secondary.length} secondary`;
   const metro=agTopMetro(focusRows);
+  const topZips=focusRows.slice(0,5).map(r=>r.zipbr).filter(Boolean);
   g('agSegGrid').innerHTML=results.map((s,idx)=>{
     const r=s.result;const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
     const badge=r.rank==='primary'?'<span class="ag-badge bp">Primary</span>':r.rank==='secondary'?'<span class="ag-badge bs">Secondary</span>':'<span class="ag-badge bo">Not recommended</span>';
-    const raiBlock=r.rank!=='off'?`<div class="ag-rai"><span class="ag-rai-lbl">rAI prompt — paste into Resonate Ignite</span>"${s.rAI(d).replace('[METRO]',metro)}"</div>`:'';
-    const paramsBlock=(r.rank!=='off'&&s.params)?(()=>{const rows=s.params(d).map(p=>`<div class="ag-param-row"><span class="ag-param-k">${p.k}</span><span class="ag-param-v">${p.v}</span></div>`).join('');return`<div class="ag-params-toggle" onclick="agToggleParams(this)" data-idx="${idx}">▸ Manual build values</div><div class="ag-params-body">${rows}</div>`;})():'';
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div>${raiBlock}${paramsBlock}</div>`;
+    if(r.rank==='off') return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div></div>`;
+    const zipStr=topZips.length?topZips.join(', '):'—';
+    const bullets=s.bullets(d,metro,zipStr);
+    const bulletHtml=bullets.map(b=>`<li>${b}</li>`).join('');
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-sentence">${s.sentence(d,metro)}</div><ul class="ag-seg-bullets">${bulletHtml}</ul></div>`;
   }).join('');
   const hasSmbData=focusRows.some(r=>r.smb_index!=null);
   g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
@@ -798,15 +832,37 @@ async function agGenerate(){
   g('agGenBtn').disabled=true;g('agLd').classList.add('on');hide('agOut');
   const{d,primary,secondary,focusRows,metro}=s;
   const maxAud=parseInt(g('agMaxAud').value),crm=g('agCrm').value;
-  const{rows,ik}=bankData;
-  const investZips=focusRows.slice(0,8).map(r=>`${r.citybr} ${r.zipbr||''}`.trim()+` [${r._selReason||r.opportunity_zone}]`).join(', ');
-  const primarySegs=primary.slice(0,maxAud);
-  const secondarySegs=secondary.slice(0,Math.max(0,maxAud-primarySegs.length));
-  const context=`BANK: ${rows[0]?.namefull}\nTotal branches: ${rows.length} | Invest zone: ${d.investBr}\nDeposit gap vs competitors: ${(d.bankYoy-d.compYoy).toFixed(1)}pp\nBank deposit YoY: ${d.bankYoy.toFixed(1)}% | Competitor avg: ${d.compYoy.toFixed(1)}%\nAvg opportunity score: ${Math.round(d.oppScore)}/100\nAvg household income: $${Math.round(d.income)}k | Avg ZHVI: $${Math.round(d.zhvi)}k (${d.zhviYoy.toFixed(1)}% YoY)\nSMB zone: ${d.smbZone||'—'} | Establishments: ${d.smbEstab} | Density: ${d.smbDensity}/1k\nTop metro: ${metro} | Priority ZIPs: ${investZips||'—'}\nAudience type: ${d.audType} | CRM: ${crm==='yes'?'provided':'not yet provided'}\n\nPRIMARY SEGMENTS: ${primarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}\n   rAI: "${seg.rAI(d).replace('[METRO]',metro)}"`).join('\n')}\n\nSECONDARY: ${secondarySegs.map((seg,i)=>`${i+1}. ${seg.name} — ${seg.result.why}`).join('\n')||'None within cap'}`;
-  try{
-    const txt=await aiCall(`You are the Verlocity audience strategist. Build a Resonate audience brief for Pete Vazquez. Write in clear structured format. Be specific with data. Direct colleague tone. Return ONLY the brief.`,`Build a complete Resonate audience brief from these BMAP signals:\n\n${context}\n\nInclude: BANK SNAPSHOT (3 lines), PRIORITY GEOGRAPHY, AUDIENCES (${maxAud} total with rAI prompts), SUPPRESSION, NEXT STEPS (3 bullets).`,1400);
-    g('agOutTxt').textContent=txt;show('agOut');
-  }catch(e){g('agOutTxt').textContent='Error connecting to AI: '+e.message;show('agOut');}
+  const{rows}=bankData;
+  const topZips=focusRows.slice(0,5).map(r=>r.zipbr).filter(Boolean);
+  const zipStr=topZips.join(', ')||'—';
+  const cityStr=agSelectedCities.size?[...agSelectedCities].join(', '):metro;
+  const allSegs=[...primary.slice(0,maxAud),...secondary.slice(0,Math.max(0,maxAud-Math.min(primary.length,maxAud)))];
+  const date=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  let txt='';
+  txt+=`AUDIENCE BRIEF\n`;
+  txt+=`${rows[0]?.namefull}\n`;
+  txt+=`Prepared by Verlocity · ${date}\n`;
+  txt+=`${'─'.repeat(52)}\n\n`;
+  txt+=`MARKET SNAPSHOT\n`;
+  txt+=`Priority market: ${cityStr}\n`;
+  txt+=`ZIP codes: ${zipStr}\n`;
+  txt+=`Avg household income: $${Math.round(d.income)}k\n`;
+  txt+=`Median home value (ZHVI): $${Math.round(d.zhvi)}k (+${d.zhviYoy.toFixed(1)}% YoY)\n`;
+  txt+=`Deposit gap vs competitors: ${(d.bankYoy-d.compYoy)>=0?'+':''}${(d.bankYoy-d.compYoy).toFixed(1)}pp\n`;
+  txt+=`Opportunity score: ${Math.round(d.oppScore)}/100\n`;
+  if(crm==='yes') txt+=`CRM suppression: provided\n`;
+  txt+='\n';
+  allSegs.forEach((seg,i)=>{
+    const rank=seg.result.rank==='primary'?'PRIMARY':'SECONDARY';
+    const bullets=seg.bullets(d,metro,zipStr);
+    txt+=`AUDIENCE ${i+1} — ${seg.name.toUpperCase()} [${rank}]\n`;
+    txt+=`${seg.sentence(d,metro)}\n\n`;
+    bullets.forEach(b=>{ txt+=`  • ${b}\n`; });
+    txt+='\n';
+  });
+  txt+=`${'─'.repeat(52)}\n`;
+  txt+=`Source: BMAP · Verlocity Intelligence Hub · Live data`;
+  g('agOutTxt').textContent=txt;show('agOut');
   g('agLd').classList.remove('on');g('agGenBtn').disabled=false;
 }
 

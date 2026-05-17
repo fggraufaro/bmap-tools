@@ -59,11 +59,26 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .zone-n{font-size:17px;font-weight:800}
 .zone-l{font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:600;margin-top:1px}
 .zi{color:var(--green)}.za{color:var(--blue)}.zd{color:#854F0B}.zj{color:var(--red)}
-.branches{padding:14px 18px}
-.sec-t{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.br-hdr,.br-row{display:grid;grid-template-columns:1fr 60px 70px 60px 80px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0ee;font-size:11px}
+.bp-bottom-grid{display:grid;grid-template-columns:1fr 300px;gap:0;border-top:1px solid var(--border)}
+.bp-branches-col{padding:14px 18px;border-right:1px solid var(--border)}
+.bp-markets-col{padding:14px 18px;background:#fafaf8}
+.bp-section-block{}
+.bp-markets-sub{font-size:10px;color:var(--muted);font-style:italic;margin:-4px 0 10px;line-height:1.4}
+.br-hdr{display:grid;grid-template-columns:1fr 48px 52px 48px 44px 52px;gap:0;padding:5px 14px;background:#f5f4f0;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-radius:5px;margin-bottom:2px}
+.br-row{display:grid;grid-template-columns:1fr 48px 52px 48px 44px 52px;gap:0;padding:7px 14px;border-bottom:1px solid #f0efe8;font-size:11px;align-items:center;font-family:'IBM Plex Mono',monospace}
 .br-row:last-child{border-bottom:none}
-.br-hdr{font-family:'IBM Plex Mono',monospace;color:var(--muted);font-size:9px;font-weight:500}
+.br-name{font-size:12px;font-weight:600;color:var(--navy);font-family:'Inter',system-ui,sans-serif}
+.br-city{font-size:10px;color:var(--muted);font-family:'Inter',system-ui,sans-serif}
+.bp-mkt-row{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #eeede6}
+.bp-mkt-row:last-child{border-bottom:none}
+.bp-mkt-num{width:18px;height:18px;background:var(--navy);color:#fff;border-radius:50%;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.bp-mkt-body{flex:1;min-width:0}
+.bp-mkt-name{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.bp-mkt-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
+.bp-mkt-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;white-space:nowrap}
+.bp-mkt-meta{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.branches{padding:0}
+.sec-t{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .br-name{font-weight:600;line-height:1.2}
 .br-city{font-size:10px;color:var(--muted)}
 .spill{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace}
@@ -272,14 +287,28 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <div class="zone"><div class="zone-n zd" id="zd">—</div><div class="zone-l zd">DEFEND</div></div>
       <div class="zone"><div class="zone-n zj" id="zj">—</div><div class="zone-l zj">JUSTIFY</div></div>
     </div>
-    <div class="branches">
-      <div class="sec-t">Top branches by opportunity score</div>
-      <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Zone</span></div>
-      <div id="br"></div>
-    </div>
-    <div class="target-sec">
-      <div class="sec-t">Top network target</div>
-      <div class="target-box"><div class="target-name" id="tn">—</div><div class="target-meta" id="tm">—</div></div>
+    <div class="bp-bottom-grid">
+      <div class="bp-branches-col">
+        <div class="bp-section-block">
+          <div class="sec-t">Top 3 Invest — Priority branches</div>
+          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span><span>Priority</span></div>
+          <div id="brInvest"></div>
+        </div>
+        <div class="bp-section-block" style="margin-top:12px">
+          <div class="sec-t">Top 3 Defend — Q1 High Priority</div>
+          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span><span>Priority</span></div>
+          <div id="brDefend"></div>
+        </div>
+        <div class="target-sec" style="margin-top:12px">
+          <div class="sec-t">Top network target</div>
+          <div class="target-box"><div class="target-name" id="tn">—</div><div class="target-meta" id="tm">—</div></div>
+        </div>
+      </div>
+      <div class="bp-markets-col">
+        <div class="sec-t">Top 5 Priority Markets</div>
+        <div class="bp-markets-sub">Metro areas with highest Invest · Defend Q1 · Tier 1 concentration</div>
+        <div id="brMarkets"></div>
+      </div>
     </div>
   </div>
 
@@ -543,7 +572,97 @@ async function loadBank(ik){
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);
   set('sm',avg('market_growth_score').toFixed(1));set('sd',avg('inv_density_norm_winsor').toFixed(1));
   ['Invest','Analyze','Defend','Justify'].forEach((z,i)=>set(['zi','za','zd','zj'][i],rows.filter(r=>r.opportunity_zone===z).length));
-  g('br').innerHTML=allBr.slice(0,5).map(b=>`<div class="br-row"><span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span><span style="font-family:IBM Plex Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span><span><span class="spill ${spill(b.opportunity_zone)}">${b.opportunity_zone}</span></span></div>`).join('');
+  // ── CASCADE-AWARE BRANCH ROWS ──────────────────────────────
+  const isQ1b  = b => b.matrix_quadrant && b.matrix_quadrant.startsWith('Q1');
+  const isTier1b = b => b.priority_tier && String(b.priority_tier).startsWith('1');
+  const byScoreB = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
+
+  // Top 3 Invest — cascade: Q1+T1 first, then Q1, then T1, then any Invest
+  const investPool = allBr.filter(b=>b.opportunity_zone==='Invest');
+  const top3Invest = (
+    investPool.filter(b=>isQ1b(b)&&isTier1b(b)).sort(byScoreB).slice(0,3).length === 3
+      ? investPool.filter(b=>isQ1b(b)&&isTier1b(b)).sort(byScoreB).slice(0,3)
+      : investPool.filter(b=>isQ1b(b)).sort(byScoreB).slice(0,3).length >= 1
+        ? [...new Set([...investPool.filter(b=>isQ1b(b)&&isTier1b(b)), ...investPool.filter(b=>isQ1b(b))].slice(0,3))]
+        : investPool.sort(byScoreB).slice(0,3)
+  );
+
+  // Top 3 Defend — cascade: Q1+T1, then Q1, then T1, then any Defend
+  const defendPool = allBr.filter(b=>b.opportunity_zone==='Defend');
+  const top3Defend = (
+    defendPool.filter(b=>isQ1b(b)&&isTier1b(b)).sort(byScoreB).length >= 1
+      ? [
+          ...defendPool.filter(b=>isQ1b(b)&&isTier1b(b)).sort(byScoreB),
+          ...defendPool.filter(b=>isQ1b(b)&&!isTier1b(b)).sort(byScoreB),
+          ...defendPool.filter(b=>!isQ1b(b)&&isTier1b(b)).sort(byScoreB),
+          ...defendPool.filter(b=>!isQ1b(b)&&!isTier1b(b)).sort(byScoreB),
+        ].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,3)
+      : defendPool.sort(byScoreB).slice(0,3)
+  );
+
+  const brRowFull = b => {
+    const mat = b.matrix_quadrant||'—';
+    const pri = b.priority_tier||'—';
+    const matCls = mat.startsWith('Q1')?'style="color:#0f7b3e;font-weight:700"':mat.startsWith('Q2')?'style="color:#1d4ed8;font-weight:600"':'';
+    const priCls = String(pri).startsWith('1')?'style="color:#0f7b3e;font-weight:700"':'';
+    return `<div class="br-row"><span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span><span style="font-family:IBM Plex Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span><span ${matCls}>${mat}</span><span ${priCls}>${pri}</span></div>`;
+  };
+
+  g('brInvest').innerHTML = top3Invest.length
+    ? top3Invest.map(brRowFull).join('')
+    : '<div style="padding:10px 14px;font-size:11px;color:var(--muted)">No Invest zone branches found.</div>';
+
+  g('brDefend').innerHTML = top3Defend.length
+    ? top3Defend.map(brRowFull).join('')
+    : '<div style="padding:10px 14px;font-size:11px;color:var(--muted)">No Defend zone branches found.</div>';
+
+  // ── TOP 5 PRIORITY MARKETS (metro areas, not averaged) ────
+  // Group branches by city+state, score each metro by count of Invest·Q1·T1 branches
+  const metroMap = {};
+  allBr.forEach(b => {
+    const key = `${b.citybr}, ${b.stalpbr}`;
+    if (!metroMap[key]) metroMap[key] = {city:b.citybr,state:b.stalpbr,branches:[],investQ1T1:0,investQ1:0,investAny:0,defendQ1T1:0,defendQ1:0,topScore:0};
+    const m = metroMap[key];
+    m.branches.push(b);
+    if (b.opportunity_zone==='Invest'&&isQ1b(b)&&isTier1b(b)) m.investQ1T1++;
+    if (b.opportunity_zone==='Invest'&&isQ1b(b)) m.investQ1++;
+    if (b.opportunity_zone==='Invest') m.investAny++;
+    if (b.opportunity_zone==='Defend'&&isQ1b(b)&&isTier1b(b)) m.defendQ1T1++;
+    if (b.opportunity_zone==='Defend'&&isQ1b(b)) m.defendQ1++;
+    m.topScore = Math.max(m.topScore, +b.opportunity_score||0);
+  });
+  // Sort metros: Invest·Q1·T1 count desc → Invest·Q1 → Defend·Q1·T1 → top score
+  const topMetros = Object.values(metroMap)
+    .sort((a,b)=>
+      (b.investQ1T1-a.investQ1T1)||
+      (b.investQ1-a.investQ1)||
+      (b.investAny-a.investAny)||
+      (b.defendQ1T1-a.defendQ1T1)||
+      (b.defendQ1-a.defendQ1)||
+      (b.topScore-a.topScore)
+    ).slice(0,5);
+
+  g('brMarkets').innerHTML = topMetros.map((m,i) => {
+    const totalBr = m.branches.length;
+    const investCount = m.investAny;
+    const defendQ1Count = m.defendQ1;
+    const topBr = m.branches.sort(byScoreB)[0];
+    const tags = [
+      m.investQ1T1>0?`<span class="bp-mkt-tag" style="background:#dcfce7;color:#166534">${m.investQ1T1} Invest·Q1·T1</span>`:'',
+      m.investQ1>m.investQ1T1?`<span class="bp-mkt-tag" style="background:#dbeafe;color:#1e40af">${m.investQ1-m.investQ1T1} Invest·Q1</span>`:'',
+      m.investAny>m.investQ1?`<span class="bp-mkt-tag" style="background:#e0f2fe;color:#0369a1">${m.investAny-m.investQ1} Invest</span>`:'',
+      m.defendQ1T1>0?`<span class="bp-mkt-tag" style="background:#fef9c3;color:#854d0e">${m.defendQ1T1} Defend·Q1·T1</span>`:'',
+      m.defendQ1>m.defendQ1T1?`<span class="bp-mkt-tag" style="background:#fef3c7;color:#92400e">${m.defendQ1-m.defendQ1T1} Defend·Q1</span>`:'',
+    ].filter(Boolean).join('');
+    return `<div class="bp-mkt-row">
+      <div class="bp-mkt-num">${i+1}</div>
+      <div class="bp-mkt-body">
+        <div class="bp-mkt-name">${m.city}, ${m.state}</div>
+        <div class="bp-mkt-tags">${tags||'<span class="bp-mkt-tag" style="background:#f3f4f6;color:#6b7280">General priority</span>'}</div>
+        <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Top score ${m.topScore.toFixed(1)} · ${topBr?topBr.namebr:''}</div>
+      </div>
+    </div>`;
+  }).join('');
   const t=tgt?.[0];
   set('tn',t?t.target_institution:'No network targets computed yet');
   set('tm',t?`${t.branches_in_radius} branches exposed · Vuln ${t.avg_vuln_score} · YoY ${(+t.avg_yoy_pct).toFixed(1)}% · ROA ${t.target_roa}% · Efficiency ${t.target_efficiency_ratio}%`:'Run populate_network_top_targets for this institution');

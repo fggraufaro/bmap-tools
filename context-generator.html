@@ -651,17 +651,22 @@ async function loadBank(ik){
     m.topScore = Math.max(m.topScore, +b.opportunity_score||0);
   });
   // Sort: Invest Q1 P1 → Invest Q1 P2 → Invest Q2 P1 → Defend Q1 P1 → top score
+  const metroScore = m =>
+    (m.inv_q1_p1 * 5) +
+    (m.inv_q1_p2 * 4) +
+    (m.inv_q2_p1 * 3) +
+    ((m.inv_q1 - m.inv_q1_p1 - m.inv_q1_p2) * 2) +  // Invest Q1 no priority match
+    (m.def_q1_p1 * 2) +
+    (m.def_q1_p2 * 1) +
+    ((m.def_q1 - m.def_q1_p1 - m.def_q1_p2) * 1) +  // Defend Q1 no priority match
+    (m.topScore * 0.01);  // tiebreaker — tiny weight so score doesn't dominate
+
   const topMetros = Object.values(metroMap)
-    .sort((a,b)=>
-      (b.inv_q1_p1-a.inv_q1_p1)||
-      (b.inv_q1_p2-a.inv_q1_p2)||
-      (b.inv_q2_p1-a.inv_q2_p1)||
-      (b.inv_q1-a.inv_q1)||
-      (b.def_q1_p1-a.def_q1_p1)||
-      (b.def_q1_p2-a.def_q1_p2)||
-      (b.def_q1-a.def_q1)||
-      (b.topScore-a.topScore)
-    ).slice(0,5);
+    .filter(m => m.metro !== 'Non-Metro / Rural')
+    .map(m => ({...m, _score: metroScore(m)}))
+    .filter(m => m._score > 0)  // only metros with at least one qualifying branch
+    .sort((a,b) => b._score - a._score)
+    .slice(0,5);
 
   // Tag styles
   const T = {
@@ -694,7 +699,7 @@ async function loadBank(ik){
       <div class="bp-mkt-body">
         <div class="bp-mkt-name">${m.metro||m.city+', '+m.state}</div>
         <div class="bp-mkt-tags">${tags||'<span class="bp-mkt-tag" style="background:#f3f4f6;color:#6b7280">General priority</span>'}</div>
-        <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Top score ${m.topScore.toFixed(1)}</div>
+        <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Market score ${m._score.toFixed(1)} · Top opp ${m.topScore.toFixed(1)}</div>
       </div>
     </div>`;
   }).join('');

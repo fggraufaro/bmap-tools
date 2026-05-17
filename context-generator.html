@@ -760,50 +760,53 @@ function agCityResetOnBankChange() {
 function agCompute(){
   if(!agBranchData)return;
   const rawRows = agBranchData.rows;
-  // Apply city filter if any cities selected
-  const allRows = agSelectedCities.size
-    ? rawRows.filter(r => agSelectedCities.has(`${r.citybr}, ${r.stalpbr}`))
-    : rawRows;
-  if (!allRows.length) return;
   const audType=g('agAudType').value,zoneFocus=g('agZoneFocus').value;
-  // ── CASCADE SELECTION ──────────────────────────────────────
-  // Ideal: Invest OR Defend + Q1 matrix + Priority Tier 1
-  // Falls through 8 passes until we have branches to work with.
-  const isInvest = r => r.opportunity_zone === 'Invest';
-  const isDefend = r => r.opportunity_zone === 'Defend';
-  const isQ1     = r => r.matrix_quadrant && r.matrix_quadrant.startsWith('Q1');
-  const isTier1  = r => r.priority_tier   && String(r.priority_tier).startsWith('1');
-  const cascadePasses = [
-    r => isInvest(r) && isQ1(r) && isTier1(r),  // Pass 1 — ideal
-    r => isInvest(r) && isQ1(r),                 // Pass 2
-    r => isDefend(r) && isQ1(r) && isTier1(r),  // Pass 3 — Defend Q1 Tier 1
-    r => isInvest(r) && isTier1(r),              // Pass 4
-    r => isInvest(r),                            // Pass 5
-    r => isDefend(r) && isQ1(r),                 // Pass 6
-    r => isDefend(r) && isTier1(r),              // Pass 7
-    r => true,                                   // Pass 8 — floor
-  ];
+
+  // ── CITY FILTER — show ALL branches from selected cities ──
+  // Cascade only runs when no cities are pinned (auto-select mode)
   let focusRows = [];
-  const usedIds = new Set();
-  for (const pass of cascadePasses) {
-    if (focusRows.length) break;
-    const candidates = allRows.filter(r => !usedIds.has(r.uninumbr) && pass(r))
-      .sort((a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0))
-      .slice(0, 5); // cap — never dump the whole network
-    candidates.forEach(r => { focusRows.push(r); usedIds.add(r.uninumbr); });
-  }
-  // Tag each branch with why it was selected (used in brief + ZIPs)
-  const passLabels = [
-    'Invest · Q1 · Tier 1','Invest · Q1','Defend · Q1 · Tier 1',
-    'Invest · Tier 1','Invest','Defend · Q1','Defend · Tier 1','Next best available'
-  ];
-  focusRows.forEach(r => {
-    for (let i = 0; i < cascadePasses.length; i++) {
-      if (cascadePasses[i](r)) { r._selReason = passLabels[i]; break; }
+  if (agSelectedCities.size) {
+    focusRows = rawRows
+      .filter(r => agSelectedCities.has(`${r.citybr}, ${r.stalpbr}`))
+      .sort((a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0));
+    focusRows.forEach(r => { r._selReason = r.opportunity_zone; });
+  } else {
+    // ── CASCADE SELECTION (auto mode) ──────────────────────
+    const allRows = rawRows;
+    const isInvest = r => r.opportunity_zone === 'Invest';
+    const isDefend = r => r.opportunity_zone === 'Defend';
+    const isQ1     = r => r.matrix_quadrant && r.matrix_quadrant.startsWith('Q1');
+    const isTier1  = r => r.priority_tier   && String(r.priority_tier).startsWith('1');
+    const cascadePasses = [
+      r => isInvest(r) && isQ1(r) && isTier1(r),  // Pass 1 — ideal
+      r => isInvest(r) && isQ1(r),                 // Pass 2
+      r => isDefend(r) && isQ1(r) && isTier1(r),  // Pass 3
+      r => isInvest(r) && isTier1(r),              // Pass 4
+      r => isInvest(r),                            // Pass 5
+      r => isDefend(r) && isQ1(r),                 // Pass 6
+      r => isDefend(r) && isTier1(r),              // Pass 7
+      r => true,                                   // Pass 8 — floor
+    ];
+    const passLabels = [
+      'Invest · Q1 · Tier 1','Invest · Q1','Defend · Q1 · Tier 1',
+      'Invest · Tier 1','Invest','Defend · Q1','Defend · Tier 1','Next best available'
+    ];
+    const usedIds = new Set();
+    for (const pass of cascadePasses) {
+      if (focusRows.length) break;
+      const candidates = allRows.filter(r => !usedIds.has(r.uninumbr) && pass(r))
+        .sort((a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0))
+        .slice(0, 5);
+      candidates.forEach(r => { focusRows.push(r); usedIds.add(r.uninumbr); });
     }
-  });
+    focusRows.forEach(r => {
+      for (let i = 0; i < cascadePasses.length; i++) {
+        if (cascadePasses[i](r)) { r._selReason = passLabels[i]; break; }
+      }
+    });
+  }
   if (!focusRows.length) return;
-  const d={bankYoy:agAvg(focusRows,'yoy_deposits')*100,compYoy:agAvg(focusRows,'avg_comp_yoy')*100,oppScore:agAvg(focusRows,'opportunity_score'),investBr:allRows.filter(r=>r.opportunity_zone==='Invest').length,income:agAvg(focusRows,'household_income')/1000,zhvi:agAvg(focusRows,'zhvi')/1000,zhviYoy:agAvg(focusRows,'zhvi_yoy_pct'),smbZone:agTopSmbZone(focusRows),smbEstab:Math.round(agAvg(focusRows,'smb_establishments')),smbDensity:agAvg(focusRows,'estab_per_1k_pop').toFixed(1),audType};
+  const d={bankYoy:agAvg(focusRows,'yoy_deposits')*100,compYoy:agAvg(focusRows,'avg_comp_yoy')*100,oppScore:agAvg(focusRows,'opportunity_score'),investBr:rawRows.filter(r=>r.opportunity_zone==='Invest').length,income:agAvg(focusRows,'household_income')/1000,zhvi:agAvg(focusRows,'zhvi')/1000,zhviYoy:agAvg(focusRows,'zhvi_yoy_pct'),smbZone:agTopSmbZone(focusRows),smbEstab:Math.round(agAvg(focusRows,'smb_establishments')),smbDensity:agAvg(focusRows,'estab_per_1k_pop').toFixed(1),audType};
   const gap=d.bankYoy-d.compYoy;const gapCls=gap<-5?'bad':gap<0?'warn':'good';const scoreCls=d.oppScore>=55?'good':d.oppScore>=35?'warn':'bad';
   const smbPill=d.smbZone?`<span class="ag-smb-pill ag-smb-${d.smbZone.toLowerCase()}">${d.smbZone}</span>`:`<span class="ag-smb-pill ag-smb-medium">—</span>`;
   g('agSummary').innerHTML=`<div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div><div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div><div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div><div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div><div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>`;

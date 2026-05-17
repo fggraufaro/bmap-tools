@@ -560,7 +560,7 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc&limit=50`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=1`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt?.[0]||null,ik};

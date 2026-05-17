@@ -560,7 +560,7 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('branch_opportunity_base',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc&limit=50`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc&limit=50`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=1`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt?.[0]||null,ik};
@@ -622,9 +622,9 @@ async function loadBank(ik){
   const isTier2b = b => b.priority_tier && String(b.priority_tier).startsWith('2');
   const metroMap = {};
   allBr.forEach(b => {
-    const key = `${b.citybr}, ${b.stalpbr}`;
+    const key = b.metro || `${b.citybr}, ${b.stalpbr}`;
     if (!metroMap[key]) metroMap[key] = {
-      city:b.citybr, state:b.stalpbr, branches:[],
+      metro:b.metro||`${b.citybr}, ${b.stalpbr}`, city:b.citybr, state:b.stalpbr, branches:[],
       // Invest counts
       inv_q1_p1:0, inv_q1_p2:0, inv_q1:0,
       inv_q2_p1:0, inv_q2_p2:0, inv_q2:0,
@@ -692,7 +692,7 @@ async function loadBank(ik){
     return `<div class="bp-mkt-row">
       <div class="bp-mkt-num">${i+1}</div>
       <div class="bp-mkt-body">
-        <div class="bp-mkt-name">${m.city}, ${m.state}</div>
+        <div class="bp-mkt-name">${m.metro||m.city+', '+m.state}</div>
         <div class="bp-mkt-tags">${tags||'<span class="bp-mkt-tag" style="background:#f3f4f6;color:#6b7280">General priority</span>'}</div>
         <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Top score ${m.topScore.toFixed(1)}</div>
       </div>
@@ -791,7 +791,7 @@ async function agLoadAndCompute(){
   if(!agBranchData||agBranchData.ik!==ik){
     agBranchData=null;
     agCityResetOnBankChange();
-    const rows=await api('branch_opportunity_base',`inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
+    const rows=await api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,metro,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
     agBranchData={ik,rows};
   }
   agCompute();
@@ -834,7 +834,7 @@ const AG_SEGS=[
 
 function agAvg(rows,col){const vals=rows.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));return vals.length?vals.reduce((s,v)=>s+v,0)/vals.length:0;}
 function agTopSmbZone(rows){const zones=rows.map(r=>r.smb_zone).filter(Boolean);if(!zones.length)return null;const counts={};zones.forEach(z=>counts[z]=(counts[z]||0)+1);const order={Top:4,High:3,Medium:2,Low:1};return Object.entries(counts).sort((a,b)=>(order[b[0]]||0)-(order[a[0]]||0))[0]?.[0]||null;}
-function agTopMetro(rows){const top=rows.slice().sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0))[0];return top?`${top.citybr}, ${top.stalpbr}`:'priority market';}
+function agTopMetro(rows){const top=rows.slice().sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0))[0];return top?(top.metro||`${top.citybr}, ${top.stalpbr}`):'priority market';}
 
 // ── CITY SEARCH ───────────────────────────────────────────────
 let agSelectedCities = new Set(); // "City, ST" keys
@@ -847,8 +847,8 @@ function agCityFilter(q) {
   const zoneOrder = {Invest:0, Analyze:1, Defend:2, Justify:3};
   const cityMap = {};
   agBranchData.rows.forEach(r => {
-    const key = `${r.citybr}, ${r.stalpbr}`;
-    if (!cityMap[key]) cityMap[key] = {key, city:r.citybr, state:r.stalpbr, zone:r.opportunity_zone, zip:r.zipbr, score:+r.opportunity_score||0};
+    const key = r.metro || `${r.citybr}, ${r.stalpbr}`;
+    if (!cityMap[key]) cityMap[key] = {key, city:r.metro||`${r.citybr}, ${r.stalpbr}`, state:r.stalpbr, zone:r.opportunity_zone, zip:r.zipbr, score:+r.opportunity_score||0};
     else if ((zoneOrder[r.opportunity_zone]||9) < (zoneOrder[cityMap[key].zone]||9)) {
       cityMap[key].zone = r.opportunity_zone;
     }
@@ -921,7 +921,7 @@ function agCompute(){
   let focusRows = [];
   if (agSelectedCities.size) {
     focusRows = rawRows
-      .filter(r => agSelectedCities.has(`${r.citybr}, ${r.stalpbr}`))
+      .filter(r => agSelectedCities.has(r.metro||`${r.citybr}, ${r.stalpbr}`))
       .sort((a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0));
     focusRows.forEach(r => { r._selReason = r.opportunity_zone; });
   } else {

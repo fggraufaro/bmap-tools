@@ -788,7 +788,8 @@ function agCompute(){
   for (const pass of cascadePasses) {
     if (focusRows.length) break;
     const candidates = allRows.filter(r => !usedIds.has(r.uninumbr) && pass(r))
-      .sort((a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0));
+      .sort((a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0))
+      .slice(0, 5); // cap — never dump the whole network
     candidates.forEach(r => { focusRows.push(r); usedIds.add(r.uninumbr); });
   }
   // Tag each branch with why it was selected (used in brief + ZIPs)
@@ -806,26 +807,46 @@ function agCompute(){
   const gap=d.bankYoy-d.compYoy;const gapCls=gap<-5?'bad':gap<0?'warn':'good';const scoreCls=d.oppScore>=55?'good':d.oppScore>=35?'warn':'bad';
   const smbPill=d.smbZone?`<span class="ag-smb-pill ag-smb-${d.smbZone.toLowerCase()}">${d.smbZone}</span>`:`<span class="ag-smb-pill ag-smb-medium">—</span>`;
   g('agSummary').innerHTML=`<div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div><div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div><div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div><div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div><div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>`;
-  const results=AG_SEGS.map(s=>({...s,result:s.logic(d)})).sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
-  const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
-  g('agSegLabel').textContent=`${primary.length} primary · ${secondary.length} secondary`;
   const metro=agTopMetro(focusRows);
-  // Build per-branch ZIP list: each branch contributes its own ZIP + city
-  const branchZips=focusRows.filter(r=>r.zipbr).map(r=>({zip:r.zipbr,city:r.citybr,state:r.stalpbr,zone:r.opportunity_zone}));
-  const zipDisplay=branchZips.length
-    ? branchZips.map(b=>`${b.zip} (${b.city}, ${b.state})`).join(', ')
-    : '—';
-  const zipForTxt=branchZips.map(b=>b.zip).join(', ')||'—';
-  g('agSegGrid').innerHTML=results.map((s,idx)=>{
-    const r=s.result;const cls=r.rank==='primary'?'primary':r.rank==='secondary'?'secondary':'off';
-    const badge=r.rank==='primary'?'<span class="ag-badge bp">Primary</span>':r.rank==='secondary'?'<span class="ag-badge bs">Secondary</span>':'<span class="ag-badge bo">Not recommended</span>';
-    if(r.rank==='off') return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-why">${r.why}</div></div>`;
-    const bullets=s.bullets(d,metro,zipDisplay);
-    const bulletHtml=bullets.map(b=>`<li>${b}</li>`).join('');
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${s.name}</div><div class="ag-seg-desc">${s.desc}</div><div class="ag-seg-sentence">${s.sentence(d,metro)}</div><ul class="ag-seg-bullets">${bulletHtml}</ul></div>`;
+  g('agSegLabel').textContent=`${focusRows.length} branch${focusRows.length!==1?'es':''} selected`;
+
+  // ── ONE CARD PER BRANCH ──────────────────────────────────
+  const zoneColor={Invest:'primary',Analyze:'secondary',Defend:'secondary',Justify:'off'};
+  const zoneBadge={
+    Invest:'<span class="ag-badge bp">Invest</span>',
+    Analyze:'<span class="ag-badge bs">Analyze</span>',
+    Defend:'<span class="ag-badge bs">Defend</span>',
+    Justify:'<span class="ag-badge bo">Justify</span>'
+  };
+  g('agSegGrid').innerHTML=focusRows.map(b=>{
+    const cls=zoneColor[b.opportunity_zone]||'secondary';
+    const badge=zoneBadge[b.opportunity_zone]||'';
+    const zip=b.zipbr||'—';
+    const city=`${b.citybr}, ${b.stalpbr}`;
+    const inc=b.household_income?`$${Math.round(+b.household_income/1000)}k`:'—';
+    const incYoY=b.yoy_income_growth?` (${(+b.yoy_income_growth*100)>0?'+':''}${(+b.yoy_income_growth*100).toFixed(1)}% YoY)`:'';
+    const pop=b.total_population?`${Math.round(+b.total_population).toLocaleString()}`:'—';
+    const popYoY=b.yoy_pop_growth?` (${(+b.yoy_pop_growth*100)>0?'+':''}${(+b.yoy_pop_growth*100).toFixed(1)}% YoY)`:'';
+    const zhvi=b.zhvi?`$${Math.round(+b.zhvi/1000)}k`:'—';
+    const zhviYoY=b.zhvi_yoy_pct?` (${(+b.zhvi_yoy_pct)>0?'+':''}${(+b.zhvi_yoy_pct).toFixed(1)}% YoY)`:'';
+    const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
+    const sel=b._selReason||b.opportunity_zone;
+    const sentence=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.`;
+    const bullets=[
+      `ZIP: ${zip} — ${city}`,
+      `Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}`,
+      `Median home value: ${zhvi}${zhviYoY}`,
+      `Selection: ${sel} · Matrix: ${b.matrix_quadrant||'—'} · Priority tier: ${b.priority_tier||'—'}`
+    ];
+    const bulletHtml=bullets.map(bl=>`<li>${bl}</li>`).join('');
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${b.namebr}</div><div class="ag-seg-desc">${city}</div><div class="ag-seg-sentence">${sentence}</div><ul class="ag-seg-bullets">${bulletHtml}</ul></div>`;
   }).join('');
+
   const hasSmbData=focusRows.some(r=>r.smb_index!=null);
   g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
+  // Keep results for agGenerate segment logic
+  const results=AG_SEGS.map(s=>({...s,result:s.logic(d)})).sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
+  const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
   window._agState={d,results,primary,secondary,focusRows,metro};
 }
 
@@ -837,12 +858,8 @@ async function agGenerate(){
   const{d,primary,secondary,focusRows,metro}=s;
   const maxAud=parseInt(g('agMaxAud').value),crm=g('agCrm').value;
   const{rows}=bankData;
-  const branchZips=focusRows.filter(r=>r.zipbr).map(r=>({zip:r.zipbr,city:r.citybr,state:r.stalpbr}));
-  const zipForTxt=branchZips.map(b=>b.zip).join(', ')||'—';
-  const zipDisplay=branchZips.map(b=>`${b.zip} (${b.city}, ${b.state})`).join(', ')||'—';
-  const cityStr=agSelectedCities.size?[...agSelectedCities].join(', '):metro;
-  const allSegs=[...primary.slice(0,maxAud),...secondary.slice(0,Math.max(0,maxAud-Math.min(primary.length,maxAud)))];
   const date=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const cityStr=agSelectedCities.size?[...agSelectedCities].join(', '):metro;
   let txt='';
   txt+=`AUDIENCE BRIEF\n`;
   txt+=`${rows[0]?.namefull}\n`;
@@ -850,19 +867,29 @@ async function agGenerate(){
   txt+=`${'─'.repeat(52)}\n\n`;
   txt+=`MARKET SNAPSHOT\n`;
   txt+=`Priority market: ${cityStr}\n`;
-  txt+=`Branch ZIP codes: ${zipForTxt}\n`;
   txt+=`Avg household income: $${Math.round(d.income)}k\n`;
   txt+=`Median home value (ZHVI): $${Math.round(d.zhvi)}k (+${d.zhviYoy.toFixed(1)}% YoY)\n`;
   txt+=`Deposit gap vs competitors: ${(d.bankYoy-d.compYoy)>=0?'+':''}${(d.bankYoy-d.compYoy).toFixed(1)}pp\n`;
   txt+=`Opportunity score: ${Math.round(d.oppScore)}/100\n`;
   if(crm==='yes') txt+=`CRM suppression: provided\n`;
   txt+='\n';
-  allSegs.forEach((seg,i)=>{
-    const rank=seg.result.rank==='primary'?'PRIMARY':'SECONDARY';
-    const bullets=seg.bullets(d,metro,zipDisplay);
-    txt+=`AUDIENCE ${i+1} — ${seg.name.toUpperCase()} [${rank}]\n`;
-    txt+=`${seg.sentence(d,metro)}\n\n`;
-    bullets.forEach(b=>{ txt+=`  • ${b}\n`; });
+  // One section per branch
+  focusRows.forEach((b,i)=>{
+    const zip=b.zipbr||'—';
+    const city=`${b.citybr}, ${b.stalpbr}`;
+    const inc=b.household_income?`$${Math.round(+b.household_income/1000)}k`:'—';
+    const incYoY=b.yoy_income_growth?` (${(+b.yoy_income_growth*100)>0?'+':''}${(+b.yoy_income_growth*100).toFixed(1)}% YoY)`:'';
+    const pop=b.total_population?Math.round(+b.total_population).toLocaleString():'—';
+    const popYoY=b.yoy_pop_growth?` (${(+b.yoy_pop_growth*100)>0?'+':''}${(+b.yoy_pop_growth*100).toFixed(1)}% YoY)`:'';
+    const zhvi=b.zhvi?`$${Math.round(+b.zhvi/1000)}k`:'—';
+    const zhviYoY=b.zhvi_yoy_pct?` (${(+b.zhvi_yoy_pct)>0?'+':''}${(+b.zhvi_yoy_pct).toFixed(1)}% YoY)`:'';
+    const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
+    txt+=`BRANCH ${i+1} — ${b.namebr.toUpperCase()}\n`;
+    txt+=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.\n\n`;
+    txt+=`  • ZIP: ${zip} — ${city}\n`;
+    txt+=`  • Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}\n`;
+    txt+=`  • Median home value: ${zhvi}${zhviYoY}\n`;
+    txt+=`  • Selection: ${b._selReason||b.opportunity_zone} · Matrix: ${b.matrix_quadrant||'—'} · Priority tier: ${b.priority_tier||'—'}\n`;
     txt+='\n';
   });
   txt+=`${'─'.repeat(52)}\n`;

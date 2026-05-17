@@ -64,8 +64,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .bp-markets-col{padding:14px 18px;background:#fafaf8}
 .bp-section-block{}
 .bp-markets-sub{font-size:10px;color:var(--muted);font-style:italic;margin:-4px 0 10px;line-height:1.4}
-.br-hdr{display:grid;grid-template-columns:1fr 48px 52px 48px 44px 52px;gap:0;padding:5px 14px;background:#f5f4f0;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-radius:5px;margin-bottom:2px}
-.br-row{display:grid;grid-template-columns:1fr 48px 52px 48px 44px 52px;gap:0;padding:7px 14px;border-bottom:1px solid #f0efe8;font-size:11px;align-items:center;font-family:'IBM Plex Mono',monospace}
+.br-hdr{display:grid;grid-template-columns:1fr 48px 52px 52px 44px;gap:0;padding:5px 14px;background:#f5f4f0;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-radius:5px;margin-bottom:2px}
+.br-row{display:grid;grid-template-columns:1fr 48px 52px 52px 44px;gap:0;padding:7px 14px;border-bottom:1px solid #f0efe8;font-size:11px;align-items:center;font-family:'IBM Plex Mono',monospace}
 .br-row:last-child{border-bottom:none}
 .br-name{font-size:12px;font-weight:600;color:var(--navy);font-family:'Inter',system-ui,sans-serif}
 .br-city{font-size:10px;color:var(--muted);font-family:'Inter',system-ui,sans-serif}
@@ -291,12 +291,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <div class="bp-branches-col">
         <div class="bp-section-block">
           <div class="sec-t">Top 3 Invest — Priority branches</div>
-          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span><span>Priority</span></div>
+          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span></div>
           <div id="brInvest"></div>
         </div>
         <div class="bp-section-block" style="margin-top:12px">
           <div class="sec-t">Top 3 Defend — Q1 High Priority</div>
-          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span><span>Priority</span></div>
+          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span></div>
           <div id="brDefend"></div>
         </div>
         <div class="target-sec" style="margin-top:12px">
@@ -306,7 +306,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       </div>
       <div class="bp-markets-col">
         <div class="sec-t">Top 5 Priority Markets</div>
-        <div class="bp-markets-sub">Metro areas with highest Invest · Defend Q1 · Tier 1 concentration</div>
+        <div class="bp-markets-sub">Ranked by Invest · Defend concentration across Q1/Q2 and Priority 1/2</div>
         <div id="brMarkets"></div>
       </div>
     </div>
@@ -602,10 +602,10 @@ async function loadBank(ik){
 
   const brRowFull = b => {
     const mat = b.matrix_quadrant||'—';
-    const pri = b.priority_tier||'—';
-    const matCls = mat.startsWith('Q1')?'style="color:#0f7b3e;font-weight:700"':mat.startsWith('Q2')?'style="color:#1d4ed8;font-weight:600"':'';
-    const priCls = String(pri).startsWith('1')?'style="color:#0f7b3e;font-weight:700"':'';
-    return `<div class="br-row"><span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span><span style="font-family:IBM Plex Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span><span ${matCls}>${mat}</span><span ${priCls}>${pri}</span></div>`;
+    // Show short Q label only (Q1/Q2/Q3/Q4) — priority used for selection, not displayed
+    const qShort = mat.match(/^Q\d/)?mat.match(/^Q\d/)[0]:'—';
+    const matCls = qShort==='Q1'?'style="color:#0f7b3e;font-weight:700"':qShort==='Q2'?'style="color:#1d4ed8;font-weight:600"':'';
+    return `<div class="br-row"><span><div class="br-name">${b.namebr}</div><div class="br-city">${b.citybr}, ${b.stalpbr}</div></span><span style="font-family:IBM Plex Mono,monospace;font-weight:700">${(+b.opportunity_score).toFixed(1)}</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">$${(b.latest_dep/1e6).toFixed(0)}M</span><span style="font-family:IBM Plex Mono,monospace;font-size:10px">${(+b.yoy_deposits*100).toFixed(1)}%</span><span ${matCls}>${qShort}</span></div>`;
   };
 
   g('brInvest').innerHTML = top3Invest.length
@@ -618,48 +618,83 @@ async function loadBank(ik){
 
   // ── TOP 5 PRIORITY MARKETS (metro areas, not averaged) ────
   // Group branches by city+state, score each metro by count of Invest·Q1·T1 branches
+  const isQ2b  = b => b.matrix_quadrant && b.matrix_quadrant.startsWith('Q2');
+  const isTier2b = b => b.priority_tier && String(b.priority_tier).startsWith('2');
   const metroMap = {};
   allBr.forEach(b => {
     const key = `${b.citybr}, ${b.stalpbr}`;
-    if (!metroMap[key]) metroMap[key] = {city:b.citybr,state:b.stalpbr,branches:[],investQ1T1:0,investQ1:0,investAny:0,defendQ1T1:0,defendQ1:0,topScore:0};
+    if (!metroMap[key]) metroMap[key] = {
+      city:b.citybr, state:b.stalpbr, branches:[],
+      // Invest counts
+      inv_q1_p1:0, inv_q1_p2:0, inv_q1:0,
+      inv_q2_p1:0, inv_q2_p2:0, inv_q2:0,
+      inv_any:0,
+      // Defend counts
+      def_q1_p1:0, def_q1_p2:0, def_q1:0,
+      def_q2_p1:0, def_q2_p2:0, def_q2:0,
+      def_any:0,
+      topScore:0
+    };
     const m = metroMap[key];
     m.branches.push(b);
-    if (b.opportunity_zone==='Invest'&&isQ1b(b)&&isTier1b(b)) m.investQ1T1++;
-    if (b.opportunity_zone==='Invest'&&isQ1b(b)) m.investQ1++;
-    if (b.opportunity_zone==='Invest') m.investAny++;
-    if (b.opportunity_zone==='Defend'&&isQ1b(b)&&isTier1b(b)) m.defendQ1T1++;
-    if (b.opportunity_zone==='Defend'&&isQ1b(b)) m.defendQ1++;
+    const inv = b.opportunity_zone==='Invest';
+    const def = b.opportunity_zone==='Defend';
+    const q1=isQ1b(b), q2=isQ2b(b), p1=isTier1b(b), p2=isTier2b(b);
+    if(inv){ m.inv_any++;
+      if(q1){ m.inv_q1++; if(p1) m.inv_q1_p1++; if(p2) m.inv_q1_p2++; }
+      if(q2){ m.inv_q2++; if(p1) m.inv_q2_p1++; if(p2) m.inv_q2_p2++; }
+    }
+    if(def){ m.def_any++;
+      if(q1){ m.def_q1++; if(p1) m.def_q1_p1++; if(p2) m.def_q1_p2++; }
+      if(q2){ m.def_q2++; if(p1) m.def_q2_p1++; if(p2) m.def_q2_p2++; }
+    }
     m.topScore = Math.max(m.topScore, +b.opportunity_score||0);
   });
-  // Sort metros: Invest·Q1·T1 count desc → Invest·Q1 → Defend·Q1·T1 → top score
+  // Sort: Invest Q1 P1 → Invest Q1 P2 → Invest Q2 P1 → Defend Q1 P1 → top score
   const topMetros = Object.values(metroMap)
     .sort((a,b)=>
-      (b.investQ1T1-a.investQ1T1)||
-      (b.investQ1-a.investQ1)||
-      (b.investAny-a.investAny)||
-      (b.defendQ1T1-a.defendQ1T1)||
-      (b.defendQ1-a.defendQ1)||
+      (b.inv_q1_p1-a.inv_q1_p1)||
+      (b.inv_q1_p2-a.inv_q1_p2)||
+      (b.inv_q2_p1-a.inv_q2_p1)||
+      (b.inv_q1-a.inv_q1)||
+      (b.def_q1_p1-a.def_q1_p1)||
+      (b.def_q1_p2-a.def_q1_p2)||
+      (b.def_q1-a.def_q1)||
       (b.topScore-a.topScore)
     ).slice(0,5);
 
+  // Tag styles
+  const T = {
+    inv_q1_p1: ['#dcfce7','#166534'],  inv_q1_p2: ['#bbf7d0','#15803d'],
+    inv_q2_p1: ['#dbeafe','#1e40af'],  inv_q2_p2: ['#bfdbfe','#1d4ed8'],
+    inv_any:   ['#e0f2fe','#0369a1'],
+    def_q1_p1: ['#fef9c3','#854d0e'],  def_q1_p2: ['#fef3c7','#92400e'],
+    def_q2_p1: ['#ffedd5','#9a3412'],  def_q2_p2: ['#fed7aa','#c2410c'],
+    def_any:   ['#f3f4f6','#6b7280'],
+  };
+  const tag = (n, label, key) => n>0
+    ? `<span class="bp-mkt-tag" style="background:${T[key][0]};color:${T[key][1]}">${n} ${label}</span>`:'';
+
   g('brMarkets').innerHTML = topMetros.map((m,i) => {
     const totalBr = m.branches.length;
-    const investCount = m.investAny;
-    const defendQ1Count = m.defendQ1;
     const topBr = m.branches.sort(byScoreB)[0];
     const tags = [
-      m.investQ1T1>0?`<span class="bp-mkt-tag" style="background:#dcfce7;color:#166534">${m.investQ1T1} Invest·Q1·T1</span>`:'',
-      m.investQ1>m.investQ1T1?`<span class="bp-mkt-tag" style="background:#dbeafe;color:#1e40af">${m.investQ1-m.investQ1T1} Invest·Q1</span>`:'',
-      m.investAny>m.investQ1?`<span class="bp-mkt-tag" style="background:#e0f2fe;color:#0369a1">${m.investAny-m.investQ1} Invest</span>`:'',
-      m.defendQ1T1>0?`<span class="bp-mkt-tag" style="background:#fef9c3;color:#854d0e">${m.defendQ1T1} Defend·Q1·T1</span>`:'',
-      m.defendQ1>m.defendQ1T1?`<span class="bp-mkt-tag" style="background:#fef3c7;color:#92400e">${m.defendQ1-m.defendQ1T1} Defend·Q1</span>`:'',
+      tag(m.inv_q1_p1,'Invest Q1 P1','inv_q1_p1'),
+      tag(m.inv_q1_p2,'Invest Q1 P2','inv_q1_p2'),
+      tag(m.inv_q2_p1,'Invest Q2 P1','inv_q2_p1'),
+      tag(m.inv_q2_p2,'Invest Q2 P2','inv_q2_p2'),
+      tag(m.inv_any-(m.inv_q1+m.inv_q2)>0?m.inv_any-m.inv_q1-m.inv_q2:0,'Invest','inv_any'),
+      tag(m.def_q1_p1,'Defend Q1 P1','def_q1_p1'),
+      tag(m.def_q1_p2,'Defend Q1 P2','def_q1_p2'),
+      tag(m.def_q2_p1,'Defend Q2 P1','def_q2_p1'),
+      tag(m.def_q2_p2,'Defend Q2 P2','def_q2_p2'),
     ].filter(Boolean).join('');
     return `<div class="bp-mkt-row">
       <div class="bp-mkt-num">${i+1}</div>
       <div class="bp-mkt-body">
         <div class="bp-mkt-name">${m.city}, ${m.state}</div>
         <div class="bp-mkt-tags">${tags||'<span class="bp-mkt-tag" style="background:#f3f4f6;color:#6b7280">General priority</span>'}</div>
-        <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Top score ${m.topScore.toFixed(1)} · ${topBr?topBr.namebr:''}</div>
+        <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Top score ${m.topScore.toFixed(1)}</div>
       </div>
     </div>`;
   }).join('');

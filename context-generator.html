@@ -506,9 +506,20 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
+// Schema routing — tables moved from public to named schemas
+const SCHEMA_MAP={
+  'dim_institutions':'ref',
+  'branch_opportunity_base':'analytics',
+  'branch_target_competitors':'analytics',
+  'bank_financial_snapshot_latest':'analytics',
+  'bank_website':'ref'
+};
 async function api(table,params){
   try{
-    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
+    const schema=SCHEMA_MAP[table]||'public';
+    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY};
+    if(schema!=='public'){headers['Accept-Profile']=schema;}
+    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
     if(!r.ok){console.error(table,r.status,await r.text());return[];}
     return r.json();
   }catch(e){console.error(e);return[];}

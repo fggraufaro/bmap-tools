@@ -1077,7 +1077,7 @@ async function loadRRWidget(){
   g('rrTitle').textContent=rows[0]?.namefull||'—';
   g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
   g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
-  let rawComp=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=*&limit=500`);
+  let rawComp=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone&order=vuln_score.desc&limit=1000`);
   if(!rawComp||!rawComp.length){g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found</td></tr>';g('rrMeta').textContent='No data';return;}
   const grouped={};
   rawComp.forEach(r=>{const k=r.target_inst_key;if(!k)return;if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;});

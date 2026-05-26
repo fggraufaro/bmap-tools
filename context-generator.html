@@ -290,12 +290,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="bp-bottom-grid">
       <div class="bp-branches-col">
         <div class="bp-section-block">
-          <div class="sec-t">Top 3 Invest — Priority branches</div>
+          <div class="sec-t">Top 3 Invest — Campaign branches</div>
           <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span></div>
           <div id="brInvest"></div>
         </div>
         <div class="bp-section-block" style="margin-top:12px">
-          <div class="sec-t">Top 3 Defend — Q1 High Priority</div>
+          <div class="sec-t">Top 3 Defend — High Priority</div>
           <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span></div>
           <div id="brDefend"></div>
         </div>
@@ -306,7 +306,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       </div>
       <div class="bp-markets-col">
         <div class="sec-t">Top 5 Priority Markets</div>
-        <div class="bp-markets-sub">Ranked by Invest · Defend concentration across Q1/Q2 and Priority 1/2</div>
+        <div class="bp-markets-sub">Ranked by Invest · Defend concentration and campaign signals</div>
         <div id="brMarkets"></div>
       </div>
     </div>
@@ -564,7 +564,7 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=1`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt?.[0]||null,ik};
@@ -578,7 +578,7 @@ async function loadBank(ik){
   ['Invest','Analyze','Defend','Justify'].forEach((z,i)=>set(['zi','za','zd','zj'][i],rows.filter(r=>r.opportunity_zone===z).length));
   // ── CASCADE-AWARE BRANCH ROWS ──────────────────────────────
   const isQ1b  = b => b.matrix_quadrant && b.matrix_quadrant.startsWith('Q1');
-  const isTier1b = b => b.priority_tier && String(b.priority_tier).startsWith('1');
+  const isTier1b = b => b.campaign && ['Aggressive Acquisition','Urgent Competitive Push','Capitalize','Turnaround','Grow Share','Competitive Defense'].includes(b.campaign);
   const byScoreB = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
 
   // Top 3 Invest — cascade: Q1+T1 first, then Q1, then T1, then any Invest
@@ -623,7 +623,7 @@ async function loadBank(ik){
   // ── TOP 5 PRIORITY MARKETS (metro areas, not averaged) ────
   // Group branches by city+state, score each metro by count of Invest·Q1·T1 branches
   const isQ2b  = b => b.matrix_quadrant && b.matrix_quadrant.startsWith('Q2');
-  const isTier2b = b => b.priority_tier && String(b.priority_tier).startsWith('2');
+  const isTier2b = b => b.campaign && ['Maintain','Loyalty/Retention','Hold and Watch'].includes(b.campaign);
   const metroMap = {};
   allBr.forEach(b => {
     const key = b.metro || `${b.citybr}, ${b.stalpbr}`;
@@ -702,7 +702,7 @@ async function loadBank(ik){
       <div class="bp-mkt-num">${i+1}</div>
       <div class="bp-mkt-body">
         <div class="bp-mkt-name">${m.metro||m.city+', '+m.state}</div>
-        <div class="bp-mkt-tags">${tags||'<span class="bp-mkt-tag" style="background:#f3f4f6;color:#6b7280">General priority</span>'}</div>
+        <div class="bp-mkt-tags">${tags||'<span class="bp-mkt-tag" style="background:#f3f4f6;color:#6b7280">General signal</span>'}</div>
         <div class="bp-mkt-meta">${totalBr} branch${totalBr!==1?'es':''} · Market score ${m._score.toFixed(1)} · Top opp ${m.topScore.toFixed(1)}</div>
       </div>
     </div>`;
@@ -939,7 +939,7 @@ function agCompute(){
     const isInvest = r => r.opportunity_zone === 'Invest';
     const isDefend = r => r.opportunity_zone === 'Defend';
     const isQ1     = r => r.matrix_quadrant && r.matrix_quadrant.startsWith('Q1');
-    const isTier1  = r => r.priority_tier   && String(r.priority_tier).startsWith('1');
+    const isTier1  = r => r.campaign && ['Aggressive Acquisition','Urgent Competitive Push','Capitalize','Turnaround','Grow Share','Competitive Defense'].includes(r.campaign);
     const cascadePasses = [
       r => isInvest(r) && isQ1(r) && isTier1(r),  // Pass 1 — ideal
       r => isInvest(r) && isQ1(r),                 // Pass 2
@@ -1002,7 +1002,7 @@ function agCompute(){
       `ZIP: ${zip} — ${city}`,
       `Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}`,
       `Median home value: ${zhvi}${zhviYoY}`,
-      `Selection: ${sel} · Matrix: ${b.matrix_quadrant||'—'} · Priority tier: ${b.priority_tier||'—'}`
+      `Selection: ${sel} · Matrix: ${b.matrix_quadrant||'—'} · Campaign: ${b.campaign||'—'}`
     ];
     const bulletHtml=bullets.map(bl=>`<li>${bl}</li>`).join('');
     return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${b.namebr}</div><div class="ag-seg-desc">${city}</div><div class="ag-seg-sentence">${sentence}</div><ul class="ag-seg-bullets">${bulletHtml}</ul></div>`;
@@ -1055,7 +1055,7 @@ async function agGenerate(){
     txt+=`  • ZIP: ${zip} — ${city}\n`;
     txt+=`  • Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}\n`;
     txt+=`  • Median home value: ${zhvi}${zhviYoY}\n`;
-    txt+=`  • Selection: ${b._selReason||b.opportunity_zone} · Matrix: ${b.matrix_quadrant||'—'} · Priority tier: ${b.priority_tier||'—'}\n`;
+    txt+=`  • Selection: ${b._selReason||b.opportunity_zone} · Matrix: ${b.matrix_quadrant||'—'} · Campaign: ${b.campaign||'—'}\n`;
     txt+='\n';
   });
   txt+=`${'─'.repeat(52)}\n`;
@@ -1173,10 +1173,10 @@ async function generate(){
   const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
   const t=tgt;
-  const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}`;
+  const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${b.matrix_quadrant} | Campaign: ${b.campaign||"—"}`;
   const top3Score=br.slice(0,3);const top3Invest=br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
   const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).slice(0,3);
-  const top3P1=br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
+  const top3P1=br.filter(b=>b.campaign&&['Aggressive Acquisition','Urgent Competitive Push','Capitalize','Turnaround','Grow Share','Competitive Defense'].includes(b.campaign)).slice(0,3);
   const topJustify=br.filter(b=>b.opportunity_zone==='Justify').sort((a,b2)=>b2.latest_dep-a.latest_dep).slice(0,3);
   let txt='',title='';
   if(selWfN===1){
@@ -1192,7 +1192,7 @@ async function generate(){
     const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}
     const[cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);
     const b=bf?.[0]||{};const fn=fin?.[0]||{};
-    txt=`VERLOCITY INTELLIGENCE HUB — BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%`;
+    txt=`VERLOCITY INTELLIGENCE HUB — BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Campaign: ${b.campaign||"—"}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%`;
   }
   g('ld').classList.remove('on');
   try{g('gb').disabled=false;}catch(e){}

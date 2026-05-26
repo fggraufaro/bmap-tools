@@ -506,14 +506,7 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-// Schema routing — tables moved from public to named schemas
-const SCHEMA_MAP={
-  'dim_institutions':'ref',
-  'branch_opportunity_base':'analytics',
-  'branch_target_competitors':'analytics',
-  'bank_financial_snapshot_latest':'analytics',
-  'bank_website':'ref'
-};
+const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref'};
 async function api(table,params){
   try{
     const schema=SCHEMA_MAP[table]||'public';
@@ -581,7 +574,7 @@ async function loadBank(ik){
   set('bn',rows[0].namefull);set('bb',`${rows.length} branches`);set('db',`$${(tot/1e9).toFixed(1)}B`);
   set('ss',avg('opportunity_score').toFixed(1));
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);
-  set('sm',avg('market_growth_score').toFixed(1));set('sd',avg('inv_density_norm_winsor').toFixed(1));
+  set('sm',(avg('market_growth_score')*100).toFixed(1));set('sd',avg('inv_density_norm_winsor').toFixed(1));
   ['Invest','Analyze','Defend','Justify'].forEach((z,i)=>set(['zi','za','zd','zj'][i],rows.filter(r=>r.opportunity_zone===z).length));
   // ── CASCADE-AWARE BRANCH ROWS ──────────────────────────────
   const isQ1b  = b => b.matrix_quadrant && b.matrix_quadrant.startsWith('Q1');

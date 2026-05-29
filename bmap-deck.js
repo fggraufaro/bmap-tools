@@ -406,6 +406,208 @@ function buildNextSteps(pres, d) {
   });
 }
 
+
+// ── Persona Slide ──────────────────────────────────────────────
+function buildPersonas(pres, DATA, personas) {
+  if (!personas || personas.length === 0) return;
+  const s = pres.addSlide('BLANK');
+  const NAVY='1A2332', WHITE='FFFFFF', GRAY3='778899', CARD='F7F8FA', BD='DDE3EA';
+  const ACCENTS = ['1A6B8A','1A7A5E','6B3FA0'];
+
+  // Left nav bar
+  s.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.28,h:5.625,fill:{color:NAVY},line:{color:NAVY}});
+  // Header
+  s.addShape(pres.ShapeType.rect,{x:0.28,y:0,w:9.72,h:1.05,fill:{color:NAVY},line:{color:NAVY}});
+  s.addText('YOUR MARKET IS TELLING YOU WHO TO TALK TO',
+    {x:0.42,y:0.08,w:7.5,h:0.38,fontSize:13,bold:true,color:WHITE,fontFace:'Calibri'});
+  s.addText(`Top 3 audience segments across Invest + Analyze branches · ${DATA.bankName}`,
+    {x:0.42,y:0.52,w:7.5,h:0.28,fontSize:8.5,color:'8BAECC',italic:true,fontFace:'Calibri'});
+  // AudienceFinder tag
+  s.addShape(pres.ShapeType.rect,{x:8.20,y:0.14,w:1.65,h:0.34,fill:{color:'00A896'},line:{color:'00A896'}});
+  s.addText('AUDIENCEFINDER ›',
+    {x:8.20,y:0.14,w:1.65,h:0.34,fontSize:7,bold:true,color:WHITE,align:'center',fontFace:'Calibri'});
+
+  // 3 persona cards
+  const cardX = [0.42, 3.46, 6.50];
+  const cardW  = 2.90, cardH = 3.60, cardY = 1.15;
+
+  personas.slice(0,3).forEach((p, i) => {
+    const ac = ACCENTS[i];
+    const cx = cardX[i];
+    // Card bg
+    s.addShape(pres.ShapeType.rect,{x:cx,y:cardY,w:cardW,h:cardH,
+      fill:{color:CARD},line:{color:BD,pt:0.75}});
+    // Top accent strip
+    s.addShape(pres.ShapeType.rect,{x:cx,y:cardY,w:cardW,h:0.08,
+      fill:{color:ac},line:{color:ac}});
+    // Number badge
+    s.addShape(pres.ShapeType.rect,{x:cx+0.12,y:cardY+0.14,w:0.30,h:0.30,
+      fill:{color:ac},line:{color:ac}});
+    s.addText(String(i+1),{x:cx+0.12,y:cardY+0.14,w:0.30,h:0.30,
+      fontSize:11,bold:true,color:WHITE,align:'center',fontFace:'Calibri'});
+    // Name
+    s.addText(p.name||'—',{x:cx+0.50,y:cardY+0.14,w:cardW-0.62,h:0.32,
+      fontSize:10.5,bold:true,color:NAVY,fontFace:'Calibri'});
+    // Age + income
+    s.addText(`${p.age||''}  ·  ${p.income||''}`,{x:cx+0.12,y:cardY+0.52,w:cardW-0.24,h:0.22,
+      fontSize:8,color:'446688',fontFace:'Calibri'});
+    // Occupation
+    s.addText((p.occupation||'').substring(0,45),{x:cx+0.12,y:cardY+0.74,w:cardW-0.24,h:0.20,
+      fontSize:7.5,color:GRAY3,italic:true,fontFace:'Calibri'});
+    // Divider
+    s.addShape(pres.ShapeType.rect,{x:cx+0.12,y:cardY+1.00,w:cardW-0.24,h:0.02,
+      fill:{color:BD},line:{color:BD}});
+    // Insight
+    s.addText('INSIGHT',{x:cx+0.12,y:cardY+1.08,w:cardW-0.24,h:0.18,
+      fontSize:6.5,bold:true,color:ac,fontFace:'Calibri'});
+    s.addText(p.insight||'',{x:cx+0.12,y:cardY+1.26,w:cardW-0.24,h:0.68,
+      fontSize:8,color:NAVY,wrap:true,fontFace:'Calibri'});
+    // Banking moment
+    s.addText('BANKING MOMENT',{x:cx+0.12,y:cardY+2.00,w:cardW-0.24,h:0.18,
+      fontSize:6.5,bold:true,color:ac,fontFace:'Calibri'});
+    s.addText(p.moment||'',{x:cx+0.12,y:cardY+2.18,w:cardW-0.24,h:0.44,
+      fontSize:8,color:NAVY,wrap:true,fontFace:'Calibri'});
+    // Divider 2
+    s.addShape(pres.ShapeType.rect,{x:cx+0.12,y:cardY+2.68,w:cardW-0.24,h:0.02,
+      fill:{color:BD},line:{color:BD}});
+    // Why now
+    s.addText('WHY NOW',{x:cx+0.12,y:cardY+2.74,w:cardW-0.24,h:0.16,
+      fontSize:6.5,bold:true,color:GRAY3,fontFace:'Calibri'});
+    s.addText(p.why_now||'',{x:cx+0.12,y:cardY+2.90,w:cardW-0.24,h:0.56,
+      fontSize:7.5,color:GRAY3,italic:true,wrap:true,fontFace:'Calibri'});
+  });
+
+  // Bottom CTA
+  s.addShape(pres.ShapeType.rect,{x:0.28,y:4.88,w:9.52,h:0.56,fill:{color:NAVY},line:{color:NAVY}});
+  s.addText('AudienceFinder builds precision digital audiences around these 3 segments — reach them before your competitors do.',
+    {x:0.42,y:4.88,w:7.80,h:0.56,fontSize:8.5,color:WHITE,italic:true,
+     valign:'middle',fontFace:'Calibri'});
+  s.addShape(pres.ShapeType.rect,{x:8.28,y:4.98,w:1.30,h:0.36,fill:{color:'00A896'},line:{color:'00A896'}});
+  s.addText('ACTIVATE ›',{x:8.28,y:4.98,w:1.30,h:0.36,
+    fontSize:8,bold:true,color:WHITE,align:'center',fontFace:'Calibri'});
+}
+
+async function fetchOrGetPersonas(ik, br, rows) {
+  // Build fingerprint from sorted branch IDs
+  const ids = br.map(b=>String(b.uninumbr||'')).sort().join('|');
+  const zones = br.map(b=>String(b.opportunity_zone||'')).sort().join('|');
+  const raw = ids + '||' + zones;
+  // Simple hash
+  let hash = 0;
+  for (let i=0; i<raw.length; i++) { hash = ((hash<<5)-hash)+raw.charCodeAt(i); hash|=0; }
+  const fingerprint = Math.abs(hash).toString(16).substring(0,16);
+
+  const SUPA = 'https://tuiiywphoynbmkxpoyps.supabase.co';
+  const KEY  = window.SUPA_KEY || '';
+  const headers = {apikey:KEY,'Authorization':'Bearer '+KEY};
+
+  // Check for existing approved/draft personas
+  try {
+    const r = await fetch(
+      `${SUPA}/rest/v1/persona_runs?inst_key=eq.${ik}&branch_fingerprint=eq.${fingerprint}&status=in.(approved,draft)&order=run_date.desc&limit=1`,
+      {headers});
+    const rows_db = await r.json();
+    if (rows_db && rows_db.length > 0) {
+      const p = rows_db[0];
+      console.log('Using existing personas, status:', p.status);
+      const personas = [];
+      for (const prefix of ['p1','p2','p3']) {
+        if (p[`${prefix}_name`]) {
+          personas.push({
+            name: p[`${prefix}_name`],
+            age: p[`${prefix}_age`],
+            income: p[`${prefix}_income`],
+            occupation: p[`${prefix}_occupation`],
+            insight: p[`${prefix}_insight`],
+            moment: p[`${prefix}_moment`],
+            why_now: p[`${prefix}_why_now`],
+          });
+        }
+      }
+      if (personas.length > 0) return personas;
+    }
+  } catch(e) { console.warn('Persona DB check failed:', e); }
+
+  // Generate via AI proxy
+  const targetBr = br.filter(b=>['Invest','Analyze'].includes(b.opportunity_zone) && (+b.latest_dep||0)>=5e6);
+  const pool = targetBr.length > 0 ? targetBr : br.filter(b=>(+b.latest_dep||0)>=5e6);
+  if (pool.length === 0) return null;
+
+  const avgIncome = pool.reduce((a,b)=>a+(+b.household_income||0),0)/pool.length;
+  const avgPopYoY = pool.reduce((a,b)=>a+(+b.yoy_pop_growth||0),0)/pool.length*100;
+  const avgZhvi   = pool.reduce((a,b)=>a+(+b.zhvi_yoy_pct||0),0)/pool.length;
+  const metro     = pool[0]?.metro || '';
+  const cities    = [...new Set(pool.map(b=>b.citybr).filter(Boolean))].slice(0,5).join(', ');
+  const states    = [...new Set(pool.map(b=>b.stalpbr).filter(Boolean))].join(', ');
+
+  const demoCtx = `Institution: ${pool[0]?.namefull||''}
+Market: ${metro} | States: ${states} | Key cities: ${cities}
+Branch pool: ${pool.length} Invest/Analyze branches (>$5M deposits)
+
+DEMOGRAPHIC SIGNALS (Census ACS 2024):
+- Avg household income: $${avgIncome.toFixed(0)}
+- Population growth YoY: ${avgPopYoY.toFixed(1)}%
+- Home value appreciation (ZHVI YoY): ${avgZhvi.toFixed(1)}%`;
+
+  try {
+    const aiResp = await fetch(window.AI_PROXY||'', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:2000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        system:`You are Verlocity's Audience Intelligence Director. Identify the 3 most valuable deposit-growth personas for a community bank based on their market. Use web search to add current market context. Return ONLY a JSON array of exactly 3 objects with keys: name, age, income, occupation, insight, moment, why_now. No markdown, no explanation, ONLY the JSON array.`,
+        messages:[{role:'user',content:`Generate 3 target personas based on:
+
+${demoCtx}
+
+Search for current economic conditions and demographic trends in ${metro} then return the JSON array.`}]
+      })
+    });
+    const aiData = await aiResp.json();
+    // Extract text from content blocks
+    let txt = '';
+    for (const block of (aiData.content||[])) {
+      if (block.type === 'text') txt += block.text;
+    }
+    const start = txt.indexOf('['), end = txt.lastIndexOf(']')+1;
+    if (start >= 0 && end > start) {
+      const personas = JSON.parse(txt.slice(start,end));
+      // Save to Supabase as draft
+      try {
+        await fetch(`${SUPA}/rest/v1/persona_runs`, {
+          method:'POST',
+          headers:{...headers,'Content-Type':'application/json','Prefer':'return=minimal'},
+          body: JSON.stringify({
+            inst_key: ik,
+            branch_fingerprint: fingerprint,
+            branch_count: br.length,
+            metro: metro,
+            avg_income: Math.round(avgIncome)||null,
+            pop_growth_pct: +avgPopYoY.toFixed(2)||null,
+            zhvi_yoy_pct: +avgZhvi.toFixed(2)||null,
+            status: 'draft',
+            p1_name: personas[0]?.name, p1_age: personas[0]?.age,
+            p1_income: personas[0]?.income, p1_occupation: personas[0]?.occupation,
+            p1_insight: personas[0]?.insight, p1_moment: personas[0]?.moment,
+            p1_why_now: personas[0]?.why_now,
+            p2_name: personas[1]?.name, p2_age: personas[1]?.age,
+            p2_income: personas[1]?.income, p2_occupation: personas[1]?.occupation,
+            p2_insight: personas[1]?.insight, p2_moment: personas[1]?.moment,
+            p2_why_now: personas[1]?.why_now,
+            p3_name: personas[2]?.name, p3_age: personas[2]?.age,
+            p3_income: personas[2]?.income, p3_occupation: personas[2]?.occupation,
+            p3_insight: personas[2]?.insight, p3_moment: personas[2]?.moment,
+            p3_why_now: personas[2]?.why_now,
+          })
+        });
+        console.log('Personas saved as draft');
+      } catch(e) { console.warn('Could not save personas:', e); }
+      return personas.slice(0,3);
+    }
+  } catch(e) { console.warn('Persona generation failed:', e); }
+  return null;
+}
+
 async function snapshotExport() {
   if (!window.selBank || !window.bankData) return;
 
@@ -441,7 +643,7 @@ async function snapshotExport() {
     if (btn) btn.textContent='Step 2/4 — Generating narratives...';
     const topBr  = [...br].sort((a,b)=>b.opportunity_score-a.opportunity_score);
     const justTop= br.filter(b=>b.opportunity_zone==='Justify').sort((a,b)=>b.latest_dep-a.latest_dep);
-    const tier1  = br.filter(b=>b.priority_tier?.startsWith('1')).slice(0,2);
+    const tier1  = br.filter(b=>['Aggressive Acquisition','Urgent Competitive Push','Capitalize','Turnaround','Grow Share','Competitive Defense'].includes(b.campaign)).slice(0,2);
 
     const aiCtx = `Bank: ${bankName} | ${rows.length} branches | $${(tot/1e9).toFixed(2)}B deposits
 Deposit YoY: +${bankYoY.toFixed(1)}% | Peer avg: +${compYoY.toFixed(1)}% | Gap: ${gap>0?'+':''}${gap.toFixed(1)}pp
@@ -534,6 +736,12 @@ Return ONLY valid JSON — no markdown, no explanation:
     buildBranches(pres, DATA);
     buildFinancial(pres, DATA);
     await buildGap(pres, DATA);
+    // Persona slide
+    if (btn) btn.textContent='Step 4/4 — Building personas...';
+    const personas = await fetchOrGetPersonas(ik, br, rows);
+    if (personas && personas.length > 0) {
+      buildPersonas(pres, DATA, personas);
+    }
     buildNextSteps(pres, DATA);
 
     const blob = await pres.write('blob');

@@ -554,8 +554,8 @@ DEMOGRAPHIC SIGNALS (Census ACS 2024):
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:2000,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        system:`You are Verlocity's Audience Intelligence Director. Identify the 3 most valuable deposit-growth personas for a community bank based on their market. Use web search to add current market context. Return ONLY a JSON array of exactly 3 objects with keys: name, age, income, occupation, insight, moment, why_now. No markdown, no explanation, ONLY the JSON array.`,
+        
+        system:`You are Verlocity's Audience Intelligence Director. Identify the 3 most valuable deposit-growth personas for a community bank based on their specific market demographics. Create personas that feel like real people with real banking needs - not generic labels. Return ONLY a JSON array of exactly 3 objects with keys: name (e.g. 'The Worcester Accumulator'), age, income, occupation, insight (one sentence about their financial life), moment (specific banking product opportunity), why_now (one sentence on why this is the moment to reach them). No markdown, no explanation, ONLY the JSON array.`,
         messages:[{role:'user',content:`Generate 3 target personas based on:
 
 ${demoCtx}
@@ -604,7 +604,11 @@ Search for current economic conditions and demographic trends in ${metro} then r
       } catch(e) { console.warn('Could not save personas:', e); }
       return personas.slice(0,3);
     }
-  } catch(e) { console.warn('Persona generation failed:', e); }
+  } catch(e) { 
+    console.error('Persona generation failed:', e);
+    console.error('Proxy URL:', window.AI_PROXY);
+    console.error('SUPA_KEY set:', !!window.SUPA_KEY);
+  }
   return null;
 }
 

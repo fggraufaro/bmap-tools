@@ -376,7 +376,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
     <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Rate Radar CSV</div><div class="wf-d">Top 20 competitors by vulnerability score — ready to drop into Rate Radar</div><span class="wf-tag">RATE RADAR</span></div>
-    <div class="wf" id="w6" onclick="selWf(6)"><div class="wf-n">06</div><div class="wf-t">BMAP Snapshot Deck</div><div class="wf-d">Branded leave-behind PPTX — network, financials, audience signals, competitors. One click.</div><span class="wf-tag">EXPORT · PPTX</span></div>
   </div>
 
   <div class="card card-pad dn" id="bsel">
@@ -1275,11 +1274,192 @@ async function generate(){
 function copyOut(){
   navigator.clipboard.writeText(g('otxt').textContent).then(()=>{g('cb').textContent='✓ Copied';g('cb').classList.add('ok');setTimeout(()=>{g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');},2000);});
 }
+// ══════════════════════════════════════════════════════════════
+// TOP-LEVEL TAB SWITCHER
+// ══════════════════════════════════════════════════════════════
+function switchTopTab(tab){
+  document.getElementById('panelHub').style.display=tab==='hub'?'block':'none';
+  document.getElementById('panelPro').style.display=tab==='pro'?'block':'none';
+  document.getElementById('tabHub').classList.toggle('active',tab==='hub');
+  document.getElementById('tabPro').classList.toggle('active',tab==='pro');
+  if(tab==='pro'&&!prLoaded) prLoad();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PROSPECTING — Phase1_Score_v2 (mirrors DAX exactly)
+// ══════════════════════════════════════════════════════════════
+let prAllData=[],prFiltered=[],prSelected=new Set(),prLoaded=false,prSortCol='phase1_score',prSortAsc=false;
+const BMAP_API_PR='https://bmap-snapshot-production.up.railway.app';
+
+async function prLoad(){
+  prLoaded=true;
+  document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty"><span class="spin"></span> Loading from Supabase...</td></tr>';
+  try{
+    const data=await api('bank_financial_snapshot_latest',
+      'select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,marketing_expenses,brokered_deposits_pct&order=dep_yoy_pct.desc&limit=3000');
+    if(!data||!data.length){document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty">No data found.</td></tr>';return;}
+    prAllData=data.map(r=>{
+      const yoy=+(r.dep_yoy_pct||0),mktg=+(r.marketing_ratio||0),roa=+(r.roa||0);
+      const loanGr=+(r.loan_growth_pct||0),ld=+(r.loans_to_deposits_pct||0),brok=+(r.brokered_deposits_pct||0);
+      const dS=yoy>20?4:yoy>10?3:yoy>5?2:yoy>0?1:0;
+      const mS=mktg>0.004?3:mktg>0.002?2:mktg>0?1:0;
+      const rS=roa>1.5?2:roa>=1.0?1:0;
+      const lS=loanGr>12?2:loanGr>=6?1:0;
+      const ldS=(ld>=75&&ld<=95)?2:((ld>=60&&ld<75)||(ld>95&&ld<=105))?1:0;
+      const bS=brok<5?2:brok<=15?1:0;
+      return{...r,phase1_score:dS+mS+rS+lS+ldS+bS,marketing_ratio_val:mktg,_dS:dS,_mS:mS,_rS:rS,_lS:lS,_ldS:ldS,_bS:bS};
+    });
+    const states=[...new Set(prAllData.map(r=>r.state_hq).filter(Boolean))].sort();
+    const sf=document.getElementById('prStateFilter');
+    states.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sf.appendChild(o);});
+    document.getElementById('prCountTotal').textContent=prAllData.length.toLocaleString();
+    document.getElementById('prCountHot').textContent=prAllData.filter(r=>r.phase1_score>=10).length.toLocaleString();
+    document.getElementById('prCountWarm').textContent=prAllData.filter(r=>r.phase1_score>=7&&r.phase1_score<10).length.toLocaleString();
+    prFilter();
+  }catch(e){document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty">Error: '+e.message+'</td></tr>';}
+}
+
+function prFilter(){
+  const state=document.getElementById('prStateFilter').value;
+  const minScore=+(document.getElementById('prScoreFilter').value||0);
+  const size=document.getElementById('prSizeFilter').value;
+  const q=(document.getElementById('prSearch').value||'').toLowerCase().trim();
+  prFiltered=prAllData.filter(r=>{
+    if(state&&r.state_hq!==state)return false;
+    if(r.phase1_score<minScore)return false;
+    if(size==='small'&&r.total_assets>=1e9)return false;
+    if(size==='mid'&&(r.total_assets<1e9||r.total_assets>=10e9))return false;
+    if(size==='large'&&r.total_assets<10e9)return false;
+    if(q&&!(r.institution_name||'').toLowerCase().includes(q))return false;
+    return true;
+  });
+  prFiltered.sort((a,b)=>{const av=a[prSortCol]||0,bv=b[prSortCol]||0;return typeof av==='string'?prSortAsc?av.localeCompare(bv):bv.localeCompare(av):prSortAsc?av-bv:bv-av;});
+  document.getElementById('prCountShown').textContent=prFiltered.length.toLocaleString();
+  prRender();
+}
+
+function prSort(col){if(prSortCol===col)prSortAsc=!prSortAsc;else{prSortCol=col;prSortAsc=false;}prFilter();}
+
+function prScoreCls(s){return s>=10?'pr-hot':s>=7?'pr-warm':'pr-cool';}
+function prFmtA(v){if(!v||v<=0)return'—';if(v>=1e9)return'$'+(v/1e9).toFixed(1)+'B';return'$'+(v/1e6).toFixed(0)+'M';}
+function prFmtPct(v){const n=+(v||0);return n>0?'<span class="pr-pos">+'+n.toFixed(1)+'%</span>':n<0?'<span class="pr-neg">'+n.toFixed(1)+'%</span>':'<span class="pr-muted">0%</span>';}
+
+function prRender(){
+  const tbody=document.getElementById('prTbody');
+  if(!prFiltered.length){tbody.innerHTML='<tr><td colspan="12" class="pr-empty">No prospects match filters.</td></tr>';prUpdateSel();return;}
+  tbody.innerHTML=prFiltered.slice(0,200).map(r=>{
+    const sel=prSelected.has(r.inst_key);
+    const tip='Dep:'+r._dS+' Mktg:'+r._mS+' ROA:'+r._rS+' Loan:'+r._lS+' L/D:'+r._ldS+' Brok:'+r._bS;
+    return '<tr class="'+(sel?'pr-sel':'')+'">'+
+      '<td><input type="checkbox" '+(sel?'checked':'')+' onchange="prToggleRow(''+r.inst_key+'',this)"></td>'+
+      '<td onclick="prToggleRow(''+r.inst_key+'')" style="cursor:pointer"><div class="pr-bank-name">'+(r.institution_name||'—')+'</div><div class="pr-bank-loc">'+(r.city_hq||'')+', '+(r.state_hq||'')+'</div></td>'+
+      '<td>'+(r.state_hq||'—')+'</td>'+
+      '<td>'+prFmtA(r.total_assets)+'</td>'+
+      '<td>'+prFmtA(r.total_deposits)+'</td>'+
+      '<td>'+prFmtPct(r.dep_yoy_pct)+'</td>'+
+      '<td class="'+(+(r.roa||0)>=1?'pr-pos':'pr-muted')+'">'+(r.roa?r.roa+'%':'—')+'</td>'+
+      '<td>'+prFmtPct(r.loan_growth_pct)+'</td>'+
+      '<td class="'+(+(r.loans_to_deposits_pct||0)>=75&&+(r.loans_to_deposits_pct||0)<=95?'pr-pos':'pr-muted')+'">'+(r.loans_to_deposits_pct?r.loans_to_deposits_pct+'%':'—')+'</td>'+
+      '<td>'+(r.marketing_ratio_val>0?(r.marketing_ratio_val*100).toFixed(3)+'%':'—')+'</td>'+
+      '<td title="'+tip+'"><span class="pr-score-pill '+prScoreCls(r.phase1_score)+'">'+r.phase1_score+'</span><span style="font-size:9px;color:var(--muted);margin-left:3px;font-family:IBM Plex Mono,monospace">/14</span></td>'+
+      '<td><button class="pr-snap-btn" onclick="event.stopPropagation();prSingleSnap(''+r.inst_key+'',''+r.institution_name.replace(/'/g,"\'")+ '',this)">⬇ Snapshot</button></td>'+
+      '</tr>';
+  }).join('');
+  document.getElementById('prTableMeta').textContent='Showing '+Math.min(prFiltered.length,200)+' of '+prFiltered.length+' · Phase1 score';
+  prUpdateSel();
+}
+
+function prToggleRow(ik){prSelected.has(ik)?prSelected.delete(ik):prSelected.add(ik);prRender();}
+function prToggleAll(chk){if(chk.checked)prFiltered.slice(0,200).forEach(r=>prSelected.add(r.inst_key));else prSelected.clear();prRender();}
+function prClearSel(){prSelected.clear();prRender();}
+function prUpdateSel(){
+  const n=prSelected.size;
+  document.getElementById('prCountSel').textContent=n;
+  document.getElementById('prSelLabel').textContent=n>0?n+' bank'+(n>1?'s':'')+' selected':'Select banks to take action';
+}
+
+async function prSingleSnap(ik,name,btn){
+  btn.disabled=true;btn.textContent='⏳';
+  try{
+    const resp=await fetch(BMAP_API_PR+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:name})});
+    if(!resp.ok)throw new Error(resp.statusText);
+    const blob=await resp.blob(),safe=name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='BMAP_Snapshot_'+safe+'_'+date+'.pptx';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+    btn.textContent='✓';btn.style.background='#27500A';
+    setTimeout(()=>{btn.textContent='⬇ Snapshot';btn.style.background='';btn.disabled=false;},3500);
+  }catch(e){alert('Failed: '+e.message);btn.textContent='⬇ Snapshot';btn.disabled=false;}
+}
+
+async function prRunSnapshot(){
+  if(!prSelected.size){alert('Select at least one bank first.');return;}
+  const btn=document.getElementById('prSnapBtn');
+  btn.disabled=true;btn.textContent='⏳ Building...';
+  try{
+    const banks=[...prSelected].map(ik=>{const r=prAllData.find(x=>x.inst_key===ik);return{inst_key:ik,name:r?r.institution_name:ik};});
+    const single=banks.length===1;
+    const resp=await fetch(BMAP_API_PR+(single?'/generate':'/generate-batch'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(single?{inst_key:banks[0].inst_key,bank_name:banks[0].name}:{banks})});
+    if(!resp.ok)throw new Error(resp.statusText);
+    const blob=await resp.blob(),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const fname=single?'BMAP_Snapshot_'+banks[0].name.replace(/[^a-z0-9]/gi,'_')+'_'+date+'.pptx':'BMAP_Batch_'+date+'.zip';
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+    btn.textContent='✓ Downloaded';btn.style.background='#27500A';
+    setTimeout(()=>{btn.textContent='⬇ BMAP Snapshot';btn.style.background='';btn.disabled=false;},3500);
+  }catch(e){alert('Failed: '+e.message);btn.disabled=false;btn.textContent='⬇ BMAP Snapshot';}
+}
+
+async function prRunBrief(){
+  if(!prSelected.size){alert('Select at least one bank first.');return;}
+  const btn=document.getElementById('prBriefBtn');
+  btn.disabled=true;btn.textContent='⏳ Building...';
+  try{
+    for(const ik of [...prSelected]){
+      const r=prAllData.find(x=>x.inst_key===ik),name=r?r.institution_name:ik;
+      const resp=await fetch(BMAP_API_PR+'/generate-brief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:name})});
+      if(!resp.ok)throw new Error(resp.statusText);
+      const blob=await resp.blob(),safe=name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='Board_Brief_'+safe+'_'+date+'.pdf';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+    }
+    btn.textContent='✓ Downloaded';btn.style.background='#27500A';
+    setTimeout(()=>{btn.textContent='⬇ Board Brief';btn.style.background='var(--navy)';btn.disabled=false;},3500);
+  }catch(e){alert('Failed: '+e.message);btn.disabled=false;btn.textContent='⬇ Board Brief';}
+}
+
+function prExportCSV(){
+  const rows=prSelected.size>0?prAllData.filter(r=>prSelected.has(r.inst_key)):prFiltered;
+  if(!rows.length){alert('Nothing to export.');return;}
+  const hdr='inst_key,bank_name,state,assets,deposits,dep_yoy_pct,roa,loan_growth_pct,loan_to_deposit_pct,marketing_ratio_pct,brokered_pct,phase1_score,dep_s,mktg_s,roa_s,loan_s,ld_s,brok_s';
+  const lines=rows.map(r=>'"'+r.inst_key+'","'+(r.institution_name||'')+'","'+(r.state_hq||'"),'+ r.total_assets+','+r.total_deposits+','+(+(r.dep_yoy_pct||0)).toFixed(2)+','+r.roa+','+(+(r.loan_growth_pct||0)).toFixed(2)+','+r.loans_to_deposits_pct+','+((r.marketing_ratio_val||0)*100).toFixed(4)+','+r.brokered_deposits_pct+','+r.phase1_score+','+r._dS+','+r._mS+','+r._rS+','+r._lS+','+r._ldS+','+r._bS);
+  const blob=new Blob([[hdr,...lines].join('
+'),],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='verlocity_prospects_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
 </script>
 </div><!-- /panelHub -->
 
 <div id="panelPro" style="display:none">
 <div class="pr-wrap">
+
+  <!-- BMAP + BOARD BRIEF ACTIONS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div class="card card-pad" style="margin-bottom:0">
+      <div class="label">BMAP Snapshot Deck</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Branded leave-behind PPTX — network, financials, audience signals, competitors. Select banks below then click.</div>
+      <button class="pr-btn pr-btn-teal" id="prSnapBtn" onclick="prRunSnapshot()" style="width:100%;justify-content:center">⬇ Generate & Export BMAP Snapshot</button>
+      <div class="loading" id="prSnapLd"><span class="spin"></span><span id="prSnapMsg">Building deck...</span></div>
+    </div>
+    <div class="card card-pad" style="margin-bottom:0">
+      <div class="label">Board Brief PDF</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Executive-ready PDF board brief for each selected prospect. Select banks below then click.</div>
+      <button class="pr-btn pr-btn-navy" id="prBriefBtn" onclick="prRunBrief()" style="width:100%;justify-content:center">⬇ Generate Board Brief PDF</button>
+      <div class="loading" id="prBriefLd"><span class="spin"></span><span id="prBriefMsg">Building brief...</span></div>
+    </div>
+  </div>
+
   <div class="pr-filters">
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">State</label><select id="prStateFilter" onchange="prFilter()"><option value="">All</option></select></div>
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0">All</option><option value="7">7+</option><option value="10" selected>10+</option><option value="12">12+</option></select></div>
@@ -1318,8 +1498,6 @@ function copyOut(){
     </div>
   </div>
   <div class="pr-action-bar">
-    <button class="pr-btn pr-btn-teal" id="prSnapBtn" onclick="prRunSnapshot()">⬇ BMAP Snapshot</button>
-    <button class="pr-btn pr-btn-navy" id="prBriefBtn" onclick="prRunBrief()">⬇ Board Brief</button>
     <button class="pr-btn pr-btn-outline" onclick="prExportCSV()">↓ Export CSV</button>
     <button class="pr-btn pr-btn-ghost" onclick="prClearSel()">Clear selection</button>
     <div class="pr-sel-label" id="prSelLabel">Select banks to take action</div>

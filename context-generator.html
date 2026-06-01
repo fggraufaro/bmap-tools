@@ -713,7 +713,14 @@ async function loadBank(ik){
   const sel=g('bselect');sel.innerHTML='<option value="">— select a branch —</option>';
   allBr.forEach(b=>{const o=document.createElement('option');o.value=b.uninumbr;o.textContent=`${b.namebr} — ${b.citybr}, ${b.stalpbr} (${(+b.opportunity_score).toFixed(1)})`;sel.appendChild(o);});
   window.selBank = selBank; window.bankData = bankData;
-  show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');
+  // Reset BMAP snapshot buttons on bank change so no stale state carries over
+  const snapBtn=document.getElementById('snapBtn');
+  const briefBtn=document.getElementById('briefBtn');
+  if(snapBtn){snapBtn.disabled=false;snapBtn.textContent='⬇ Generate & Export BMAP Snapshot';snapBtn.style.background='';}
+  if(briefBtn){briefBtn.disabled=false;briefBtn.textContent='⬇ Generate Board Brief PDF';briefBtn.style.background='var(--navy)';}
+  document.getElementById('snapLd').classList.remove('on');
+  document.getElementById('briefLd').classList.remove('on');
+  show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
 }
 
@@ -1083,7 +1090,7 @@ async function loadRRWidget(){
   rawComp.forEach(r=>{const k=r.target_inst_key;if(!k)return;if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;});
   const avgArr=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;
   const domZone=z=>Object.entries(z).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
-  const sorted=Object.values(grouped).map(g=>({target_inst_key:g.target_inst_key,target_namefull:g.target_namefull,avg_vuln:avgArr(g.vuln_scores),avg_dep:avgArr(g.dep_vals),avg_yoy:avgArr(g.yoy_vals),zone:domZone(g.zones)})).filter(r=>r.avg_vuln!=null).sort((a,b)=>b.avg_vuln-a.avg_vuln).slice(0,20);
+  const sorted=Object.values(grouped).map(grp=>({target_inst_key:grp.target_inst_key,target_namefull:grp.target_namefull,avg_vuln:avgArr(grp.vuln_scores),avg_dep:avgArr(grp.dep_vals),avg_yoy:avgArr(grp.yoy_vals),zone:domZone(grp.zones)})).filter(r=>r.avg_vuln!=null).sort((a,b)=>b.avg_vuln-a.avg_vuln).slice(0,20);
   const rssdIds=sorted.map(t=>{const k=t.target_inst_key||'';return k.startsWith('bank_')?k.replace('bank_',''):null;}).filter(Boolean);
   const websiteRows=rssdIds.length?await api('bank_website',`FED_RSSD=in.(${rssdIds.join(',')})&select=FED_RSSD,WEBADDR`):[];
   const urlMap={};(websiteRows||[]).forEach(r=>{if(r.FED_RSSD&&r.WEBADDR)urlMap['bank_'+r.FED_RSSD]=r.WEBADDR;});

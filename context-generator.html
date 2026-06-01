@@ -1320,21 +1320,24 @@ async function prLoad(){
 }
 
 function prFilter(){
-  const state=document.getElementById('prStateFilter').value;
-  const minScore=+(document.getElementById('prScoreFilter').value||0);
-  const size=document.getElementById('prSizeFilter').value;
-  const q=(document.getElementById('prSearch').value||'').toLowerCase().trim();
+  const state    = document.getElementById('prStateFilter').value;
+  const minScore = +(document.getElementById('prScoreFilter').value||0);
+  const minDep   = +(document.getElementById('prDepFilter').value||0);
+  const size     = document.getElementById('prSizeFilter').value;
+  const q        = (document.getElementById('prSearch').value||'').toLowerCase().trim();
   prFiltered=prAllData.filter(r=>{
-    if(state&&r.state_hq!==state)return false;
-    if(r.phase1_score<minScore)return false;
-    if(size==='small'&&r.total_assets>=1e9)return false;
-    if(size==='mid'&&(r.total_assets<1e9||r.total_assets>=10e9))return false;
-    if(size==='large'&&r.total_assets<10e9)return false;
-    if(q&&!(r.institution_name||'').toLowerCase().includes(q))return false;
+    if(state && r.state_hq!==state) return false;
+    if(r.phase1_score < minScore) return false;
+    if(minDep>0 && (+(r.total_deposits||0)/1e6) < minDep) return false;
+    if(size==='small' && r.total_assets>=1e9) return false;
+    if(size==='mid' && (r.total_assets<1e9||r.total_assets>=10e9)) return false;
+    if(size==='large' && r.total_assets<10e9) return false;
+    if(q && !(r.institution_name||'').toLowerCase().includes(q)) return false;
     return true;
   });
   prFiltered.sort((a,b)=>{const av=a[prSortCol]||0,bv=b[prSortCol]||0;return typeof av==='string'?prSortAsc?av.localeCompare(bv):bv.localeCompare(av):prSortAsc?av-bv:bv-av;});
   document.getElementById('prCountShown').textContent=prFiltered.length.toLocaleString();
+  document.getElementById('prFilteredCount').textContent=prFiltered.length.toLocaleString();
   prRender();
 }
 
@@ -1384,7 +1387,7 @@ function prClearSel(){prSelected.clear();prRender();}
 function prUpdateSel(){
   const n=prSelected.size;
   document.getElementById('prCountSel').textContent=n;
-  document.getElementById('prSelLabel').textContent=n>0?n+' bank'+(n>1?'s':'')+' selected':'Select banks to take action';
+  document.getElementById('prSelCountLabel').textContent=n;
 }
 
 async function prSingleSnap(ik,name,btn){
@@ -1401,12 +1404,16 @@ async function prSingleSnap(ik,name,btn){
   }catch(e){alert('Failed: '+e.message);btn.textContent='⬇ Snapshot';btn.disabled=false;}
 }
 
-async function prRunSnapshot(){
-  if(!prSelected.size){alert('Select at least one bank first.');return;}
-  const btn=document.getElementById('prSnapBtn');
-  btn.disabled=true;btn.textContent='⏳ Building...';
+async function prRunSnapshot(useFiltered){
+  const pool=useFiltered?prFiltered:[...prSelected].map(ik=>prAllData.find(x=>x.inst_key===ik)).filter(Boolean);
+  if(!pool.length){alert(useFiltered?'No banks match the current filters.':'Select at least one bank first.');return;}
+  const btnId=useFiltered?'prSnapAllBtn':'prSnapBtn';
+  const btn=document.getElementById(btnId);
+  const ld=document.getElementById('prSnapLd'),msg=document.getElementById('prSnapMsg');
+  btn.disabled=true;btn.textContent='⏳ Building '+pool.length+' deck'+(pool.length>1?'s':'')+'...';
+  ld.classList.add('on');msg.textContent='Building '+pool.length+' BMAP Snapshot'+(pool.length>1?'s':'')+'...';
   try{
-    const banks=[...prSelected].map(ik=>{const r=prAllData.find(x=>x.inst_key===ik);return{inst_key:ik,name:r?r.institution_name:ik};});
+    const banks=pool.map(r=>({inst_key:r.inst_key,name:r.institution_name||r.inst_key}));
     const single=banks.length===1;
     const resp=await fetch(BMAP_API_PR+(single?'/generate':'/generate-batch'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(single?{inst_key:banks[0].inst_key,bank_name:banks[0].name}:{banks})});
     if(!resp.ok)throw new Error(resp.statusText);
@@ -1415,26 +1422,33 @@ async function prRunSnapshot(){
     const url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
     btn.textContent='✓ Downloaded';btn.style.background='#27500A';
-    setTimeout(()=>{btn.textContent='⬇ BMAP Snapshot';btn.style.background='';btn.disabled=false;},3500);
-  }catch(e){alert('Failed: '+e.message);btn.disabled=false;btn.textContent='⬇ BMAP Snapshot';}
+    setTimeout(()=>{btn.textContent=useFiltered?'⬇ Snapshot All Filtered':'⬇ Snapshot Selected';btn.style.background='';btn.disabled=false;},4000);
+  }catch(e){alert('Failed: '+e.message);btn.disabled=false;btn.textContent=useFiltered?'⬇ Snapshot All Filtered':'⬇ Snapshot Selected';}
+  ld.classList.remove('on');
 }
 
-async function prRunBrief(){
-  if(!prSelected.size){alert('Select at least one bank first.');return;}
-  const btn=document.getElementById('prBriefBtn');
-  btn.disabled=true;btn.textContent='⏳ Building...';
+async function prRunBrief(useFiltered){
+  const pool=useFiltered?prFiltered:[...prSelected].map(ik=>prAllData.find(x=>x.inst_key===ik)).filter(Boolean);
+  if(!pool.length){alert(useFiltered?'No banks match the current filters.':'Select at least one bank first.');return;}
+  const btnId=useFiltered?'prBriefAllBtn':'prBriefBtn';
+  const btn=document.getElementById(btnId);
+  const ld=document.getElementById('prBriefLd'),msg=document.getElementById('prBriefMsg');
+  btn.disabled=true;btn.textContent='⏳ Building '+pool.length+'...';
+  ld.classList.add('on');msg.textContent='Building '+pool.length+' Board Brief'+(pool.length>1?'s':'')+'...';
   try{
-    for(const ik of [...prSelected]){
-      const r=prAllData.find(x=>x.inst_key===ik),name=r?r.institution_name:ik;
-      const resp=await fetch(BMAP_API_PR+'/generate-brief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:name})});
+    for(const r of pool){
+      const name=r.institution_name||r.inst_key;
+      const resp=await fetch(BMAP_API_PR+'/generate-brief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:r.inst_key,bank_name:name})});
       if(!resp.ok)throw new Error(resp.statusText);
       const blob=await resp.blob(),safe=name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
       const url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;a.download='Board_Brief_'+safe+'_'+date+'.pdf';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+      a.href=url;a.download='Board_Brief_'+safe+'_'+date+'.pdf';document.body.appendChild(a);a.click();
+      await new Promise(res=>setTimeout(res,800));
     }
     btn.textContent='✓ Downloaded';btn.style.background='#27500A';
-    setTimeout(()=>{btn.textContent='⬇ Board Brief';btn.style.background='var(--navy)';btn.disabled=false;},3500);
-  }catch(e){alert('Failed: '+e.message);btn.disabled=false;btn.textContent='⬇ Board Brief';}
+    setTimeout(()=>{btn.textContent=useFiltered?'⬇ Brief All Filtered':'⬇ Brief Selected';btn.style.background='var(--navy)';btn.disabled=false;},4000);
+  }catch(e){alert('Failed: '+e.message);btn.disabled=false;btn.textContent=useFiltered?'⬇ Brief All Filtered':'⬇ Brief Selected';}
+  ld.classList.remove('on');
 }
 
 function prExportCSV(){
@@ -1465,34 +1479,23 @@ function prExportCSV(){
 <div id="panelPro" style="display:none">
 <div class="pr-wrap">
 
-  <!-- BMAP + BOARD BRIEF ACTIONS -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-    <div class="card card-pad" style="margin-bottom:0">
-      <div class="label">BMAP Snapshot Deck</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Branded leave-behind PPTX — network, financials, audience signals, competitors. Select banks below then click.</div>
-      <button class="pr-btn pr-btn-teal" id="prSnapBtn" onclick="prRunSnapshot()" style="width:100%;justify-content:center">⬇ Generate & Export BMAP Snapshot</button>
-      <div class="loading" id="prSnapLd"><span class="spin"></span><span id="prSnapMsg">Building deck...</span></div>
-    </div>
-    <div class="card card-pad" style="margin-bottom:0">
-      <div class="label">Board Brief PDF</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Executive-ready PDF board brief for each selected prospect. Select banks below then click.</div>
-      <button class="pr-btn pr-btn-navy" id="prBriefBtn" onclick="prRunBrief()" style="width:100%;justify-content:center">⬇ Generate Board Brief PDF</button>
-      <div class="loading" id="prBriefLd"><span class="spin"></span><span id="prBriefMsg">Building brief...</span></div>
-    </div>
-  </div>
-
+  <!-- FILTERS + METRICS -->
   <div class="pr-filters">
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">State</label><select id="prStateFilter" onchange="prFilter()"><option value="">All</option></select></div>
-    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0">All</option><option value="7">7+</option><option value="10" selected>10+</option><option value="12">12+</option></select></div>
+    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0" selected>All</option><option value="7">7+</option><option value="8">8+</option><option value="10">10+</option><option value="12">12+</option></select></div>
+    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Min Deposits</label><select id="prDepFilter" onchange="prFilter()"><option value="0" selected>All</option><option value="500">$500M+</option><option value="1000">$1B+</option><option value="5000">$5B+</option><option value="10000">$10B+</option></select></div>
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Size</label><select id="prSizeFilter" onchange="prFilter()"><option value="">All</option><option value="small">&lt;$1B</option><option value="mid">$1B–$10B</option><option value="large">&gt;$10B</option></select></div>
     <input class="pr-search" id="prSearch" type="text" placeholder="Search bank name..." oninput="prFilter()">
   </div>
+
   <div class="pr-metrics">
     <div class="pr-metric"><div class="pr-metric-l">Showing</div><div class="pr-metric-v" id="prCountShown">—</div><div class="pr-metric-s">of <span id="prCountTotal">—</span> total</div></div>
     <div class="pr-metric"><div class="pr-metric-l">Score ≥ 10</div><div class="pr-metric-v" id="prCountHot">—</div><div class="pr-metric-s">Hot prospects</div></div>
     <div class="pr-metric"><div class="pr-metric-l">Score 7–9</div><div class="pr-metric-v" id="prCountWarm">—</div><div class="pr-metric-s">Warm prospects</div></div>
     <div class="pr-metric"><div class="pr-metric-l">Selected</div><div class="pr-metric-v" id="prCountSel">0</div><div class="pr-metric-s">Ready for action</div></div>
   </div>
+
+  <!-- PROSPECT TABLE -->
   <div class="pr-table-wrap">
     <div class="pr-table-hdr">
       <div class="pr-table-hdr-title">Verlocity Prospects — Phase1 Score</div>
@@ -1518,11 +1521,42 @@ function prExportCSV(){
       </table>
     </div>
   </div>
-  <div class="pr-action-bar">
-    <button class="pr-btn pr-btn-outline" onclick="prExportCSV()">↓ Export CSV</button>
-    <button class="pr-btn pr-btn-ghost" onclick="prClearSel()">Clear selection</button>
-    <div class="pr-sel-label" id="prSelLabel">Select banks to take action</div>
+
+  <!-- ACTION BAR — below table -->
+  <div class="pr-action-bar" style="margin-top:10px">
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Run on filtered results</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span id="prFilteredCount" style="font-size:12px;font-family:IBM Plex Mono,monospace;color:var(--navy);font-weight:700">—</span>
+        <span style="font-size:11px;color:var(--muted)">banks match current filters</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="pr-btn pr-btn-teal" id="prSnapAllBtn" onclick="prRunSnapshot(true)" style="font-size:11px;padding:6px 12px">⬇ Snapshot All Filtered</button>
+        <button class="pr-btn pr-btn-navy" id="prBriefAllBtn" onclick="prRunBrief(true)" style="font-size:11px;padding:6px 12px">⬇ Brief All Filtered</button>
+      </div>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch;margin:0 8px"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Run on selected banks</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span id="prSelCountLabel" style="font-size:12px;font-family:IBM Plex Mono,monospace;color:var(--navy);font-weight:700">0</span>
+        <span style="font-size:11px;color:var(--muted)">banks selected</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="pr-btn pr-btn-teal" id="prSnapBtn" onclick="prRunSnapshot(false)" style="font-size:11px;padding:6px 12px">⬇ Snapshot Selected</button>
+        <button class="pr-btn pr-btn-navy" id="prBriefBtn" onclick="prRunBrief(false)" style="font-size:11px;padding:6px 12px">⬇ Brief Selected</button>
+      </div>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch;margin:0 8px"></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="pr-btn pr-btn-outline" onclick="prExportCSV()" style="font-size:11px;padding:6px 12px">↓ Export CSV</button>
+      <button class="pr-btn pr-btn-ghost" onclick="prClearSel()" style="font-size:11px;padding:6px 12px">Clear selection</button>
+    </div>
   </div>
+
+  <div class="loading" id="prSnapLd" style="margin-top:8px"><span class="spin"></span><span id="prSnapMsg">Building decks...</span></div>
+  <div class="loading" id="prBriefLd" style="margin-top:8px"><span class="spin"></span><span id="prBriefMsg">Building briefs...</span></div>
+
 </div>
 </div><!-- /panelPro -->
 

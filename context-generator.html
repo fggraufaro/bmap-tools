@@ -113,56 +113,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .loading.on{display:block}
 .dn{display:none}
 
-/* ── TOP-LEVEL TABS ── */
-.top-tabs{display:flex;gap:0;background:var(--navy);border-bottom:3px solid rgba(255,255,255,.08);padding:0 24px}
-.top-tab{padding:13px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.45);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-3px;transition:all .18s;letter-spacing:.01em;white-space:nowrap}
-.top-tab:hover{color:rgba(255,255,255,.8)}
-.top-tab.active{color:#fff;border-bottom:3px solid var(--teal)}
-.top-tab .tab-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:700;background:rgba(29,158,117,.3);color:var(--teal);letter-spacing:.04em;font-family:'IBM Plex Mono',monospace}
-/* ── PROSPECTING MODULE ── */
-.pr-wrap{max-width:1100px;margin:0 auto;padding:18px 16px}
-.pr-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
-.pr-filter{display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--text);background:var(--white);cursor:pointer}
-.pr-filter select{border:none;outline:none;font-size:12px;color:var(--text);background:transparent;cursor:pointer;font-family:'Inter',system-ui,sans-serif}
-.pr-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:'Inter',system-ui,sans-serif;outline:none}
-.pr-search:focus{border-color:var(--navy)}
-.pr-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-.pr-metric{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
-.pr-metric-l{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
-.pr-metric-v{font-size:20px;font-weight:800;color:var(--navy)}
-.pr-metric-s{font-size:10px;color:var(--muted);margin-top:2px;font-family:'IBM Plex Mono',monospace}
-.pr-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
-.pr-table-hdr{background:var(--navy);padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
-.pr-table-hdr-title{color:#fff;font-size:13px;font-weight:700}
-.pr-table-hdr-meta{color:rgba(255,255,255,.4);font-size:10px;font-family:'IBM Plex Mono',monospace}
-.pr-table{width:100%;border-collapse:collapse;font-size:12px}
-.pr-table th{padding:8px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#F0EEE8;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer}
-.pr-table th:hover{background:#e8e5df}
-.pr-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
-.pr-table tr:last-child td{border-bottom:none}
-.pr-table tr:hover td{background:#F8FBF8}
-.pr-table tr.pr-selected td{background:#F0FBF7}
-.pr-score-pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
-.pr-score-hot{background:#E1F5EE;color:#085041}
-.pr-score-warm{background:#FAEEDA;color:#633806}
-.pr-score-cool{background:#F1EFE8;color:#5F5E5A}
-.pr-pos{color:#085041;font-weight:600}
-.pr-neg{color:#A32D2D;font-weight:600}
-.pr-neu{color:var(--muted)}
-.pr-bank-name{font-weight:700;font-size:12px;color:var(--navy)}
-.pr-bank-loc{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
-.pr-action-bar{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.pr-btn-primary{display:inline-flex;align-items:center;gap:6px;background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',system-ui,sans-serif;transition:opacity .18s}
-.pr-btn-primary:hover{opacity:.88}
-.pr-btn-primary:disabled{opacity:.35;cursor:not-allowed}
-.pr-btn-secondary{display:inline-flex;align-items:center;gap:6px;background:var(--white);color:var(--navy);border:1.5px solid var(--border);border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',system-ui,sans-serif;transition:background .18s}
-.pr-btn-secondary:hover{background:var(--gray)}
-.pr-btn-ghost{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:'Inter',system-ui,sans-serif}
-.pr-sel-count{margin-left:auto;font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
-.pr-snapshot-btn{background:var(--teal);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:'IBM Plex Mono',monospace;white-space:nowrap;transition:opacity .18s}
-.pr-snapshot-btn:hover{opacity:.85}
-.pr-loading{text-align:center;padding:40px;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace}
-
 /* ── WF02 AUDIENCE GENERATOR ── */
 .ag-section{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:visible}
 .ag-sec-hdr{background:#F0EEE8;padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
@@ -267,6 +217,57 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .ppt-copy-all{width:100%;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-bottom:14px}
 .ppt-copy-all:hover{opacity:.88}
 .ppt-copy-all.ok{background:var(--green)}
+
+/* ── TOP-LEVEL TABS ── */
+.top-tabs{display:flex;background:var(--navy);border-bottom:3px solid rgba(255,255,255,.08);padding:0 24px}
+.top-tab{padding:13px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.45);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-3px;transition:all .18s;white-space:nowrap}
+.top-tab:hover{color:rgba(255,255,255,.8)}
+.top-tab.active{color:#fff;border-bottom:3px solid var(--teal)}
+.tab-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:700;background:rgba(29,158,117,.3);color:var(--teal);font-family:'IBM Plex Mono',monospace}
+/* ── PROSPECTING ── */
+.pr-wrap{max-width:1100px;margin:0 auto;padding:18px 16px}
+.pr-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.pr-filter{display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;color:var(--text);background:var(--white)}
+.pr-filter select{border:none;outline:none;font-size:12px;color:var(--text);background:transparent;cursor:pointer;font-family:'Inter',system-ui,sans-serif}
+.pr-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:'Inter',system-ui,sans-serif;outline:none}
+.pr-search:focus{border-color:var(--navy)}
+.pr-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.pr-metric{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+.pr-metric-l{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.pr-metric-v{font-size:20px;font-weight:800;color:var(--navy)}
+.pr-metric-s{font-size:10px;color:var(--muted);margin-top:2px;font-family:'IBM Plex Mono',monospace}
+.pr-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.pr-table-hdr{background:var(--navy);padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
+.pr-table-hdr-title{color:#fff;font-size:13px;font-weight:700}
+.pr-table-hdr-meta{color:rgba(255,255,255,.4);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.pr-table{width:100%;border-collapse:collapse;font-size:12px}
+.pr-table th{padding:8px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#F0EEE8;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer}
+.pr-table th:hover{background:#e8e5df}
+.pr-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.pr-table tr:last-child td{border-bottom:none}
+.pr-table tr:hover td{background:#F8FBF8}
+.pr-table tr.pr-sel td{background:#F0FBF7}
+.pr-score-pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.pr-hot{background:#E1F5EE;color:#085041}
+.pr-warm{background:#FAEEDA;color:#633806}
+.pr-cool{background:#F1EFE8;color:#5F5E5A}
+.pr-pos{color:#085041;font-weight:600}
+.pr-neg{color:#A32D2D;font-weight:600}
+.pr-muted{color:var(--muted)}
+.pr-bank-name{font-weight:700;font-size:12px;color:var(--navy)}
+.pr-bank-loc{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.pr-action-bar{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pr-btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',system-ui,sans-serif;transition:opacity .18s}
+.pr-btn:hover{opacity:.88}
+.pr-btn:disabled{opacity:.35;cursor:not-allowed}
+.pr-btn-teal{background:var(--teal);color:#fff}
+.pr-btn-navy{background:var(--navy);color:#fff}
+.pr-btn-outline{background:var(--white);color:var(--navy);border:1.5px solid var(--border)}
+.pr-btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.pr-sel-label{margin-left:auto;font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.pr-snap-btn{background:var(--teal);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.pr-snap-btn:hover{opacity:.85}
+.pr-empty{text-align:center;padding:40px;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -1274,269 +1275,58 @@ async function generate(){
 function copyOut(){
   navigator.clipboard.writeText(g('otxt').textContent).then(()=>{g('cb').textContent='✓ Copied';g('cb').classList.add('ok');setTimeout(()=>{g('cb').textContent='Copy to clipboard';g('cb').classList.remove('ok');},2000);});
 }
-
-// ══════════════════════════════════════════════════════════════
-// TOP-LEVEL TAB SWITCHER
-// ══════════════════════════════════════════════════════════════
-function switchTopTab(tab){
-  document.getElementById('panelHub').style.display = tab==='hub'?'block':'none';
-  document.getElementById('panelPro').style.display = tab==='pro'?'block':'none';
-  document.getElementById('tabHub').classList.toggle('active', tab==='hub');
-  document.getElementById('tabPro').classList.toggle('active', tab==='pro');
-  if(tab==='pro' && !prLoaded) prLoad();
-}
-
-// ══════════════════════════════════════════════════════════════
-// PROSPECTING MODULE
-// ══════════════════════════════════════════════════════════════
-let prAllData=[], prFiltered=[], prSelected=new Set(), prLoaded=false, prSortCol='phase1_score', prSortAsc=false;
-
-const BMAP_API_PR = 'https://bmap-snapshot-production.up.railway.app';
-
-async function prLoad(){
-  prLoaded = true;
-  document.getElementById('prTbody').innerHTML='<tr><td colspan="11" class="pr-loading"><span class="spin"></span> Loading prospects from Supabase...</td></tr>';
-  try {
-    // Pull from bank_financial_snapshot_latest which has the fields needed for Phase1 scoring
-    const data = await api('bank_financial_snapshot_latest',
-      'select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,marketing_expenses,brokered_deposits_pct&limit=2000');
-    if(!data||!data.length){ document.getElementById('prTbody').innerHTML='<tr><td colspan="11" class="pr-loading">No data found. Check Supabase connection.</td></tr>'; return; }
-    // Compute Phase1 score client-side (mirrors DAX formula)
-    prAllData = data.map(r=>{
-      const yoy       = +(r.dep_yoy_pct||0);
-      const mktg      = +(r.marketing_ratio||0);          // RIAD0497 / total_assets — advertising only
-      const roa       = +(r.roa||0);
-      const loanGrowth= +(r.loan_growth_pct||0);          // actual loan growth YoY from Call Report
-      const ld        = +(r.loans_to_deposits_pct||0);
-      const brokered  = +(r.brokered_deposits_pct||0);    // brokered_deposits_pct — correct field
-      // branch_dif not yet in Supabase (comes from FDIC branch filings) — scored 0 until loaded
-      const branchScore = 0;
-      // Phase1_Score_v2 — mirrors DAX formula exactly (6/7 components; branch_dif pending)
-      const depScore  = yoy>20?4:yoy>10?3:yoy>5?2:yoy>0?1:0;          // max 4
-      const mktgScore = mktg>0.004?3:mktg>0.002?2:mktg>0?1:0;         // max 3
-      const roaScore  = roa>1.5?2:roa>=1.0?1:0;                        // max 2
-      const loanScore = loanGrowth>12?2:loanGrowth>=6?1:0;             // max 2
-      const ldScore   = (ld>=75&&ld<=95)?2:((ld>=60&&ld<75)||(ld>95&&ld<=105))?1:0; // max 2
-      const brokScore = brokered<5?2:brokered<=15?1:0;                 // brokered_deposits_pct is already 0-100
-      const score = depScore+mktgScore+roaScore+loanScore+ldScore+brokScore+branchScore;
-      return {...r, phase1_score:score, yoy_deposits:yoy, loan_to_deposit:ld, marketing_ratio_val:mktg,
-              _depScore:depScore, _mktgScore:mktgScore, _roaScore:roaScore,
-              _loanScore:loanScore, _ldScore:ldScore, _brokScore:brokScore};
-    }).filter(r=>r.total_assets>0);
-    // Populate state filter
-    const states=[...new Set(prAllData.map(r=>r.state_hq).filter(Boolean))].sort();
-    const sf=document.getElementById('prStateFilter');
-    states.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sf.appendChild(o);});
-    // Update metrics
-    const hot=prAllData.filter(r=>r.phase1_score>=10).length;
-    const warm=prAllData.filter(r=>r.phase1_score>=7&&r.phase1_score<10).length;
-    document.getElementById('prCountTotal').textContent=prAllData.length.toLocaleString();
-    document.getElementById('prCountHot').textContent=hot.toLocaleString();
-    document.getElementById('prCountWarm').textContent=warm.toLocaleString();
-    prFilter();
-  } catch(e){ document.getElementById('prTbody').innerHTML='<tr><td colspan="11" class="pr-loading">Error: '+e.message+'</td></tr>'; }
-}
-
-function prFilter(){
-  const state=document.getElementById('prStateFilter').value;
-  const minScore=+(document.getElementById('prScoreFilter').value||0);
-  const size=document.getElementById('prSizeFilter').value;
-  const q=(document.getElementById('prSearch').value||'').toLowerCase().trim();
-  prFiltered = prAllData.filter(r=>{
-    if(state && r.state_hq!==state) return false;
-    if(r.phase1_score<minScore) return false;
-    if(size==='small' && r.total_assets>=1e9) return false;
-    if(size==='mid' && (r.total_assets<1e9||r.total_assets>=10e9)) return false;
-    if(size==='large' && r.total_assets<10e9) return false;
-    if(q && !(r.institution_name||r.namefull||'').toLowerCase().includes(q)) return false;
-    return true;
-  });
-  // Sort
-  prFiltered.sort((a,b)=>{
-    const av=a[prSortCol]||0, bv=b[prSortCol]||0;
-    if(typeof av==='string') return prSortAsc?av.localeCompare(bv):bv.localeCompare(av);
-    return prSortAsc?av-bv:bv-av;
-  });
-  document.getElementById('prCountShown').textContent=prFiltered.length.toLocaleString();
-  prRender();
-}
-
-function prSort(col){
-  if(prSortCol===col) prSortAsc=!prSortAsc;
-  else { prSortCol=col; prSortAsc=false; }
-  prFilter();
-}
-
-function prScoreClass(s){ return s>=10?'pr-score-hot':s>=7?'pr-score-warm':'pr-score-cool'; }
-function prFmt(v,b){ return v>0?'<span class="pr-pos">+'+v.toFixed(1)+b+'</span>':v<0?'<span class="pr-neg">'+v.toFixed(1)+b+'</span>':'<span class="pr-neu">'+v.toFixed(1)+b+'</span>'; }
-function prFmtAssets(v){ if(!v)return'—'; if(v>=1e9)return'$'+(v/1e9).toFixed(1)+'B'; return'$'+(v/1e6).toFixed(0)+'M'; }
-
-function prRender(){
-  const tbody=document.getElementById('prTbody');
-  if(!prFiltered.length){tbody.innerHTML='<tr><td colspan="11" class="pr-loading">No prospects match the current filters.</td></tr>';return;}
-  tbody.innerHTML=prFiltered.slice(0,200).map((r,i)=>{
-    const ik=r.inst_key;
-    const name=r.institution_name||r.namefull||'—';
-    const sel=prSelected.has(ik);
-    const mktgPct=r.marketing_ratio_val>0?(r.marketing_ratio_val*100).toFixed(2)+'%':'—';
-    return `<tr class="${sel?'pr-selected':''}">
-      <td><input type="checkbox" ${sel?'checked':''} onchange="prToggleRow('${ik}',this)"></td>
-      <td onclick="prToggleRow('${ik}')" style="cursor:pointer"><div class="pr-bank-name">${name}</div><div class="pr-bank-loc">${r.city_hq||''}, ${r.state_hq||''}</div></td>
-      <td>${r.state_hq||'—'}</td>
-      <td>${prFmtAssets(r.total_assets)}</td>
-      <td>${prFmtAssets(r.total_deposits)}</td>
-      <td>${prFmt(+(r.dep_yoy_pct||0),'%')}</td>
-      <td class="${+(r.roa||0)>=1?'pr-pos':'pr-neu'}">${r.roa?r.roa+'%':'—'}</td>
-      <td class="${+(r.loans_to_deposits_pct||0)>=75&&+(r.loans_to_deposits_pct||0)<=95?'pr-pos':'pr-neu'}">${r.loans_to_deposits_pct?r.loans_to_deposits_pct+'%':'—'}</td>
-      <td>${mktgPct}</td>
-      <td title="Dep:${r._depScore} Mktg:${r._mktgScore} ROA:${r._roaScore} Loan:${r._loanScore} L/D:${r._ldScore} Brok:${r._brokScore}"><span class="pr-score-pill ${prScoreClass(r.phase1_score)}">${r.phase1_score}</span><span style="font-size:9px;color:var(--muted);font-family:IBM Plex Mono,monospace;margin-left:4px">/14</span></td>
-      <td><button class="pr-snapshot-btn" onclick="prSingleSnapshot('${ik}','${name.replace(/'/g,'\\'')}'  ,this)">⬇ Snapshot</button></td>
-    </tr>`;
-  }).join('');
-  document.getElementById('prTableMeta').textContent=`Showing ${Math.min(prFiltered.length,200)} of ${prFiltered.length} · Phase1 score sorted`;
-  prUpdateSelUI();
-}
-
-function prToggleRow(ik, chk){
-  if(prSelected.has(ik)) prSelected.delete(ik);
-  else prSelected.add(ik);
-  prRender();
-}
-function prToggleAll(chk){
-  if(chk.checked) prFiltered.slice(0,200).forEach(r=>prSelected.add(r.inst_key));
-  else prSelected.clear();
-  prRender();
-}
-function prClearSel(){ prSelected.clear(); prRender(); }
-function prUpdateSelUI(){
-  const n=prSelected.size;
-  document.getElementById('prCountSel').textContent=n;
-  document.getElementById('prSelLabel').textContent=n>0?`${n} bank${n>1?'s':''} selected — ready for action`:'Select banks to take action';
-}
-
-async function prSingleSnapshot(ik, name, btn){
-  btn.disabled=true; btn.textContent='⏳ Building...';
-  try{
-    const resp=await fetch(`${BMAP_API_PR}/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:name})});
-    if(!resp.ok) throw new Error(resp.statusText);
-    const blob=await resp.blob();
-    const safe=name.replace(/[^a-z0-9]/gi,'_');
-    const date=new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download=`BMAP_Snapshot_${safe}_${date}.pptx`;document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-    btn.textContent='✓ Done';btn.style.background='#27500A';
-    setTimeout(()=>{btn.textContent='⬇ Snapshot';btn.style.background='';btn.disabled=false;},3500);
-  }catch(e){alert('Snapshot failed: '+e.message);btn.textContent='⬇ Snapshot';btn.disabled=false;}
-}
-
-async function prRunSnapshot(){
-  if(!prSelected.size){alert('Select at least one bank first.');return;}
-  const btn=document.getElementById('prSnapBtn');
-  btn.disabled=true;btn.textContent='⏳ Building...';
-  try{
-    const banks=[...prSelected].map(ik=>{const r=prAllData.find(x=>x.inst_key===ik);return{inst_key:ik,name:r?r.institution_name||r.namefull:ik};});
-    if(banks.length===1){
-      const r=banks[0];
-      const resp=await fetch(`${BMAP_API_PR}/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:r.inst_key,bank_name:r.name})});
-      if(!resp.ok)throw new Error(resp.statusText);
-      const blob=await resp.blob(),safe=r.name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;a.download=`BMAP_Snapshot_${safe}_${date}.pptx`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-    } else {
-      const resp=await fetch(`${BMAP_API_PR}/generate-batch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({banks})});
-      if(!resp.ok)throw new Error(resp.statusText);
-      const blob=await resp.blob(),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;a.download=`BMAP_Batch_${date}.zip`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-    }
-    btn.textContent='✓ Downloaded';btn.style.background='#27500A';
-    setTimeout(()=>{btn.textContent='⬇ BMAP Snapshot (selected)';btn.style.background='';btn.disabled=false;},3500);
-  }catch(e){alert('Snapshot failed: '+e.message);btn.disabled=false;btn.textContent='⬇ BMAP Snapshot (selected)';}
-}
-
-async function prRunBrief(){
-  if(!prSelected.size){alert('Select at least one bank first.');return;}
-  const btn=document.getElementById('prBriefBtn');
-  btn.disabled=true;btn.textContent='⏳ Building...';
-  const iks=[...prSelected];
-  try{
-    for(const ik of iks){
-      const r=prAllData.find(x=>x.inst_key===ik);
-      const name=r?r.institution_name||r.namefull:ik;
-      const resp=await fetch(`${BMAP_API_PR}/generate-brief`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:name})});
-      if(!resp.ok)throw new Error(resp.statusText);
-      const blob=await resp.blob(),safe=name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;a.download=`Board_Brief_${safe}_${date}.pdf`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-    }
-    btn.textContent='✓ Downloaded';btn.style.background='#27500A';
-    setTimeout(()=>{btn.textContent='⬇ Board Brief (selected)';btn.style.background='var(--navy)';btn.disabled=false;},3500);
-  }catch(e){alert('Brief failed: '+e.message);btn.disabled=false;btn.textContent='⬇ Board Brief (selected)';}
-}
-
-function prExportCSV(){
-  const rows=prSelected.size>0?prAllData.filter(r=>prSelected.has(r.inst_key)):prFiltered;
-  if(!rows.length){alert('Nothing to export.');return;}
-  const header='inst_key,bank_name,state,assets,deposits,yoy_dep_pct,roa,loan_growth_pct,loan_to_deposit_pct,marketing_ratio_pct,brokered_pct,phase1_score,dep_score,mktg_score,roa_score,loan_score,ld_score,brok_score';
-  const lines=rows.map(r=>`"${r.inst_key}","${r.institution_name||r.namefull||''}","${r.state_hq||''}",${r.total_assets||0},${r.total_deposits||0},${(+(r.dep_yoy_pct||0)).toFixed(2)},${r.roa||0},${(+(r.loan_growth_pct||0)).toFixed(2)},${r.loans_to_deposits_pct||0},${((r.marketing_ratio_val||0)*100).toFixed(4)},${r.brokered_deposits_pct||0},${r.phase1_score},${r._depScore||0},${r._mktgScore||0},${r._roaScore||0},${r._loanScore||0},${r._ldScore||0},${r._brokScore||0}`);
-  const blob=new Blob([[header,...lines].join('\n')],{type:'text/csv'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`verlocity_prospects_${new Date().toISOString().slice(0,10)}.csv`;a.click();
-}
 </script>
 </div><!-- /panelHub -->
 
-<!-- PROSPECTING PANEL -->
 <div id="panelPro" style="display:none">
 <div class="pr-wrap">
-
   <div class="pr-filters">
-    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">State</label><select id="prStateFilter" onchange="prFilter()"><option value="">All</option></select></div>
-    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0">All</option><option value="7">7+ Warm</option><option value="10" selected>10+ Hot</option><option value="12">12+ Top</option></select></div>
-    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Size</label><select id="prSizeFilter" onchange="prFilter()"><option value="">All</option><option value="small">&lt;$1B</option><option value="mid">$1B–$10B</option><option value="large">&gt;$10B</option></select></div>
+    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">State</label><select id="prStateFilter" onchange="prFilter()"><option value="">All</option></select></div>
+    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0">All</option><option value="7">7+</option><option value="10" selected>10+</option><option value="12">12+</option></select></div>
+    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Size</label><select id="prSizeFilter" onchange="prFilter()"><option value="">All</option><option value="small">&lt;$1B</option><option value="mid">$1B–$10B</option><option value="large">&gt;$10B</option></select></div>
     <input class="pr-search" id="prSearch" type="text" placeholder="Search bank name..." oninput="prFilter()">
   </div>
-
   <div class="pr-metrics">
-    <div class="pr-metric"><div class="pr-metric-l">Showing</div><div class="pr-metric-v" id="prCountShown">—</div><div class="pr-metric-s">of <span id="prCountTotal">—</span> prospects</div></div>
+    <div class="pr-metric"><div class="pr-metric-l">Showing</div><div class="pr-metric-v" id="prCountShown">—</div><div class="pr-metric-s">of <span id="prCountTotal">—</span> total</div></div>
     <div class="pr-metric"><div class="pr-metric-l">Score ≥ 10</div><div class="pr-metric-v" id="prCountHot">—</div><div class="pr-metric-s">Hot prospects</div></div>
     <div class="pr-metric"><div class="pr-metric-l">Score 7–9</div><div class="pr-metric-v" id="prCountWarm">—</div><div class="pr-metric-s">Warm prospects</div></div>
     <div class="pr-metric"><div class="pr-metric-l">Selected</div><div class="pr-metric-v" id="prCountSel">0</div><div class="pr-metric-s">Ready for action</div></div>
   </div>
-
   <div class="pr-table-wrap">
     <div class="pr-table-hdr">
       <div class="pr-table-hdr-title">Verlocity Prospects — Phase1 Score</div>
-      <div class="pr-table-hdr-meta" id="prTableMeta">Loading from Supabase...</div>
+      <div class="pr-table-hdr-meta" id="prTableMeta">Loading...</div>
     </div>
     <div style="overflow-x:auto">
       <table class="pr-table" id="prTable">
         <thead><tr>
           <th style="width:32px"><input type="checkbox" id="prChkAll" onchange="prToggleAll(this)"></th>
-          <th onclick="prSort('namefull')">Bank ↕</th>
-          <th onclick="prSort('stalp')">State ↕</th>
+          <th onclick="prSort('institution_name')">Bank ↕</th>
+          <th onclick="prSort('state_hq')">State ↕</th>
           <th onclick="prSort('total_assets')">Assets ↕</th>
           <th onclick="prSort('total_deposits')">Deposits ↕</th>
-          <th onclick="prSort('yoy_deposits')">YoY Dep ↕</th>
+          <th onclick="prSort('dep_yoy_pct')">YoY Dep ↕</th>
           <th onclick="prSort('roa')">ROA ↕</th>
-          <th onclick="prSort('loan_to_deposit')">L/D ↕</th>
-          <th onclick="prSort('marketing_ratio_val')">Mktg ↕</th>
+          <th onclick="prSort('loan_growth_pct')">Loan Gr ↕</th>
+          <th onclick="prSort('loans_to_deposits_pct')">L/D ↕</th>
+          <th onclick="prSort('marketing_ratio_val')">Mktg % ↕</th>
           <th onclick="prSort('phase1_score')">Score ↕</th>
           <th></th>
         </tr></thead>
-        <tbody id="prTbody"><tr><td colspan="11" class="pr-loading">Loading prospects...</td></tr></tbody>
+        <tbody id="prTbody"><tr><td colspan="12" class="pr-empty"><span class="spin"></span> Loading prospects...</td></tr></tbody>
       </table>
     </div>
   </div>
-
   <div class="pr-action-bar">
-    <button class="pr-btn-primary" id="prSnapBtn" onclick="prRunSnapshot()">⬇ BMAP Snapshot (selected)</button>
-    <button class="pr-btn-primary" style="background:var(--navy)" id="prBriefBtn" onclick="prRunBrief()">⬇ Board Brief (selected)</button>
-    <button class="pr-btn-secondary" onclick="prExportCSV()">↓ Export CSV</button>
-    <button class="pr-btn-ghost" onclick="prClearSel()">Clear selection</button>
-    <div class="pr-sel-count" id="prSelLabel">Select banks to take action</div>
+    <button class="pr-btn pr-btn-teal" id="prSnapBtn" onclick="prRunSnapshot()">⬇ BMAP Snapshot</button>
+    <button class="pr-btn pr-btn-navy" id="prBriefBtn" onclick="prRunBrief()">⬇ Board Brief</button>
+    <button class="pr-btn pr-btn-outline" onclick="prExportCSV()">↓ Export CSV</button>
+    <button class="pr-btn pr-btn-ghost" onclick="prClearSel()">Clear selection</button>
+    <div class="pr-sel-label" id="prSelLabel">Select banks to take action</div>
   </div>
-
 </div>
 </div><!-- /panelPro -->
 
-</div><!-- /appWrap -->
+</div>
 </body>
 </html>

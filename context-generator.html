@@ -563,7 +563,7 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref'};
+const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public'};
 async function api(table,params){
   try{
     const schema=SCHEMA_MAP[table]||'public';
@@ -1288,17 +1288,20 @@ function switchTopTab(tab){
 // ══════════════════════════════════════════════════════════════
 // PROSPECTING — Phase1_Score_v2 (mirrors DAX exactly)
 // ══════════════════════════════════════════════════════════════
-let prAllData=[],prFiltered=[],prSelected=new Set(),prLoaded=false,prSortCol='phase1_score',prSortAsc=false;
+let prAllData=[],prFiltered=[],prSelected=new Set(),prLoaded=false,prSortCol='phase1_score',prSortAsc=false,prPage=0;
+const PR_PAGE_SIZE=20;
 const BMAP_API_PR='https://bmap-snapshot-production.up.railway.app';
 
 async function prLoad(){
   prLoaded=true;
   document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty"><span class="spin"></span> Loading from Supabase...</td></tr>';
   try{
-    const data=await api('bank_financial_snapshot_latest',
-      'select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,marketing_expenses,brokered_deposits_pct&order=dep_yoy_pct.desc&limit=3000');
+    const data=await api('vw_prospecting_score',
+      'select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,brokered_deposits_pct,phase1_score&order=phase1_score.desc&limit=5000');
     if(!data||!data.length){document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty">No data found.</td></tr>';return;}
     prAllData=data.map(r=>{
+      // phase1_score comes pre-computed from vw_prospecting_score (SQL mirrors DAX)
+      // Recompute components client-side only for tooltip breakdown
       const yoy=+(r.dep_yoy_pct||0),mktg=+(r.marketing_ratio||0),roa=+(r.roa||0);
       const loanGr=+(r.loan_growth_pct||0),ld=+(r.loans_to_deposits_pct||0),brok=+(r.brokered_deposits_pct||0);
       const dS=yoy>20?4:yoy>10?3:yoy>5?2:yoy>0?1:0;
@@ -1307,7 +1310,10 @@ async function prLoad(){
       const lS=loanGr>12?2:loanGr>=6?1:0;
       const ldS=(ld>=75&&ld<=95)?2:((ld>=60&&ld<75)||(ld>95&&ld<=105))?1:0;
       const bS=brok<5?2:brok<=15?1:0;
-      return{...r,phase1_score:dS+mS+rS+lS+ldS+bS,marketing_ratio_val:mktg,_dS:dS,_mS:mS,_rS:rS,_lS:lS,_ldS:ldS,_bS:bS};
+      return{...r,
+        phase1_score:+(r.phase1_score||0),  // use DB value
+        marketing_ratio_val:mktg,
+        _dS:dS,_mS:mS,_rS:rS,_lS:lS,_ldS:ldS,_bS:bS};
     });
     const states=[...new Set(prAllData.map(r=>r.state_hq).filter(Boolean))].sort();
     const sf=document.getElementById('prStateFilter');
@@ -1338,6 +1344,7 @@ function prFilter(){
   prFiltered.sort((a,b)=>{const av=a[prSortCol]||0,bv=b[prSortCol]||0;return typeof av==='string'?prSortAsc?av.localeCompare(bv):bv.localeCompare(av):prSortAsc?av-bv:bv-av;});
   document.getElementById('prCountShown').textContent=prFiltered.length.toLocaleString();
   document.getElementById('prFilteredCount').textContent=prFiltered.length.toLocaleString();
+  prPage=0;
   prRender();
 }
 
@@ -1350,7 +1357,10 @@ function prFmtPct(v){const n=+(v||0);return n>0?'<span class="pr-pos">+'+n.toFix
 function prRender(){
   const tbody=document.getElementById('prTbody');
   if(!prFiltered.length){tbody.innerHTML='<tr><td colspan="12" class="pr-empty">No prospects match filters.</td></tr>';prUpdateSel();return;}
-  const rows=prFiltered.slice(0,200);
+  const totalPages=Math.ceil(prFiltered.length/PR_PAGE_SIZE)||1;
+  if(prPage>=totalPages)prPage=totalPages-1;
+  const start=prPage*PR_PAGE_SIZE,end=start+PR_PAGE_SIZE;
+  const rows=prFiltered.slice(start,end);
   let html='';
   rows.forEach(function(r){
     const sel=prSelected.has(r.inst_key);
@@ -1377,12 +1387,25 @@ function prRender(){
     html+='</tr>';
   });
   tbody.innerHTML=html;
-  document.getElementById('prTableMeta').textContent='Showing '+Math.min(prFiltered.length,200)+' of '+prFiltered.length+' · Phase1 score';
+  // Pagination controls
+  const pagerHtml='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--border);background:#fafaf8;font-size:12px;font-family:IBM Plex Mono,monospace">'
+    +'<button onclick="prPageGo(-1)" '+(prPage===0?'disabled':'')+' style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:11px">← Prev</button>'
+    +'<span style="color:var(--muted)">Page '+(prPage+1)+' of '+totalPages+' &nbsp;·&nbsp; '+prFiltered.length.toLocaleString()+' banks</span>'
+    +'<button onclick="prPageGo(1)" '+(prPage>=totalPages-1?'disabled':'')+' style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:11px">Next →</button>'
+    +'<span style="margin-left:auto;color:var(--muted)">Rows '+(start+1)+'–'+Math.min(start+PR_PAGE_SIZE,prFiltered.length)+'</span>'
+    +'</div>';
+  // Inject pager after tbody inside the table wrapper
+  const wrap=document.getElementById('prTable').closest('div');
+  let pager=document.getElementById('prPager');
+  if(!pager){pager=document.createElement('div');pager.id='prPager';wrap.parentNode.insertBefore(pager,wrap.nextSibling);}
+  pager.innerHTML=pagerHtml;
+  document.getElementById('prTableMeta').textContent='Page '+(prPage+1)+'/'+totalPages+' · '+prFiltered.length.toLocaleString()+' total · Phase1 score';
   prUpdateSel();
 }
 
 function prToggleRow(chk,ik){prSelected.has(ik)?prSelected.delete(ik):prSelected.add(ik);prRender();}
-function prToggleAll(chk){if(chk.checked)prFiltered.slice(0,200).forEach(r=>prSelected.add(r.inst_key));else prSelected.clear();prRender();}
+function prToggleAll(chk){if(chk.checked)prFiltered.forEach(r=>prSelected.add(r.inst_key));else prSelected.clear();prRender();}
+function prPageGo(dir){prPage+=dir;prRender();window.scrollTo(0,document.getElementById('panelPro').offsetTop);}
 function prClearSel(){prSelected.clear();prRender();}
 function prUpdateSel(){
   const n=prSelected.size;

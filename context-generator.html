@@ -1347,29 +1347,38 @@ function prFmtPct(v){const n=+(v||0);return n>0?'<span class="pr-pos">+'+n.toFix
 function prRender(){
   const tbody=document.getElementById('prTbody');
   if(!prFiltered.length){tbody.innerHTML='<tr><td colspan="12" class="pr-empty">No prospects match filters.</td></tr>';prUpdateSel();return;}
-  tbody.innerHTML=prFiltered.slice(0,200).map(r=>{
+  const rows=prFiltered.slice(0,200);
+  let html='';
+  rows.forEach(function(r){
     const sel=prSelected.has(r.inst_key);
     const tip='Dep:'+r._dS+' Mktg:'+r._mS+' ROA:'+r._rS+' Loan:'+r._lS+' L/D:'+r._ldS+' Brok:'+r._bS;
-    return '<tr class="'+(sel?'pr-sel':'')+'">'+
-      '<td><input type="checkbox" '+(sel?'checked':'')+' onchange="prToggleRow(''+r.inst_key+'',this)"></td>'+
-      '<td onclick="prToggleRow(''+r.inst_key+'')" style="cursor:pointer"><div class="pr-bank-name">'+(r.institution_name||'—')+'</div><div class="pr-bank-loc">'+(r.city_hq||'')+', '+(r.state_hq||'')+'</div></td>'+
-      '<td>'+(r.state_hq||'—')+'</td>'+
-      '<td>'+prFmtA(r.total_assets)+'</td>'+
-      '<td>'+prFmtA(r.total_deposits)+'</td>'+
-      '<td>'+prFmtPct(r.dep_yoy_pct)+'</td>'+
-      '<td class="'+(+(r.roa||0)>=1?'pr-pos':'pr-muted')+'">'+(r.roa?r.roa+'%':'—')+'</td>'+
-      '<td>'+prFmtPct(r.loan_growth_pct)+'</td>'+
-      '<td class="'+(+(r.loans_to_deposits_pct||0)>=75&&+(r.loans_to_deposits_pct||0)<=95?'pr-pos':'pr-muted')+'">'+(r.loans_to_deposits_pct?r.loans_to_deposits_pct+'%':'—')+'</td>'+
-      '<td>'+(r.marketing_ratio_val>0?(r.marketing_ratio_val*100).toFixed(3)+'%':'—')+'</td>'+
-      '<td title="'+tip+'"><span class="pr-score-pill '+prScoreCls(r.phase1_score)+'">'+r.phase1_score+'</span><span style="font-size:9px;color:var(--muted);margin-left:3px;font-family:IBM Plex Mono,monospace">/14</span></td>'+
-      '<td><button class="pr-snap-btn" onclick="event.stopPropagation();prSingleSnap(''+r.inst_key+'',''+r.institution_name.replace(/'/g,"\'")+ '',this)">⬇ Snapshot</button></td>'+
-      '</tr>';
-  }).join('');
+    const mktg=r.marketing_ratio_val>0?(r.marketing_ratio_val*100).toFixed(3)+'%':'—';
+    const ld=+(r.loans_to_deposits_pct||0);
+    const ldCls=(ld>=75&&ld<=95)?'pr-pos':'pr-muted';
+    const roaCls=+(r.roa||0)>=1?'pr-pos':'pr-muted';
+    const ik=r.inst_key;
+    const nm=(r.institution_name||'—').replace(/'/g,'&#39;');
+    html+='<tr class="'+(sel?'pr-sel':'')+'">';
+    html+='<td><input type="checkbox" '+(sel?'checked':'')+' onchange="prToggleRow(this,&quot;'+ik+'&quot;)"></td>';
+    html+='<td onclick="prToggleRow(null,&quot;'+ik+'&quot;)" style="cursor:pointer"><div class="pr-bank-name">'+(r.institution_name||'—')+'</div><div class="pr-bank-loc">'+(r.city_hq||'')+', '+(r.state_hq||'')+'</div></td>';
+    html+='<td>'+(r.state_hq||'—')+'</td>';
+    html+='<td>'+prFmtA(r.total_assets)+'</td>';
+    html+='<td>'+prFmtA(r.total_deposits)+'</td>';
+    html+='<td>'+prFmtPct(r.dep_yoy_pct)+'</td>';
+    html+='<td class="'+roaCls+'">'+(r.roa?r.roa+'%':'—')+'</td>';
+    html+='<td>'+prFmtPct(r.loan_growth_pct)+'</td>';
+    html+='<td class="'+ldCls+'">'+(r.loans_to_deposits_pct?r.loans_to_deposits_pct+'%':'—')+'</td>';
+    html+='<td>'+mktg+'</td>';
+    html+='<td title="'+tip+'"><span class="pr-score-pill '+prScoreCls(r.phase1_score)+'">'+r.phase1_score+'</span><span style="font-size:9px;color:var(--muted);margin-left:3px;font-family:IBM Plex Mono,monospace">/14</span></td>';
+    html+='<td><button class="pr-snap-btn" onclick="event.stopPropagation();prSingleSnap(&quot;'+ik+'&quot;,&quot;'+nm+'&quot;,this)">⬇ Snapshot</button></td>';
+    html+='</tr>';
+  });
+  tbody.innerHTML=html;
   document.getElementById('prTableMeta').textContent='Showing '+Math.min(prFiltered.length,200)+' of '+prFiltered.length+' · Phase1 score';
   prUpdateSel();
 }
 
-function prToggleRow(ik){prSelected.has(ik)?prSelected.delete(ik):prSelected.add(ik);prRender();}
+function prToggleRow(chk,ik){prSelected.has(ik)?prSelected.delete(ik):prSelected.add(ik);prRender();}
 function prToggleAll(chk){if(chk.checked)prFiltered.slice(0,200).forEach(r=>prSelected.add(r.inst_key));else prSelected.clear();prRender();}
 function prClearSel(){prSelected.clear();prRender();}
 function prUpdateSel(){
@@ -1432,9 +1441,21 @@ function prExportCSV(){
   const rows=prSelected.size>0?prAllData.filter(r=>prSelected.has(r.inst_key)):prFiltered;
   if(!rows.length){alert('Nothing to export.');return;}
   const hdr='inst_key,bank_name,state,assets,deposits,dep_yoy_pct,roa,loan_growth_pct,loan_to_deposit_pct,marketing_ratio_pct,brokered_pct,phase1_score,dep_s,mktg_s,roa_s,loan_s,ld_s,brok_s';
-  const lines=rows.map(r=>'"'+r.inst_key+'","'+(r.institution_name||'')+'","'+(r.state_hq||'"),'+ r.total_assets+','+r.total_deposits+','+(+(r.dep_yoy_pct||0)).toFixed(2)+','+r.roa+','+(+(r.loan_growth_pct||0)).toFixed(2)+','+r.loans_to_deposits_pct+','+((r.marketing_ratio_val||0)*100).toFixed(4)+','+r.brokered_deposits_pct+','+r.phase1_score+','+r._dS+','+r._mS+','+r._rS+','+r._lS+','+r._ldS+','+r._bS);
-  const blob=new Blob([[hdr,...lines].join('
-'),],{type:'text/csv'});
+  const lines=rows.map(r=>[
+    '"'+r.inst_key+'"',
+    '"'+(r.institution_name||'')+'"',
+    '"'+(r.state_hq||'')+'"',
+    r.total_assets||0,
+    r.total_deposits||0,
+    (+(r.dep_yoy_pct||0)).toFixed(2),
+    r.roa||0,
+    (+(r.loan_growth_pct||0)).toFixed(2),
+    r.loans_to_deposits_pct||0,
+    ((r.marketing_ratio_val||0)*100).toFixed(4),
+    r.brokered_deposits_pct||0,
+    r.phase1_score,r._dS,r._mS,r._rS,r._lS,r._ldS,r._bS
+  ].join(','));
+  const blob=new Blob([[hdr].concat(lines).join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='verlocity_prospects_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 

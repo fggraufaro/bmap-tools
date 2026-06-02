@@ -1296,9 +1296,17 @@ async function prLoad(){
   prLoaded=true;
   document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty"><span class="spin"></span> Loading from Supabase...</td></tr>';
   try{
-    const data=await api('vw_prospecting_score',
-      'select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,brokered_deposits_pct,phase1_score&order=phase1_score.desc&limit=5000');
-    if(!data||!data.length){document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty">No data found.</td></tr>';return;}
+    // PostgREST caps at 1000 rows — paginate to load all banks
+    const fields='select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,brokered_deposits_pct,phase1_score&order=phase1_score.desc';
+    let data=[], offset=0, chunk;
+    do {
+      chunk = await api('vw_prospecting_score', fields+'&limit=1000&offset='+offset);
+      if(!chunk||!chunk.length) break;
+      data = data.concat(chunk);
+      offset += 1000;
+      document.getElementById('prTableMeta').textContent='Loading... '+data.length+' banks';
+    } while(chunk.length===1000);
+    if(!data.length){document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty">No data found.</td></tr>';return;}
     prAllData=data.map(r=>{
       // phase1_score comes pre-computed from vw_prospecting_score (SQL mirrors DAX)
       // Recompute components client-side only for tooltip breakdown

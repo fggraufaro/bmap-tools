@@ -818,6 +818,18 @@ async function loadBank(ik){
     g('mq'+q).appendChild(el);
   });
 
+
+  // ── URGENT STATUS LABELS (not raw play names) ────────────────────────────
+  const urgentLabel = b => {
+    const yoyPct = (+b.yoy_deposits||0)*100;
+    const relGap = yoyPct - (+b.avg_comp_yoy||0)*100;
+    if(yoyPct < -5 && (+b.latest_dep/1e6 > 100)) return '⚠ Critical — major deposit decline';
+    if(yoyPct < 0 && relGap < -10) return 'Losing deposits to competitors';
+    if(yoyPct < 0) return 'Deposits declining';
+    if(relGap < -10) return 'Losing market share';
+    if((b.matrix_quadrant||'').startsWith('Q1') && yoyPct < 0) return 'Underperforming attractive market';
+    return 'Needs attention';
+  };
   // ── PRIORITY LIST ─────────────────────────────────────────────────────────
   const priRows = [];
   // Urgent: Justify with declining deposits OR Justify with >$100M
@@ -826,7 +838,7 @@ async function loadBank(ik){
   const urgentAnalyze = allBr.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDep);
   const urgentAll = [...urgent, ...urgentAnalyze].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,4);
   // Invest: top Invest + top Analyze Q2/Q1 non-declining
-  const investReady = [...investBr, ...analyzeBr.filter(b=>['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&(+b.yoy_deposits>=0))].sort(byScore).slice(0,2);
+  const investReady = [...investBr, ...analyzeBr.filter(b=>['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&(+b.yoy_deposits>=0))].filter(b=>(+b.latest_dep/1e6)>=5).sort(byScore).slice(0,3);
   // Watch: everything else (not in urgent or invest)
   const usedIds = new Set([...urgentAll,...investReady].map(b=>b.uninumbr));
   const watchBr = allBr.filter(b=>!usedIds.has(b.uninumbr)).sort(byScore).slice(0,3);
@@ -841,7 +853,7 @@ async function loadBank(ik){
       const gap2 = ((+b.yoy_deposits||0)*100 - (+b.avg_comp_yoy||0)*100).toFixed(1);
       const play = b.campaign||'—';
       const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-      priHTML += `<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#A32D2D">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Why urgent</b>Deposits: ${+yoy>=0?'+':''}${yoy}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap2>=0?'+':''}${gap2}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
+      priHTML += `<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${urgentLabel(b)} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#A32D2D">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Why urgent</b>Deposits: ${+yoy>=0?'+':''}${yoy}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap2>=0?'+':''}${gap2}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
     });
   }
   if(investReady.length){
@@ -915,7 +927,7 @@ async function loadBank(ik){
   const tgts = tgt||[];
   if(tgts.length){
     g('targetsGrid').innerHTML = tgts.slice(0,3).map(t=>{
-      const vy = (+t.avg_yoy_pct*100).toFixed(1);
+      const vy = (+t.avg_yoy_pct).toFixed(1);
       const vColor = t.avg_vuln_score >= 300 ? '#A32D2D' : t.avg_vuln_score >= 200 ? '#854D0E' : '#374151';
       const vLabel = t.avg_vuln_score >= 300 ? 'Critical' : t.avg_vuln_score >= 200 ? 'High' : 'Elevated';
       return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.target_institution}</div><div class="tgt-sub">${t.branches_in_radius} branch${t.branches_in_radius!==1?'es':''} exposed · ${vy>=0?'+':''}${vy}% YoY · ROA ${t.target_roa||0}%</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.avg_vuln_score)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;

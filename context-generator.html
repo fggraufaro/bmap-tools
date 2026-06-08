@@ -306,8 +306,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .mq-qlbl{font-size:10px;font-weight:700;letter-spacing:.03em}
 .mq-play{font-size:9px;font-weight:600}
 .mq-tiles{display:flex;flex-direction:column;gap:3px}
-.mq-tile{border-radius:5px;padding:4px 7px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .12s}
-.mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mq-tile{border-radius:5px;padding:5px 8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;transition:background .12s}
+.mq-tile-info{flex:1;min-width:0}
+.mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mq-tile-city{font-size:9px;color:var(--muted);margin-top:1px}
 .mq-tile-right{text-align:right;flex-shrink:0}
 .mq-tile-dep{font-size:11px;font-weight:700;color:var(--navy)}
 .mq-tile-yoy{font-size:9px}
@@ -321,15 +323,18 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .br-detail-city{font-size:11px;color:var(--muted)}
 .br-clear{font-size:11px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
 .br-clear:hover{color:var(--navy);border-color:var(--navy)}
-.br-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
-.br-sc{background:var(--bg2);border-radius:6px;padding:7px 9px}
-.br-sc-val{font-size:16px;font-weight:700;color:var(--navy)}
-.br-sc-lbl{font-size:9px;color:var(--muted);margin-top:1px}
-.br-sc-sub{font-size:10px;font-weight:600;margin-top:1px}
-.br-signals{display:flex;flex-direction:column;gap:4px}
-.br-sig{display:flex;justify-content:space-between;font-size:11px;padding:4px 8px;background:var(--bg2);border-radius:5px}
+.br-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px}
+.br-sc{background:var(--bg2);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.br-sc-val{font-size:17px;font-weight:700;color:var(--navy);line-height:1}
+.br-sc-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.br-sc-sub{font-size:9px;font-weight:600;margin-top:3px;display:inline-block;padding:1px 5px;border-radius:3px}
+.br-signals{display:flex;flex-direction:column;gap:3px}
+.br-sig{display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:5px 8px;background:var(--bg2);border-radius:5px}
 .br-sig-lbl{color:var(--muted)}
-.br-sig-val{font-weight:600;color:var(--navy)}
+.br-sig-val{font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums}
+.br-detail-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
+.br-detail-name{font-size:14px;font-weight:700;color:var(--navy);line-height:1.2}
+.br-detail-city{font-size:11px;color:var(--muted);margin-top:2px}
 
 .pri-slbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:.5rem 0 .3rem}
 .pri-row{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--white);margin-bottom:4px;position:relative;cursor:default}
@@ -466,30 +471,30 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
       <div class="matrix-2x2">
         <div class="mq mq-q2">
           <div class="mq-head">
-            <span class="mq-qlbl" style="color:#27500A">Q2 · High market / Strong performance</span>
+            <span class="mq-qlbl" style="color:#27500A">Q2 · Strong market · Strong branch</span>
           </div>
-          <div class="mq-play" id="mqPlay2"></div>
+          <div class="mq-play" id="mqPlay2" style="margin-bottom:5px"></div>
           <div class="mq-tiles" id="mqQ2"></div>
         </div>
         <div class="mq mq-q1">
           <div class="mq-head">
-            <span class="mq-qlbl" style="color:#185FA5">Q1 · High market / Needs improvement</span>
+            <span class="mq-qlbl" style="color:#185FA5">Q1 · Strong market · Needs attention</span>
           </div>
-          <div class="mq-play" id="mqPlay1"></div>
+          <div class="mq-play" id="mqPlay1" style="margin-bottom:5px"></div>
           <div class="mq-tiles" id="mqQ1"></div>
         </div>
         <div class="mq mq-q3">
           <div class="mq-head">
-            <span class="mq-qlbl" style="color:#854D0E">Q3 · Weak market / Strong performance</span>
+            <span class="mq-qlbl" style="color:#854D0E">Q3 · Weak market · Strong branch</span>
           </div>
-          <div class="mq-play" id="mqPlay3"></div>
+          <div class="mq-play" id="mqPlay3" style="margin-bottom:5px"></div>
           <div class="mq-tiles" id="mqQ3"></div>
         </div>
         <div class="mq mq-q4">
           <div class="mq-head">
-            <span class="mq-qlbl" style="color:#A32D2D">Q4 · Weak market / Weak performance</span>
+            <span class="mq-qlbl" style="color:#A32D2D">Q4 · Weak market · Weak branch</span>
           </div>
-          <div class="mq-play" id="mqPlay4"></div>
+          <div class="mq-play" id="mqPlay4" style="margin-bottom:5px"></div>
           <div class="mq-tiles" id="mqQ4"></div>
         </div>
       </div>
@@ -776,7 +781,7 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_pop_growth,zhvi_yoy_pct&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,latest_dep&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt||[],ik};
@@ -936,7 +941,7 @@ async function loadBank(ik){
       const shortName = b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
       const tile = document.createElement('div');
       tile.className = 'mq-tile';
-      tile.innerHTML = `<div class="mq-tile-name">${shortName}</div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+      tile.innerHTML = `<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
       tile.onclick = () => {
         if(_selectedTile) _selectedTile.classList.remove('sel');
         tile.classList.add('sel');
@@ -960,7 +965,7 @@ async function loadBank(ik){
             const shortName=b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
             const tile=document.createElement('div');
             tile.className='mq-tile';
-            tile.innerHTML=`<div class="mq-tile-name">${shortName}</div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+            tile.innerHTML=`<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
             tile.onclick=()=>{if(_selectedTile)_selectedTile.classList.remove('sel');tile.classList.add('sel');_selectedTile=tile;showBranchDetail(b);};
             g('mq'+q).insertBefore(tile, more);
           });

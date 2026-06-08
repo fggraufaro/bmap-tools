@@ -461,7 +461,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     </div>
     <div class="health-risk">
       <div class="risk-val" id="atRisk">—</div>
-      <div class="risk-lbl">in Justify-zone</div>
+      <div class="risk-lbl" id="atRiskLbl">deposits below avg</div>
     </div>
   </div>
 
@@ -819,8 +819,18 @@ async function loadBank(ik){
   g('peerYoy').textContent = avgPeerYoy.toFixed(1) + '%';
   g('yoyGap').textContent = (gap >= 0 ? '+' : '') + gap.toFixed(1) + 'pp';
   g('yoyGap').style.color = gapColor;
-  g('atRisk').textContent = '$' + (justifyDep/1e6).toFixed(0) + 'M at risk';
-  g('atRisk').style.color = justifyDep > 0 ? '#A32D2D' : '#27500A';
+  const justifyDepB = justifyDep/1e9;
+  const justifyDepM = justifyDep/1e6;
+  const justifyDepStr = justifyDepB >= 1 
+    ? '$' + justifyDepB.toFixed(1) + 'B' 
+    : '$' + justifyDepM.toFixed(0) + 'M';
+  const totalDep2 = rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
+  const justifyPct = totalDep2 > 0 ? Math.round(justifyDep/totalDep2*100) : 0;
+  g('atRisk').textContent = justifyDep > 1e9
+    ? '$' + (justifyDep/1e9).toFixed(1) + 'B'
+    : '$' + (justifyDep/1e6).toFixed(0) + 'M';
+  if(g('atRiskLbl')) g('atRiskLbl').textContent = justifyPct + '% of deposits in review';
+  g('atRisk').style.color = justifyPct > 40 ? '#A32D2D' : justifyPct > 20 ? '#854D0E' : '#27500A';
 
   // ── MATRIX DOTS (top 10: all Invest + best Analyze + worst Justify by dep) ─
   const byScore = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
@@ -911,7 +921,7 @@ async function loadBank(ik){
         <div class="br-signals">
           <div class="br-sig"><span class="br-sig-lbl">Market growth</span><span class="br-sig-val">${mgn} / 100</span></div>
           <div class="br-sig"><span class="br-sig-lbl">Relative growth</span><span class="br-sig-val">${rgn} / 100</span></div>
-          <div class="br-sig"><span class="br-sig-lbl">Inverted density</span><span class="br-sig-val">${idn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Inverted density</span><span class="br-sig-val">${idn} / 100 <span style="font-size:10px;font-weight:400;color:var(--muted)">${+idn<15?'· Very high competition':+idn<35?'· High competition':+idn<60?'· Moderate competition':+idn<80?'· Low competition':'· Very low competition'}</span></span></div>
           <div class="br-sig"><span class="br-sig-lbl">Deposit size</span><span class="br-sig-val">${dsn} / 100</span></div>
           <div class="br-sig"><span class="br-sig-lbl">Quadrant</span><span class="br-sig-val">${b.matrix_quadrant||'—'}</span></div>
         </div>
@@ -945,6 +955,10 @@ async function loadBank(ik){
 
   const renderMatrix = (filterMetro) => {
     const filteredBr = filterMetro ? allBr.filter(b=>b.metro===filterMetro) : allBr;
+    // ── Rebuild priority list for this market ──────────────────────────────
+    rebuildPriorityList(filteredBr);
+    // ── Rebuild competitor targets for this market ─────────────────────────
+    rebuildTargets(filteredBr, filterMetro);
     const filterLabel = filterMetro
       ? `${filteredBr.length} branches · ${filterMetro}`
       : allBr.length + ' branches total';
@@ -952,9 +966,21 @@ async function loadBank(ik){
 
     ['Q1','Q2','Q3','Q4'].forEach(q => {
       g('mq'+q).innerHTML='';
-      const qBranches = filteredBr
+      // Sort: branches above deposit floor → by opportunity score (best first)
+    // Branches below floor (tiny/anomalous) → sorted last, by deposits
+    const allDeps = filteredBr.map(b=>(+b.latest_dep||0)).sort((a,b)=>a-b);
+    const medDep = allDeps[Math.floor(allDeps.length/2)] || 0;
+    const depFloor = Math.max(medDep * 0.15, 5000000); // 15% of median or $5M min
+    const qBranches = filteredBr
         .filter(b => (b.matrix_quadrant||'').startsWith(q))
-        .sort((a,b) => (+b.latest_dep||0) - (+a.latest_dep||0));
+        .sort((a,b) => {
+          const aBig = (+a.latest_dep||0) >= depFloor;
+          const bBig = (+b.latest_dep||0) >= depFloor;
+          if(aBig && bBig)  return (+b.opportunity_score||0) - (+a.opportunity_score||0);
+          if(aBig && !bBig) return -1;
+          if(!aBig && bBig) return 1;
+          return (+b.latest_dep||0) - (+a.latest_dep||0);
+        });
       const shown = qBranches.slice(0,5);
       const rest  = qBranches.slice(5);
 
@@ -1011,112 +1037,181 @@ async function loadBank(ik){
   };
 
   renderMatrix('');
-  metroSel.onchange = () => { clearBranchDetail(); renderMatrix(metroSel.value); };
+  metroSel.onchange = () => {
+    clearBranchDetail();
+    const metro = metroSel.value;
+    const filtered = metro ? allBr.filter(b => b.metro === metro) : allBr;
+    renderMatrix(metro);
+    renderPriority(filtered);
+    renderCities(filtered);
+  };
 
 
+
+  // ── RENDER FUNCTIONS (accept filtered branch set) ────────────────────────
+  const renderPriority = (branches) => {
   // ── URGENT STATUS LABELS (not raw play names) ────────────────────────────
-  const urgentLabel = b => {
-    const yoyPct = (+b.yoy_deposits||0)*100;
-    const relGap = yoyPct - (+b.avg_comp_yoy||0)*100;
-    if(yoyPct < -5 && (+b.latest_dep/1e6 > 100)) return '⚠ Critical — major deposit decline';
-    if(yoyPct < 0 && relGap < -10) return 'Losing deposits to competitors';
-    if(yoyPct < 0) return 'Deposits declining';
-    if(relGap < -10) return 'Losing market share';
-    if((b.matrix_quadrant||'').startsWith('Q1') && yoyPct < 0) return 'Underperforming attractive market';
-    return 'Needs attention';
+    const urgentLabel = b => {
+      const yoyPct = (+b.yoy_deposits||0)*100;
+      const relGap = yoyPct - (+b.avg_comp_yoy||0)*100;
+      if(yoyPct < -5 && (+b.latest_dep/1e6 > 100)) return '⚠ Critical — major deposit decline';
+      if(yoyPct < 0 && relGap < -10) return 'Losing deposits to competitors';
+      if(yoyPct < 0) return 'Deposits declining';
+      if(relGap < -10) return 'Losing market share';
+      if((b.matrix_quadrant||'').startsWith('Q1') && yoyPct < 0) return 'Underperforming attractive market';
+      return 'Needs attention';
+    };
+    // ── PRIORITY LIST (refactored as function for metro reuse) ──────────────────
+    const rebuildPriorityList = (branches) => {
+      const byScoreL = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
+      const byDepL   = (a,b) => (+b.latest_dep||0) - (+a.latest_dep||0);
+      const investBrL  = branches.filter(b=>b.opportunity_zone==='Invest');
+      const analyzeBrL = branches.filter(b=>b.opportunity_zone==='Analyze').sort(byScoreL);
+      const justifyBrL = branches.filter(b=>b.opportunity_zone==='Justify').sort(byDepL);
+  
+      const urgentL = justifyBrL.filter(b=>((+b.yoy_deposits<0)||(+b.latest_dep/1e6>100))).slice(0,4);
+      const urgentAnalyzeL = branches.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDepL);
+      const urgentAll = [...urgentL,...urgentAnalyzeL].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,4);
+      const investReady = [...investBrL,...analyzeBrL.filter(b=>['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&(+b.yoy_deposits>=0))].filter(b=>(+b.latest_dep/1e6)>=5).sort(byScoreL).slice(0,3);
+      const usedIds = new Set([...urgentAll,...investReady].map(b=>b.uninumbr));
+      const watchBrL = branches.filter(b=>!usedIds.has(b.uninumbr)).sort(byScoreL).slice(0,3);
+  
+      let priHTML = '';
+      if(urgentAll.length){
+        priHTML += `<div class="pri-slbl" style="color:#A32D2D">Urgent — act now</div>`;
+        urgentAll.forEach(b=>{
+          const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+          const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+          const cYoy=((+b.avg_comp_yoy||0)*100).toFixed(1);
+          const gap2=(((+b.yoy_deposits||0)*100)-(+b.avg_comp_yoy||0)*100).toFixed(1);
+          const play=b.campaign||'—';
+          const q=(b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
+          priHTML+=`<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${urgentLabel(b)} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#A32D2D">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Why urgent</b>Deposits: ${+yoy>=0?'+':''}${yoy}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap2>=0?'+':''}${gap2}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
+        });
+      }
+      if(investReady.length){
+        priHTML+=`<div class="pri-slbl" style="color:#27500A">Invest — campaign ready</div>`;
+        investReady.forEach(b=>{
+          const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+          const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+          const play=b.campaign||'—';
+          const q=(b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
+          priHTML+=`<div class="pri-row pri-invest"><div class="pri-dot" style="background:#27500A"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#27500A">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Best acquisition opportunity</b>Score: ${(+b.opportunity_score).toFixed(1)}<br>Play: ${play}</div></div>`;
+        });
+      }
+      if(watchBrL.length){
+        priHTML+=`<div class="pri-slbl">Watch</div>`;
+        if(watchBrL.length>=3&&new Set(watchBrL.map(b=>b.opportunity_zone)).size===1){
+          const deps=watchBrL.reduce((a,b)=>a+(+b.latest_dep||0),0);
+          const plays=[...new Set(watchBrL.map(b=>b.campaign||'—'))].join(' · ');
+          priHTML+=`<div class="pri-group"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${watchBrL.map(b=>b.namebr.split(' ')[0]).join(' · ')}</div><div class="pri-sub">${plays} · ${watchBrL[0].opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${(deps/1e6).toFixed(0)}M</div></div></div>`;
+        } else {
+          watchBrL.forEach(b=>{
+            const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+            const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+            const play=b.campaign||'—';
+            const q=(b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
+            priHTML+=`<div class="pri-row"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:var(--muted)">${+yoy>=0?'+':''}${yoy}% YoY</div></div></div>`;
+          });
+        }
+      }
+      if(!urgentAll.length && !investReady.length && !watchBrL.length){
+        priHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">No branches in this market</div>';
+      }
+      g('priorityList').innerHTML = priHTML;
+    };
+  
+    // ── COMPETITOR TARGETS (metro-aware) ─────────────────────────────────────
+    const rebuildTargets = (branches, filterMetro) => {
+      if(!filterMetro){ 
+        // Use network targets from Supabase query
+        const tgts = tgt||[];
+        if(tgts.length){
+          g('targetsGrid').innerHTML = tgts.slice(0,3).map(t=>{
+            const vy=(+t.avg_yoy_pct).toFixed(1);
+            const vColor=t.avg_vuln_score>=300?'#A32D2D':t.avg_vuln_score>=200?'#854D0E':'#374151';
+            const vLabel=t.avg_vuln_score>=300?'Critical':t.avg_vuln_score>=200?'High':'Elevated';
+            return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.target_institution}</div><div class="tgt-sub">${t.branches_in_radius} branch${t.branches_in_radius!==1?'es':''} exposed · ${+vy>=0?'+':''}${vy}% YoY · ROA ${t.target_roa||0}%</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.avg_vuln_score)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;
+          }).join('');
+        }
+        return;
+      }
+      // Metro view: compute vulnerability from filtered branches' competitors
+      // Show the highest-scoring competitors based on branches in this metro
+      const metroInsts = [...new Set(branches.map(b=>b.namefull))];
+      const metroNames = [...new Set(branches.map(b=>b.namebr.split(' ').slice(0,2).join(' ')))];
+      // Derive insight for this metro
+      const avgScore = branches.reduce((a,b)=>a+(+b.opportunity_score||0),0)/branches.length||0;
+      const urgentCount = branches.filter(b=>b.opportunity_zone==='Justify'&&(+b.yoy_deposits<0)).length;
+      const investCount = branches.filter(b=>['Invest','Analyze'].includes(b.opportunity_zone)).length;
+      const totalDep = branches.reduce((a,b)=>a+(+b.latest_dep||0),0)/1e9;
+      g('targetsGrid').innerHTML = `
+        <div class="tgt-card" style="grid-column:1/-1;background:var(--bg2);flex-direction:column;align-items:flex-start;gap:6px">
+          <div style="font-size:12px;font-weight:700;color:var(--navy)">${filterMetro} — ${branches.length} branches · $${totalDep.toFixed(1)}B</div>
+          <div style="display:flex;gap:16px;font-size:11px;">
+            <span>Avg score <b>${avgScore.toFixed(1)}</b></span>
+            <span style="color:#27500A">${investCount} investment-ready</span>
+            ${urgentCount>0?`<span style="color:#A32D2D">${urgentCount} urgent</span>`:''}
+          </div>
+          <div style="font-size:11px;color:var(--muted)">Select a branch in the matrix to see detailed scores and competitor targets for that location.</div>
+        </div>`;
+    };
+  
+    // ── INITIAL PRIORITY + TARGETS build ─────────────────────────────────────
+    rebuildPriorityList(allBr);
   };
-  // ── PRIORITY LIST ─────────────────────────────────────────────────────────
-  const priRows = [];
-  // Urgent: Justify with declining deposits OR Justify with >$100M
-  const urgent = allBr.filter(b=>b.opportunity_zone==='Justify'&&((+b.yoy_deposits<0)||(+b.latest_dep/1e6>100))).sort(byDep);
-  // Also Q1 Analyze branches declining
-  const urgentAnalyze = allBr.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDep);
-  const urgentAll = [...urgent, ...urgentAnalyze].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,4);
-  // Invest: top Invest + top Analyze Q2/Q1 non-declining
-  const investReady = [...investBr, ...analyzeBr.filter(b=>['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&(+b.yoy_deposits>=0))].filter(b=>(+b.latest_dep/1e6)>=5).sort(byScore).slice(0,3);
-  // Watch: everything else (not in urgent or invest)
-  const usedIds = new Set([...urgentAll,...investReady].map(b=>b.uninumbr));
-  const watchBr = allBr.filter(b=>!usedIds.has(b.uninumbr)).sort(byScore).slice(0,3);
 
-  let priHTML = '';
-  if(urgentAll.length){
-    priHTML += `<div class="pri-slbl" style="color:#A32D2D">Urgent — act now</div>`;
-    urgentAll.forEach(b=>{
-      const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-      const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-      const cYoy = ((+b.avg_comp_yoy||0)*100).toFixed(1);
-      const gap2 = ((+b.yoy_deposits||0)*100 - (+b.avg_comp_yoy||0)*100).toFixed(1);
-      const play = b.campaign||'—';
-      const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-      priHTML += `<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${urgentLabel(b)} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#A32D2D">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Why urgent</b>Deposits: ${+yoy>=0?'+':''}${yoy}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap2>=0?'+':''}${gap2}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
-    });
-  }
-  if(investReady.length){
-    priHTML += `<div class="pri-slbl" style="color:#27500A">Invest — campaign ready</div>`;
-    investReady.forEach(b=>{
-      const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-      const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-      const play = b.campaign||'—';
-      const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-      priHTML += `<div class="pri-row pri-invest"><div class="pri-dot" style="background:#27500A"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#27500A">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Best acquisition opportunity</b>Score: ${(+b.opportunity_score).toFixed(1)}<br>Play: ${play}</div></div>`;
-    });
-  }
-  if(watchBr.length){
-    priHTML += `<div class="pri-slbl">Watch</div>`;
-    // Group if ≥3 in same zone/play
-    if(watchBr.length >= 3 && new Set(watchBr.map(b=>b.opportunity_zone)).size === 1){
-      const deps = watchBr.reduce((a,b)=>a+(+b.latest_dep||0),0);
-      const plays = [...new Set(watchBr.map(b=>b.campaign||'—'))].join(' · ');
-      priHTML += `<div class="pri-group"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${watchBr.map(b=>b.namebr.split(' ')[0]).join(' · ')}</div><div class="pri-sub">${plays} · ${watchBr[0].opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${(deps/1e6).toFixed(0)}M</div></div></div>`;
-    } else {
-      watchBr.forEach(b=>{
-        const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-        const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-        const play = b.campaign||'—';
-        const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-        priHTML += `<div class="pri-row"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:var(--muted)">${+yoy>=0?'+':''}${yoy}% YoY</div></div></div>`;
-      });
-    }
-  }
-  g('priorityList').innerHTML = priHTML;
-
+  const renderCities = (branches) => {
   // ── TOP CITIES ─────────────────────────────────────────────────────────────
-  const cityMap = {};
-  allBr.forEach(b=>{
-    const key = `${b.citybr}, ${b.stalpbr}`;
-    if(!cityMap[key]) cityMap[key]={city:b.citybr,state:b.stalpbr,branches:[],topScore:0,topQ:'',topZone:'',topPlay:'',incYoy:0,popYoy:0};
-    const m = cityMap[key];
-    m.branches.push(b);
-    if((+b.opportunity_score||0) > m.topScore){
-      m.topScore = +b.opportunity_score||0;
-      m.topQ = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
-      m.topZone = b.opportunity_zone||'';
-      m.topPlay = b.campaign||'—';
-      m.incYoy = ((+b.household_income||0));
-      m.popYoy = ((+b.yoy_pop_growth||0)*100);
-    }
-  });
-  const cityRanks = Object.values(cityMap).map(c=>{
-    let score = 0;
-    c.branches.forEach(b=>{
-      if(b.opportunity_zone==='Invest') score+=5;
-      if(b.opportunity_zone==='Analyze') score+=3;
-      if((b.matrix_quadrant||'').startsWith('Q1')||(b.matrix_quadrant||'').startsWith('Q2')) score+=2;
+    const cityMap = {};
+    branches.forEach(b=>{
+      const key = `${b.citybr}, ${b.stalpbr}`;
+      if(!cityMap[key]) cityMap[key]={city:b.citybr,state:b.stalpbr,branches:[],topScore:0,topQ:'',topZone:'',topPlay:'',incYoy:0,popYoy:0,zhvi:0,smb:0};
+      const m = cityMap[key];
+      m.branches.push(b);
+      if((+b.opportunity_score||0) > m.topScore){
+        m.topScore = +b.opportunity_score||0;
+        m.topQ = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
+        m.topZone = b.opportunity_zone||'';
+        m.topPlay = b.campaign||'—';
+        m.incYoy = ((+b.household_income||0));
+        m.popYoy = ((+b.yoy_pop_growth||0)*100);
+        m.zhvi = (+b.zhvi_yoy_pct||0);
+        m.smb = (+b.smb_index||0);
+      }
     });
-    score += (c.topScore * 0.01);
-    return {...c, _score:score};
-  }).filter(c=>c._score>0).sort((a,b)=>b._score-a._score).slice(0,3);
-
-  const qTagStyle = {
-    'Q2':['#EAF3DE','#27500A'],'Q1':['#E6F1FB','#185FA5'],
-    'Q3':['#FEF9C3','#854D0E'],'Q4':['#FCEBEB','#A32D2D']
+    const cityRanks = Object.values(cityMap).map(c=>{
+      let score = 0;
+      c.branches.forEach(b=>{
+        if(b.opportunity_zone==='Invest') score+=5;
+        if(b.opportunity_zone==='Analyze') score+=3;
+        if((b.matrix_quadrant||'').startsWith('Q1')||(b.matrix_quadrant||'').startsWith('Q2')) score+=2;
+      });
+      score += (c.topScore * 0.01);
+      if(c.zhvi > 2) score += 1;
+      if(c.smb > 30) score += 0.5;
+      return {...c, _score:score};
+    }).filter(c=>c._score>0).sort((a,b)=>b._score-a._score).slice(0,3);
+  
+    const qTagStyle = {
+      'Q2':['#EAF3DE','#27500A'],'Q1':['#E6F1FB','#185FA5'],
+      'Q3':['#FEF9C3','#854D0E'],'Q4':['#FCEBEB','#A32D2D']
+    };
+    g('citiesGrid').innerHTML = cityRanks.map(c=>{
+      const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
+      const inc = c.incYoy > 0 ? `Income $${(c.incYoy/1000).toFixed(0)}K` : '';
+      const pop = c.popYoy !== 0 ? `Pop ${c.popYoy>=0?'+':''}${c.popYoy.toFixed(1)}%` : '';
+      const zhvi = c.zhvi && +c.zhvi !== 0 ? `ZHVI ${(+c.zhvi>=0?'+':''}${(+c.zhvi).toFixed(1)}%` : '';
+      const smb = c.smb > 0 ? `SMB ${c.smb.toFixed(0)}` : '';
+      const metrics = [inc,pop,zhvi,smb].filter(Boolean).join(' · ');
+      return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${metrics||'&nbsp;'}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;
+    }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No Invest/Analyze markets found</div>';
   };
-  g('citiesGrid').innerHTML = cityRanks.map(c=>{
-    const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
-    const inc = c.incYoy > 0 ? `Avg income $${(c.incYoy/1000).toFixed(0)}K` : '';
-    const pop = c.popYoy !== 0 ? `Pop ${c.popYoy>=0?'+':''}${c.popYoy.toFixed(1)}% YoY` : '';
-    return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${[inc,pop].filter(Boolean).join(' · ')||'&nbsp;'}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;
-  }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No Invest/Analyze markets found</div>';
+
+  // Initial render with all branches
+  renderPriority(allBr);
+  renderCities(allBr);
+
 
   // ── COMPETITOR TARGETS (from network_top_targets) ─────────────────────────
   const tgts = tgt||[];
@@ -1125,7 +1220,13 @@ async function loadBank(ik){
       const vy = (+t.avg_yoy_pct).toFixed(1);
       const vColor = t.avg_vuln_score >= 300 ? '#A32D2D' : t.avg_vuln_score >= 200 ? '#854D0E' : '#374151';
       const vLabel = t.avg_vuln_score >= 300 ? 'Critical' : t.avg_vuln_score >= 200 ? 'High' : 'Elevated';
-      return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.target_institution}</div><div class="tgt-sub">${t.branches_in_radius} branch${t.branches_in_radius!==1?'es':''} exposed · ${vy>=0?'+':''}${vy}% YoY · ROA ${t.target_roa||0}%</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.avg_vuln_score)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;
+      const roa = t.target_roa && +t.target_roa !== 0
+        ? (+t.target_roa < 1 ? (+t.target_roa * 100).toFixed(2) + '%' : (+t.target_roa).toFixed(2) + '%')
+        : 'N/A';
+      const eff = t.target_efficiency_ratio && +t.target_efficiency_ratio > 0
+        ? 'Eff ' + (+t.target_efficiency_ratio).toFixed(0) + '%'
+        : '';
+      return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.target_institution}</div><div class="tgt-sub">${t.branches_in_radius} branch${t.branches_in_radius!==1?'es':''} exposed · ${vy>=0?'+':''}${vy}% YoY${roa!=='N/A'?' · ROA '+roa:''}${eff?' · '+eff:''}</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.avg_vuln_score)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;
     }).join('');
   } else {
     g('targetsGrid').innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px">Run network targets for this institution</div>';

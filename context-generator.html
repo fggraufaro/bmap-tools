@@ -461,7 +461,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
     </div>
     <div class="health-risk">
       <div class="risk-val" id="atRisk">—</div>
-      <div class="risk-lbl" id="atRiskLbl">deposits below avg</div>
+      <div class="risk-lbl" id="atRiskLbl">scored Justify zone</div>
     </div>
   </div>
 
@@ -731,11 +731,12 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','vw_branch_opportunity_cbsa':'public','vw_network_top_targets':'public','network_top_targets':'public','bank_website':'ref','vw_prospecting_score':'public'};
+const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public'};
 async function api(table,params){
   try{
     const schema=SCHEMA_MAP[table]||'public';
-    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY,'Accept-Profile':schema};
+    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY};
+    if(schema!=='public'){headers['Accept-Profile']=schema;}
     const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
     if(!r.ok){console.error(table,r.status,await r.text());return[];}
     return r.json();
@@ -825,10 +826,9 @@ async function loadBank(ik){
     : '$' + justifyDepM.toFixed(0) + 'M';
   const totalDep2 = rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const justifyPct = totalDep2 > 0 ? Math.round(justifyDep/totalDep2*100) : 0;
-  g('atRisk').textContent = justifyDep > 1e9
-    ? '$' + (justifyDep/1e9).toFixed(1) + 'B'
-    : '$' + (justifyDep/1e6).toFixed(0) + 'M';
-  if(g('atRiskLbl')) g('atRiskLbl').textContent = justifyPct + '% of deposits in review';
+  const justifyCount = rows.filter(r=>r.opportunity_zone==='Justify').length;
+  g('atRisk').textContent = justifyCount + ' branches';
+  if(g('atRiskLbl')) g('atRiskLbl').textContent = justifyPct + '% deposits below average';
   g('atRisk').style.color = justifyPct > 40 ? '#A32D2D' : justifyPct > 20 ? '#854D0E' : '#27500A';
 
   // ── MATRIX DOTS (top 10: all Invest + best Analyze + worst Justify by dep) ─
@@ -920,7 +920,7 @@ async function loadBank(ik){
         <div class="br-signals">
           <div class="br-sig"><span class="br-sig-lbl">Market growth</span><span class="br-sig-val">${mgn} / 100</span></div>
           <div class="br-sig"><span class="br-sig-lbl">Relative growth</span><span class="br-sig-val">${rgn} / 100</span></div>
-          <div class="br-sig"><span class="br-sig-lbl">Inverted density</span><span class="br-sig-val">${idn} / 100 <span style="font-size:10px;font-weight:400;color:var(--muted)">${+idn<15?'· Very high competition':+idn<35?'· High competition':+idn<60?'· Moderate competition':+idn<80?'· Low competition':'· Very low competition'}</span></span></div>
+          <div class="br-sig"><span class="br-sig-lbl" title="Lower competition = higher score. Very low scores (0-10) = saturated market.">Inverted density <span style='font-size:9px;color:var(--muted)'>ⓘ</span></span><span class="br-sig-val">${idn} / 100 <span style="font-size:10px;font-weight:400;color:var(--muted)">${+idn<15?'· Very high competition':+idn<35?'· High competition':+idn<60?'· Moderate competition':+idn<80?'· Low competition':'· Very low competition'}</span></span></div>
           <div class="br-sig"><span class="br-sig-lbl">Deposit size</span><span class="br-sig-val">${dsn} / 100</span></div>
           <div class="br-sig"><span class="br-sig-lbl">Quadrant</span><span class="br-sig-val">${b.matrix_quadrant||'—'}</span></div>
         </div>
@@ -1131,10 +1131,10 @@ async function loadBank(ik){
         m.topQ = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
         m.topZone = b.opportunity_zone||'';
         m.topPlay = b.campaign||'—';
-        m.incYoy = ((+b.household_income||0));
-        m.popYoy = ((+b.yoy_pop_growth||0)*100);
-        m.zhvi = (+b.zhvi_yoy_pct||0);
-        m.smb = (+b.smb_index||0);
+        m.incYoy = (+b.household_income||0);
+        m.popYoy = (+b.yoy_pop_growth||0)*100;
+        m.zhviYoy = +b.zhvi_yoy_pct||0;
+        m.smbIndex = +b.smb_index||0;
       }
     });
     const cityRanks = Object.values(cityMap).map(c=>{
@@ -1158,10 +1158,11 @@ async function loadBank(ik){
       const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
       const inc = c.incYoy > 0 ? `Income $${(c.incYoy/1000).toFixed(0)}K` : '';
       const pop = c.popYoy !== 0 ? `Pop ${c.popYoy>=0?'+':''}${c.popYoy.toFixed(1)}%` : '';
-      const zhvi = c.zhvi && +c.zhvi !== 0 ? `ZHVI ${(+c.zhvi>=0?'+':'')}${(+c.zhvi).toFixed(1)}%` : '';
-      const smb = c.smb > 0 ? `SMB ${c.smb.toFixed(0)}` : '';
-      const metrics = [inc,pop,zhvi,smb].filter(Boolean).join(' · ');
-      return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${metrics||'&nbsp;'}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;
+      const zhvi = c.zhviYoy !== 0 ? `ZHVI ${c.zhviYoy>=0?'+':''}${c.zhviYoy.toFixed(1)}%` : '';
+      const smb = c.smbIndex > 0 ? `SMB idx ${c.smbIndex.toFixed(0)}` : '';
+      const line1 = [inc, pop].filter(Boolean).join(' · ') || '&nbsp;';
+      const line2 = [zhvi, smb].filter(Boolean).join(' · ');
+      return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${line1}${line2?'<br><span style="color:var(--muted)">'+line2+'</span>':''}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;
     }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No Invest/Analyze markets found</div>';
   };
 

@@ -345,10 +345,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .tgt-v-lbl{font-size:9px;color:var(--red)}
 
 /* ── TILE MATRIX ──────────────────────────────────────────────────────────── */
-.dash-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;border-bottom:1px solid var(--border);height:560px}
-.dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.dash-priority-card{padding:14px 18px;overflow-y:auto}
-.matrix-2x2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:5px;flex:1;min-height:0;margin-top:8px}
+.dash-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;border-bottom:1px solid var(--border)}
+.dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column}
+.dash-priority-card{padding:14px 18px;max-height:560px;overflow-y:auto}
+.matrix-2x2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:5px;height:460px;margin-top:8px}
 .mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;overflow:hidden}
 .mq-q2{background:#EAF3DE}.mq-q2 .mq-qlbl{color:#27500A}.mq-q2 .mq-play{color:#27500A}.mq-q2 .mq-tile{background:rgba(255,255,255,.55)}.mq-q2 .mq-tile:hover,.mq-q2 .mq-tile.sel{background:#fff;outline:1.5px solid #27500A}
 .mq-q1{background:#E6F1FB}.mq-q1 .mq-qlbl{color:#185FA5}.mq-q1 .mq-play{color:#185FA5}.mq-q1 .mq-tile{background:rgba(255,255,255,.55)}.mq-q1 .mq-tile:hover,.mq-q1 .mq-tile.sel{background:#fff;outline:1.5px solid #185FA5}
@@ -357,7 +357,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .mq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px}
 .mq-qlbl{font-size:9px;font-weight:700;letter-spacing:.03em}
 .mq-play{font-size:8px;font-weight:600;margin-bottom:5px;min-height:11px}
-.mq-tiles{display:flex;flex-direction:column;gap:3px;overflow-y:auto;flex:1;min-height:0}
+.mq-tiles{display:flex;flex-direction:column;gap:3px;overflow-y:auto;max-height:170px}
 .mq-tile{border-radius:5px;padding:4px 7px;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:5px;transition:background .1s}
 .mq-tile-info{flex:1;min-width:0}
 .mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);white-space:normal;word-break:break-word;line-height:1.3}

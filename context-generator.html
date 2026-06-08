@@ -294,18 +294,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .risk-lbl{font-size:10px;color:var(--muted)}
 
 /* ── TILE MATRIX (replaces dot matrix) ─────────────────────────────────── */
-.dash-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:0;border-bottom:1px solid var(--border)}
-.dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border)}
-.matrix-2x2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
-.mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:0;min-height:160px}
+.matrix-2x2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;margin-top:8px;flex:1;min-height:0}
+.mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:0;overflow:hidden}
 .mq-q2{background:#EAF3DE}.mq-q2 .mq-play{color:#27500A}.mq-q2 .mq-tile{background:rgba(255,255,255,.55)}.mq-q2 .mq-tile:hover,.mq-q2 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #27500A}
 .mq-q1{background:#E6F1FB}.mq-q1 .mq-play{color:#185FA5}.mq-q1 .mq-tile{background:rgba(255,255,255,.55)}.mq-q1 .mq-tile:hover,.mq-q1 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #185FA5}
 .mq-q3{background:#FEF9C3}.mq-q3 .mq-play{color:#854D0E}.mq-q3 .mq-tile{background:rgba(255,255,255,.55)}.mq-q3 .mq-tile:hover,.mq-q3 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #854D0E}
 .mq-q4{background:#FCEBEB}.mq-q4 .mq-play{color:#A32D2D}.mq-q4 .mq-tile{background:rgba(255,255,255,.55)}.mq-q4 .mq-tile:hover,.mq-q4 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #A32D2D}
 .mq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
-.mq-qlbl{font-size:10px;font-weight:700;letter-spacing:.03em}
+.mq-qlbl{font-size:9px;font-weight:700;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mq-play{font-size:9px;font-weight:600}
-.mq-tiles{display:flex;flex-direction:column;gap:3px}
+.mq-tiles{display:flex;flex-direction:column;gap:3px;overflow-y:auto;flex:1;min-height:0;padding-right:2px}
 .mq-tile{border-radius:5px;padding:5px 8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;transition:background .12s}
 .mq-tile-info{flex:1;min-width:0}
 .mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -323,13 +321,13 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .br-detail-city{font-size:11px;color:var(--muted)}
 .br-clear{font-size:11px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
 .br-clear:hover{color:var(--navy);border-color:var(--navy)}
-.br-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px}
-.br-sc{background:var(--bg2);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
-.br-sc-val{font-size:17px;font-weight:700;color:var(--navy);line-height:1}
-.br-sc-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-.br-sc-sub{font-size:9px;font-weight:600;margin-top:3px;display:inline-block;padding:1px 5px;border-radius:3px}
-.br-signals{display:flex;flex-direction:column;gap:3px}
-.br-sig{display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:5px 8px;background:var(--bg2);border-radius:5px}
+.br-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:14px}
+.br-sc{background:var(--bg2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.br-sc-val{font-size:18px;font-weight:700;color:var(--navy);line-height:1}
+.br-sc-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.br-sc-sub{font-size:9px;font-weight:600;margin-top:4px;display:inline-block;padding:2px 6px;border-radius:4px}
+.br-signals{display:flex;flex-direction:column;gap:4px}
+.br-sig{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:6px 10px;background:var(--bg2);border-radius:6px}
 .br-sig-lbl{color:var(--muted)}
 .br-sig-val{font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums}
 .br-detail-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
@@ -364,6 +362,11 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .tgt-vuln{text-align:center;flex-shrink:0}
 .tgt-v-num{font-size:14px;font-weight:800;color:var(--red)}
 .tgt-v-lbl{font-size:9px;color:var(--red)}
+
+.dash-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;border-bottom:1px solid var(--border);height:560px}
+.dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.dash-priority-card{padding:14px 18px;overflow-y:auto;display:flex;flex-direction:column}
+.dash-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -464,9 +467,14 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 
   <div class="dash-grid">
     <div class="dash-matrix-card">
-      <div class="dash-card-head">
+      <div class="dash-card-head" style="margin-bottom:8px">
         <div class="sec-t">Branch matrix</div>
-        <div class="matrix-more" id="matrixMore"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="metroSelect" style="font-size:11px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;color:var(--navy);background:var(--white);cursor:pointer;max-width:160px">
+            <option value="">All markets</option>
+          </select>
+          <div class="matrix-more" id="matrixMore"></div>
+        </div>
       </div>
       <div class="matrix-2x2">
         <div class="mq mq-q2">
@@ -918,70 +926,92 @@ async function loadBank(ik){
     if(_selectedTile){ _selectedTile.classList.remove('sel'); _selectedTile=null; }
   };
 
-  // Build tiles per quadrant
-  ['Q1','Q2','Q3','Q4'].forEach(q => {
-    g('mq'+q).innerHTML='';
-    const qBranches = allBr
-      .filter(b => (b.matrix_quadrant||'').startsWith(q))
-      .sort((a,b) => (+b.latest_dep||0) - (+a.latest_dep||0));
-    const shown = qBranches.slice(0,5);
-    const rest  = qBranches.slice(5);
-
-    // Dominant play label for quadrant header
-    const plays = qBranches.map(b=>b.campaign||'');
-    const playCount = {};
-    plays.forEach(p=>p&&(playCount[p]=(playCount[p]||0)+1));
-    const topPlay = Object.entries(playCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-    if(g('mqPlay'+q.slice(1))) g('mqPlay'+q.slice(1)).textContent = topPlay || QX_DESC[q];
-
-    shown.forEach(b => {
-      const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-      const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-      const yoyColor = +yoy>=0?'#27500A':'#A32D2D';
-      const shortName = b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
-      const tile = document.createElement('div');
-      tile.className = 'mq-tile';
-      tile.innerHTML = `<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
-      tile.onclick = () => {
-        if(_selectedTile) _selectedTile.classList.remove('sel');
-        tile.classList.add('sel');
-        _selectedTile = tile;
-        showBranchDetail(b);
-      };
-      g('mq'+q).appendChild(tile);
-    });
-
-    if(rest.length){
-      const more = document.createElement('div');
-      more.className='mq-more';
-      more.textContent=`+${rest.length} more`;
-      let expanded=false;
-      more.onclick = () => {
-        if(!expanded){
-          rest.forEach(b=>{
-            const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
-            const dep=((+b.latest_dep||0)/1e6).toFixed(0);
-            const yoyColor=+yoy>=0?'#27500A':'#A32D2D';
-            const shortName=b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
-            const tile=document.createElement('div');
-            tile.className='mq-tile';
-            tile.innerHTML=`<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
-            tile.onclick=()=>{if(_selectedTile)_selectedTile.classList.remove('sel');tile.classList.add('sel');_selectedTile=tile;showBranchDetail(b);};
-            g('mq'+q).insertBefore(tile, more);
-          });
-          more.textContent='Show less'; expanded=true;
-        } else {
-          Array.from(g('mq'+q).querySelectorAll('.mq-tile')).slice(5).forEach(t=>t.remove());
-          more.textContent=`+${rest.length} more`; expanded=false;
-        }
-      };
-      g('mq'+q).appendChild(more);
-    }
-    if(qBranches.length===0){
-      g('mq'+q).innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">No branches in this quadrant</div>';
-    }
-  });
   g('matrixMore').textContent = allBr.length + ' branches total';
+
+  // ── METRO FILTER ────────────────────────────────────────────────────────────
+  const metros = [...new Set(allBr.map(b=>b.metro).filter(Boolean))].sort();
+  const metroSel = g('metroSelect');
+  // Only repopulate if bank changed
+  if(metroSel.dataset.bank !== ik){
+    metroSel.innerHTML = '<option value="">All markets</option>';
+    metros.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      metroSel.appendChild(opt);
+    });
+    metroSel.dataset.bank = ik;
+    metroSel.value = '';
+  }
+
+  const renderMatrix = (filterMetro) => {
+    const filteredBr = filterMetro ? allBr.filter(b=>b.metro===filterMetro) : allBr;
+    const filterLabel = filterMetro
+      ? `${filteredBr.length} branches · ${filterMetro}`
+      : allBr.length + ' branches total';
+    g('matrixMore').textContent = filterLabel;
+
+    ['Q1','Q2','Q3','Q4'].forEach(q => {
+      g('mq'+q).innerHTML='';
+      const qBranches = filteredBr
+        .filter(b => (b.matrix_quadrant||'').startsWith(q))
+        .sort((a,b) => (+b.latest_dep||0) - (+a.latest_dep||0));
+      const shown = qBranches.slice(0,5);
+      const rest  = qBranches.slice(5);
+
+      const plays = qBranches.map(b=>b.campaign||'');
+      const playCount = {};
+      plays.forEach(p=>p&&(playCount[p]=(playCount[p]||0)+1));
+      const topPlay = Object.entries(playCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+      if(g('mqPlay'+q.slice(1))) g('mqPlay'+q.slice(1)).textContent = topPlay || QX_DESC[q];
+
+      shown.forEach(b => {
+        const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
+        const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
+        const yoyColor = +yoy>=0?'#27500A':'#A32D2D';
+        const shortName = b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
+        const tile = document.createElement('div');
+        tile.className = 'mq-tile';
+        tile.innerHTML = `<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+        tile.onclick = () => {
+          if(_selectedTile) _selectedTile.classList.remove('sel');
+          tile.classList.add('sel'); _selectedTile = tile;
+          showBranchDetail(b);
+        };
+        g('mq'+q).appendChild(tile);
+      });
+
+      if(rest.length){
+        const more = document.createElement('div');
+        more.className='mq-more'; more.textContent=`+${rest.length} more`;
+        let expanded=false;
+        more.onclick = () => {
+          if(!expanded){
+            rest.forEach(b=>{
+              const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+              const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+              const yoyColor=+yoy>=0?'#27500A':'#A32D2D';
+              const shortName=b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
+              const tile=document.createElement('div'); tile.className='mq-tile';
+              tile.innerHTML=`<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+              tile.onclick=()=>{if(_selectedTile)_selectedTile.classList.remove('sel');tile.classList.add('sel');_selectedTile=tile;showBranchDetail(b);};
+              g('mq'+q).insertBefore(tile, more);
+            });
+            more.textContent='Show less'; expanded=true;
+          } else {
+            Array.from(g('mq'+q).querySelectorAll('.mq-tile')).slice(5).forEach(t=>t.remove());
+            more.textContent=`+${rest.length} more`; expanded=false;
+          }
+        };
+        g('mq'+q).appendChild(more);
+      }
+      if(qBranches.length===0){
+        g('mq'+q).innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">No branches</div>';
+      }
+    });
+  };
+
+  renderMatrix('');
+  metroSel.onchange = () => { clearBranchDetail(); renderMatrix(metroSel.value); };
 
 
   // ── URGENT STATUS LABELS (not raw play names) ────────────────────────────

@@ -292,29 +292,45 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .health-risk{border-left:1px solid var(--border);padding-left:16px;flex-shrink:0}
 .risk-val{font-size:14px;font-weight:700;color:var(--red)}
 .risk-lbl{font-size:10px;color:var(--muted)}
-.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)}
+
+/* ── TILE MATRIX (replaces dot matrix) ─────────────────────────────────── */
+.dash-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:0;border-bottom:1px solid var(--border)}
 .dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border)}
-.dash-priority-card{padding:14px 18px}
-.dash-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.matrix-more{font-size:10px;color:var(--muted)}
-.matrix-wrap{display:grid;grid-template-columns:14px 1fr 1fr;grid-template-rows:1fr 1fr 16px;gap:3px;height:180px}
-.m-yaxis{grid-row:1/3;grid-column:1/2;display:flex;align-items:center;justify-content:center}
-.m-yaxis span{font-size:9px;color:var(--muted);writing-mode:vertical-rl;transform:rotate(180deg)}
-.mq{border-radius:6px;padding:7px;position:relative;display:flex;flex-direction:column;gap:3px;overflow:visible}
-.mq-l{font-size:9px;font-weight:600}
-.mq-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
-.mq-q2{background:#EAF3DE}.mq-q2 .mq-l{color:#27500A}
-.mq-q1{background:#E6F1FB}.mq-q1 .mq-l{color:var(--blue)}
-.mq-q3{background:#FEF9C3}.mq-q3 .mq-l{color:#854D0E}
-.mq-q4{background:#FCEBEB}.mq-q4 .mq-l{color:var(--red)}
-.m-xaxis{grid-row:3/4;grid-column:2/4;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--muted)}
-.m-dot{border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;cursor:default;position:relative;flex-shrink:0}
-.m-dot:hover .m-tip{display:block}
-.m-tip{display:none;position:absolute;bottom:calc(100%+5px);left:50%;transform:translateX(-50%);background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text);white-space:nowrap;z-index:40;box-shadow:0 4px 12px rgba(0,0,0,.1);line-height:1.5}
-.m-tip b{display:block;font-size:12px;margin-bottom:2px}
-.matrix-legend{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
-.ml-item{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted)}
-.ml-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.matrix-2x2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:0;min-height:160px}
+.mq-q2{background:#EAF3DE}.mq-q2 .mq-play{color:#27500A}.mq-q2 .mq-tile{background:rgba(255,255,255,.55)}.mq-q2 .mq-tile:hover,.mq-q2 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #27500A}
+.mq-q1{background:#E6F1FB}.mq-q1 .mq-play{color:#185FA5}.mq-q1 .mq-tile{background:rgba(255,255,255,.55)}.mq-q1 .mq-tile:hover,.mq-q1 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #185FA5}
+.mq-q3{background:#FEF9C3}.mq-q3 .mq-play{color:#854D0E}.mq-q3 .mq-tile{background:rgba(255,255,255,.55)}.mq-q3 .mq-tile:hover,.mq-q3 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #854D0E}
+.mq-q4{background:#FCEBEB}.mq-q4 .mq-play{color:#A32D2D}.mq-q4 .mq-tile{background:rgba(255,255,255,.55)}.mq-q4 .mq-tile:hover,.mq-q4 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #A32D2D}
+.mq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.mq-qlbl{font-size:10px;font-weight:700;letter-spacing:.03em}
+.mq-play{font-size:9px;font-weight:600}
+.mq-tiles{display:flex;flex-direction:column;gap:3px}
+.mq-tile{border-radius:5px;padding:4px 7px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .12s}
+.mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mq-tile-right{text-align:right;flex-shrink:0}
+.mq-tile-dep{font-size:11px;font-weight:700;color:var(--navy)}
+.mq-tile-yoy{font-size:9px}
+.mq-more{font-size:10px;color:var(--muted);text-align:center;padding:3px 0;cursor:pointer}
+.mq-more:hover{color:var(--navy)}
+/* branch detail panel */
+.br-detail{animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.br-detail-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.br-detail-name{font-size:14px;font-weight:700;color:var(--navy)}
+.br-detail-city{font-size:11px;color:var(--muted)}
+.br-clear{font-size:11px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+.br-clear:hover{color:var(--navy);border-color:var(--navy)}
+.br-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.br-sc{background:var(--bg2);border-radius:6px;padding:7px 9px}
+.br-sc-val{font-size:16px;font-weight:700;color:var(--navy)}
+.br-sc-lbl{font-size:9px;color:var(--muted);margin-top:1px}
+.br-sc-sub{font-size:10px;font-weight:600;margin-top:1px}
+.br-signals{display:flex;flex-direction:column;gap:4px}
+.br-sig{display:flex;justify-content:space-between;font-size:11px;padding:4px 8px;background:var(--bg2);border-radius:5px}
+.br-sig-lbl{color:var(--muted)}
+.br-sig-val{font-weight:600;color:var(--navy)}
+
 .pri-slbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:.5rem 0 .3rem}
 .pri-row{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--white);margin-bottom:4px;position:relative;cursor:default}
 .pri-row:hover .pri-tip{display:block}
@@ -447,26 +463,44 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
         <div class="sec-t">Branch matrix</div>
         <div class="matrix-more" id="matrixMore"></div>
       </div>
-      <div class="matrix-wrap">
-        <div class="m-yaxis"><span>Market attractiveness</span></div>
-        <div class="mq mq-q2"><div class="mq-l">Q2 · invest &amp; protect</div><div class="mq-dots" id="mqQ2"></div></div>
-        <div class="mq mq-q1"><div class="mq-l">Q1 · grow &amp; perform</div><div class="mq-dots" id="mqQ1"></div></div>
-        <div class="mq mq-q3"><div class="mq-l">Q3 · maintain &amp; improve</div><div class="mq-dots" id="mqQ3"></div></div>
-        <div class="mq mq-q4"><div class="mq-l">Q4 · rationalize &amp; exit</div><div class="mq-dots" id="mqQ4"></div></div>
-        <div class="m-xaxis">Branch competitive performance →</div>
-      </div>
-      <div class="matrix-legend">
-        <div class="ml-item"><div class="ml-dot" style="background:#27500A"></div><span>Invest</span></div>
-        <div class="ml-item"><div class="ml-dot" style="background:#185FA5"></div><span>Analyze</span></div>
-        <div class="ml-item"><div class="ml-dot" style="background:#E24B4A"></div><span>Defend/Justify</span></div>
-        <div class="ml-item"><div class="ml-dot" style="background:#A32D2D"></div><span>Critical</span></div>
-        <div class="ml-item" style="color:var(--muted)">dot size = deposits</div>
+      <div class="matrix-2x2">
+        <div class="mq mq-q2">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#27500A">Q2 · High market / Strong performance</span>
+          </div>
+          <div class="mq-play" id="mqPlay2"></div>
+          <div class="mq-tiles" id="mqQ2"></div>
+        </div>
+        <div class="mq mq-q1">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#185FA5">Q1 · High market / Needs improvement</span>
+          </div>
+          <div class="mq-play" id="mqPlay1"></div>
+          <div class="mq-tiles" id="mqQ1"></div>
+        </div>
+        <div class="mq mq-q3">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#854D0E">Q3 · Weak market / Strong performance</span>
+          </div>
+          <div class="mq-play" id="mqPlay3"></div>
+          <div class="mq-tiles" id="mqQ3"></div>
+        </div>
+        <div class="mq mq-q4">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#A32D2D">Q4 · Weak market / Weak performance</span>
+          </div>
+          <div class="mq-play" id="mqPlay4"></div>
+          <div class="mq-tiles" id="mqQ4"></div>
+        </div>
       </div>
     </div>
 
-    <div class="dash-priority-card">
-      <div class="sec-t">Branch priority</div>
-      <div id="priorityList" style="margin-top:8px"></div>
+    <div class="dash-priority-card" id="priorityPanel">
+      <div id="priorityView">
+        <div class="sec-t">Branch priority</div>
+        <div id="priorityList" style="margin-top:8px"></div>
+      </div>
+      <div id="branchDetailView" style="display:none"></div>
     </div>
   </div>
 
@@ -800,23 +834,149 @@ async function loadBank(ik){
   const isCritical = b => b.opportunity_zone==='Justify' && ((+b.yoy_deposits<0) || (+b.latest_dep/1e6 > 100));
   const dotColorFn = b => isCritical(b) ? ['#A32D2D','#F7C1C1'] : dotColor(b.opportunity_zone);
 
-  ['Q1','Q2','Q3','Q4'].forEach(q => g('mq'+q).innerHTML='');
-  matrixBr.forEach(b => {
-    const q = (b.matrix_quadrant||'Q4').match(/^Q\d/)?.[0]||'Q4';
-    const sz = dotSize(+b.latest_dep||0);
-    const [bg,fg] = dotColorFn(b);
+  // ── TILE MATRIX: 5 per quadrant, sorted by deposit size ─────────────────────
+  const QX_PLAY = {
+    Q2:{ Invest:'Aggressive Acquisition', Analyze:'Grow Share',    Defend:'Hold and Watch',    Justify:'No Action Needed' },
+    Q1:{ Invest:'Urgent Competitive Push',Analyze:'Competitive Defense',Defend:'Efficiency Review',Justify:'Rationalize' },
+    Q3:{ Invest:'Capitalize',             Analyze:'Maintain',       Defend:'Loyalty/Retention', Justify:'No Action Needed' },
+    Q4:{ Invest:'Turnaround',             Analyze:'Stabilize',      Defend:'Efficiency Review', Justify:'Rationalize' },
+  };
+  const QX_DESC = {
+    Q2:'Invest & grow — best position in the matrix.',
+    Q1:'Market is ready — branch is underperforming. Diagnose urgently.',
+    Q3:'Hold position — market is weak but branch is competing well.',
+    Q4:'Review investment — both market and performance need attention.',
+  };
+  let _selectedTile = null;
+
+  const showBranchDetail = (b) => {
     const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
     const cYoy = ((+b.avg_comp_yoy||0)*100).toFixed(1);
-    const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
+    const gap = (yoy - cYoy).toFixed(1);
+    const dep = ((+b.latest_dep||0)/1e6).toFixed(1);
+    const opp = (+b.opportunity_score||0).toFixed(1);
+    const mgn = (+b.market_growth_normalized||0).toFixed(1);
+    const rgn = (+b.rel_growth_norm||0).toFixed(1);
+    const idn = (+b.inv_density_norm_winsor||0).toFixed(1);
+    const dsn = (+b.deposit_size_norm||0).toFixed(1);
     const play = b.campaign||'—';
-    const initials = b.namebr.split(/\s+/).filter(w=>w.length>2).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const tip = `<b>${b.namebr} · $${dep}M</b>Play: ${play}<br>YoY: ${yoy>0?'+':''}${yoy}% vs peers ${cYoy}%<br>Score: ${(+b.opportunity_score).toFixed(1)} · ${b.opportunity_zone}${isCritical(b)?'<br><span style="color:#A32D2D;font-weight:700">⚠ Critical — board attention</span>':''}`;
-    const el = document.createElement('div');
-    el.className='m-dot';
-    el.style.cssText=`width:${sz}px;height:${sz}px;background:${bg};color:${fg};font-size:${sz<18?6:7}px`;
-    el.innerHTML=`${initials}<div class="m-tip">${tip}</div>`;
-    g('mq'+q).appendChild(el);
+    const zone = b.opportunity_zone||'—';
+    const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
+    const zColors={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854D0E',Justify:'#A32D2D'};
+    const zBg={Invest:'#EAF3DE',Analyze:'#DBEAFE',Defend:'#FEF9C3',Justify:'#FCEBEB'};
+    const zc = zColors[zone]||'#374151';
+    const zb = zBg[zone]||'#F3F4F6';
+    const yoyColor = +yoy >= 0 ? '#27500A' : '#A32D2D';
+    const gapColor = +gap >= 0 ? '#27500A' : '#A32D2D';
+
+    g('branchDetailView').innerHTML = `
+      <div class="br-detail">
+        <div class="br-detail-head">
+          <div>
+            <div class="br-detail-name">${b.namebr}</div>
+            <div class="br-detail-city">${b.citybr||''}, ${b.stalpbr||''} · $${dep}M deposits</div>
+          </div>
+          <button class="br-clear" onclick="clearBranchDetail()">✕ Back</button>
+        </div>
+        <div class="br-scores">
+          <div class="br-sc">
+            <div class="br-sc-val">${opp}</div>
+            <div class="br-sc-lbl">Opportunity score</div>
+            <div class="br-sc-sub" style="color:${zc};background:${zb};padding:1px 5px;border-radius:3px;display:inline-block">${zone}</div>
+          </div>
+          <div class="br-sc">
+            <div class="br-sc-val" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div>
+            <div class="br-sc-lbl">Branch YoY</div>
+            <div class="br-sc-sub" style="color:var(--muted)">vs peers ${+cYoy>=0?'+':''}${cYoy}%</div>
+          </div>
+          <div class="br-sc">
+            <div class="br-sc-val" style="color:${gapColor}">${+gap>=0?'+':''}${gap}pp</div>
+            <div class="br-sc-lbl">Gap to peers</div>
+            <div class="br-sc-sub" style="color:${zc};font-size:9px">${play}</div>
+          </div>
+        </div>
+        <div class="br-signals">
+          <div class="br-sig"><span class="br-sig-lbl">Market growth</span><span class="br-sig-val">${mgn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Relative growth</span><span class="br-sig-val">${rgn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Inverted density</span><span class="br-sig-val">${idn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Deposit size</span><span class="br-sig-val">${dsn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Quadrant</span><span class="br-sig-val">${b.matrix_quadrant||'—'}</span></div>
+        </div>
+      </div>`;
+    g('priorityView').style.display = 'none';
+    g('branchDetailView').style.display = 'block';
+  };
+
+  window.clearBranchDetail = () => {
+    g('priorityView').style.display = '';
+    g('branchDetailView').style.display = 'none';
+    if(_selectedTile){ _selectedTile.classList.remove('sel'); _selectedTile=null; }
+  };
+
+  // Build tiles per quadrant
+  ['Q1','Q2','Q3','Q4'].forEach(q => {
+    g('mq'+q).innerHTML='';
+    const qBranches = allBr
+      .filter(b => (b.matrix_quadrant||'').startsWith(q))
+      .sort((a,b) => (+b.latest_dep||0) - (+a.latest_dep||0));
+    const shown = qBranches.slice(0,5);
+    const rest  = qBranches.slice(5);
+
+    // Dominant play label for quadrant header
+    const plays = qBranches.map(b=>b.campaign||'');
+    const playCount = {};
+    plays.forEach(p=>p&&(playCount[p]=(playCount[p]||0)+1));
+    const topPlay = Object.entries(playCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    if(g('mqPlay'+q.slice(1))) g('mqPlay'+q.slice(1)).textContent = topPlay || QX_DESC[q];
+
+    shown.forEach(b => {
+      const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
+      const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
+      const yoyColor = +yoy>=0?'#27500A':'#A32D2D';
+      const shortName = b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
+      const tile = document.createElement('div');
+      tile.className = 'mq-tile';
+      tile.innerHTML = `<div class="mq-tile-name">${shortName}</div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+      tile.onclick = () => {
+        if(_selectedTile) _selectedTile.classList.remove('sel');
+        tile.classList.add('sel');
+        _selectedTile = tile;
+        showBranchDetail(b);
+      };
+      g('mq'+q).appendChild(tile);
+    });
+
+    if(rest.length){
+      const more = document.createElement('div');
+      more.className='mq-more';
+      more.textContent=`+${rest.length} more`;
+      let expanded=false;
+      more.onclick = () => {
+        if(!expanded){
+          rest.forEach(b=>{
+            const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+            const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+            const yoyColor=+yoy>=0?'#27500A':'#A32D2D';
+            const shortName=b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
+            const tile=document.createElement('div');
+            tile.className='mq-tile';
+            tile.innerHTML=`<div class="mq-tile-name">${shortName}</div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+            tile.onclick=()=>{if(_selectedTile)_selectedTile.classList.remove('sel');tile.classList.add('sel');_selectedTile=tile;showBranchDetail(b);};
+            g('mq'+q).insertBefore(tile, more);
+          });
+          more.textContent='Show less'; expanded=true;
+        } else {
+          Array.from(g('mq'+q).querySelectorAll('.mq-tile')).slice(5).forEach(t=>t.remove());
+          more.textContent=`+${rest.length} more`; expanded=false;
+        }
+      };
+      g('mq'+q).appendChild(more);
+    }
+    if(qBranches.length===0){
+      g('mq'+q).innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">No branches in this quadrant</div>';
+    }
   });
+  g('matrixMore').textContent = allBr.length + ' branches total';
 
 
   // ── URGENT STATUS LABELS (not raw play names) ────────────────────────────

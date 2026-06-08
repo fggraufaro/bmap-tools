@@ -268,6 +268,105 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .pr-snap-btn{background:var(--teal);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
 .pr-snap-btn:hover{opacity:.85}
 .pr-empty{text-align:center;padding:40px;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace}
+
+/* ── NEW DASHBOARD LAYOUT ─────────────────────────────────────── */
+.health-bar{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:#fafaf8}
+.health-score-block{min-width:80px}
+.health-score-num{font-size:26px;font-weight:800;color:var(--red)}
+.health-score-lbl{font-size:11px;color:var(--red);font-weight:600}
+.health-score-pct{font-size:10px;color:var(--muted);margin-top:1px}
+.health-track-wrap{flex:1;min-width:120px}
+.health-track{height:8px;background:#E0DED8;border-radius:4px;position:relative;overflow:visible;margin-bottom:3px}
+.health-fill{height:100%;border-radius:4px;background:var(--red);position:relative;transition:width .4s}
+.health-track-zones{display:flex;gap:2px}
+.htz{flex:1;font-size:9px;text-align:center}
+.htz-j{color:var(--red)}.htz-d{color:#854D0E}.htz-a{color:var(--blue)}.htz-i{color:var(--green)}
+.health-stats{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hs-item{text-align:center}
+.hs-val{font-size:15px;font-weight:700}
+.hs-lbl{font-size:10px;color:var(--muted)}
+.hs-peer-lbl{font-size:10px;color:var(--muted);border-bottom:1px dashed var(--muted);cursor:default;position:relative}
+.hs-peer-lbl:hover .hs-tooltip{display:block}
+.hs-tooltip{display:none;position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text);white-space:nowrap;z-index:50;max-width:240px;white-space:normal;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.hs-vs{font-size:13px;color:var(--muted)}
+.health-risk{border-left:1px solid var(--border);padding-left:16px;flex-shrink:0}
+.risk-val{font-size:14px;font-weight:700;color:var(--red)}
+.risk-lbl{font-size:10px;color:var(--muted)}
+
+/* ── TILE MATRIX (replaces dot matrix) ─────────────────────────────────── */
+.matrix-2x2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;margin-top:8px;flex:1;min-height:0}
+.mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:0;overflow:hidden}
+.mq-q2{background:#EAF3DE}.mq-q2 .mq-play{color:#27500A}.mq-q2 .mq-tile{background:rgba(255,255,255,.55)}.mq-q2 .mq-tile:hover,.mq-q2 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #27500A}
+.mq-q1{background:#E6F1FB}.mq-q1 .mq-play{color:#185FA5}.mq-q1 .mq-tile{background:rgba(255,255,255,.55)}.mq-q1 .mq-tile:hover,.mq-q1 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #185FA5}
+.mq-q3{background:#FEF9C3}.mq-q3 .mq-play{color:#854D0E}.mq-q3 .mq-tile{background:rgba(255,255,255,.55)}.mq-q3 .mq-tile:hover,.mq-q3 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #854D0E}
+.mq-q4{background:#FCEBEB}.mq-q4 .mq-play{color:#A32D2D}.mq-q4 .mq-tile{background:rgba(255,255,255,.55)}.mq-q4 .mq-tile:hover,.mq-q4 .mq-tile.sel{background:rgba(255,255,255,.92);outline:1.5px solid #A32D2D}
+.mq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.mq-qlbl{font-size:9px;font-weight:700;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mq-play{font-size:9px;font-weight:600}
+.mq-tiles{display:flex;flex-direction:column;gap:3px;overflow-y:auto;flex:1;min-height:0;padding-right:2px}
+.mq-tile{border-radius:5px;padding:5px 8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;transition:background .12s}
+.mq-tile-info{flex:1;min-width:0}
+.mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mq-tile-city{font-size:9px;color:var(--muted);margin-top:1px}
+.mq-tile-right{text-align:right;flex-shrink:0}
+.mq-tile-dep{font-size:11px;font-weight:700;color:var(--navy)}
+.mq-tile-yoy{font-size:9px}
+.mq-more{font-size:10px;color:var(--muted);text-align:center;padding:3px 0;cursor:pointer}
+.mq-more:hover{color:var(--navy)}
+/* branch detail panel */
+.br-detail{animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.br-detail-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.br-detail-name{font-size:14px;font-weight:700;color:var(--navy)}
+.br-detail-city{font-size:11px;color:var(--muted)}
+.br-clear{font-size:11px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+.br-clear:hover{color:var(--navy);border-color:var(--navy)}
+.br-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:14px}
+.br-sc{background:var(--bg2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.br-sc-val{font-size:18px;font-weight:700;color:var(--navy);line-height:1}
+.br-sc-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.br-sc-sub{font-size:9px;font-weight:600;margin-top:4px;display:inline-block;padding:2px 6px;border-radius:4px}
+.br-signals{display:flex;flex-direction:column;gap:4px}
+.br-sig{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:6px 10px;background:var(--bg2);border-radius:6px}
+.br-sig-lbl{color:var(--muted)}
+.br-sig-val{font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums}
+.br-detail-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
+.br-detail-name{font-size:14px;font-weight:700;color:var(--navy);line-height:1.2}
+.br-detail-city{font-size:11px;color:var(--muted);margin-top:2px}
+
+.pri-slbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:.5rem 0 .3rem}
+.pri-row{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--white);margin-bottom:4px;position:relative;cursor:default}
+.pri-row:hover .pri-tip{display:block}
+.pri-tip{display:none;position:absolute;left:0;bottom:calc(100%+4px);background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 12px;z-index:40;font-size:11px;color:var(--text);min-width:210px;box-shadow:0 4px 12px rgba(0,0,0,.1);line-height:1.6}
+.pri-tip b{display:block;font-size:12px;font-weight:600;margin-bottom:3px}
+.pri-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pri-name{font-size:12px;font-weight:600;color:var(--navy)}
+.pri-sub{font-size:10px;color:var(--muted)}
+.pri-dep{font-size:12px;font-weight:700;color:var(--navy)}
+.pri-yoy{font-size:10px}
+.pri-urgent{border-color:#F09595;background:#FCEBEB}
+.pri-invest{border-color:#C0DD97;background:#EAF3DE}
+.pri-group{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:#fafaf8;margin-bottom:4px}
+.dash-cities{padding:14px 18px;border-bottom:1px solid var(--border);background:#fafaf8}
+.dash-cities-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.cities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.city-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+.city-name{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px}
+.city-meta{font-size:10px;color:var(--muted);line-height:1.5}
+.city-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;margin-top:4px}
+.dash-targets{padding:14px 18px}
+.targets-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tgt-card{background:#fafaf8;border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px}
+.tgt-name{font-size:12px;font-weight:700;color:var(--navy)}
+.tgt-sub{font-size:10px;color:var(--muted)}
+.tgt-vuln{text-align:center;flex-shrink:0}
+.tgt-v-num{font-size:14px;font-weight:800;color:var(--red)}
+.tgt-v-lbl{font-size:9px;color:var(--red)}
+
+.dash-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;border-bottom:1px solid var(--border);height:560px}
+.dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.dash-priority-card{padding:14px 18px;overflow-y:auto;display:flex;flex-direction:column}
+.dash-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -332,43 +431,112 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
   </div>
 
   <div class="card dn" id="bp">
-    <div class="bank-hdr"><div class="bank-hdr-name" id="bn">—</div><div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div></div>
-    <div class="stats">
-      <div class="stat"><div class="stat-v" id="ss">—</div><div class="stat-l">avg opp score</div></div>
-      <div class="stat"><div class="stat-v" id="sy">—</div><div class="stat-l">YoY vs peers</div></div>
-      <div class="stat"><div class="stat-v" id="sm">—</div><div class="stat-l">market growth</div></div>
-      <div class="stat"><div class="stat-v" id="sd">—</div><div class="stat-l">inv. density</div></div>
+  <div class="bank-hdr">
+    <div class="bank-hdr-name" id="bn">—</div>
+    <div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div>
+  </div>
+
+  <div class="health-bar">
+    <div class="health-score-block">
+      <div class="health-score-num" id="healthScore">—</div>
+      <div class="health-score-lbl" id="healthVerdict">—</div>
+      <div class="health-score-pct" id="healthPct">—</div>
     </div>
-    <div class="zones">
-      <div class="zone"><div class="zone-n zi" id="zi">—</div><div class="zone-l zi">INVEST</div></div>
-      <div class="zone"><div class="zone-n za" id="za">—</div><div class="zone-l za">ANALYZE</div></div>
-      <div class="zone"><div class="zone-n zd" id="zd">—</div><div class="zone-l zd">DEFEND</div></div>
-      <div class="zone"><div class="zone-n zj" id="zj">—</div><div class="zone-l zj">JUSTIFY</div></div>
+    <div class="health-track-wrap">
+      <div class="health-track">
+        <div class="health-fill" id="healthFill" style="width:0%"></div>
+      </div>
+      <div class="health-track-zones">
+        <span class="htz htz-j">Justify</span>
+        <span class="htz htz-d">Defend</span>
+        <span class="htz htz-a">Analyze</span>
+        <span class="htz htz-i">Invest</span>
+      </div>
     </div>
-    <div class="bp-bottom-grid">
-      <div class="bp-branches-col">
-        <div class="bp-section-block">
-          <div class="sec-t">Top 3 Invest — Priority branches</div>
-          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span></div>
-          <div id="brInvest"></div>
-        </div>
-        <div class="bp-section-block" style="margin-top:12px">
-          <div class="sec-t">Top 3 Defend — Q1 High Priority</div>
-          <div class="br-hdr"><span>Branch</span><span>Score</span><span>Deposits</span><span>YoY</span><span>Matrix</span></div>
-          <div id="brDefend"></div>
-        </div>
-        <div class="target-sec" style="margin-top:12px">
-          <div class="sec-t">Top network target</div>
-          <div class="target-box"><div class="target-name" id="tn">—</div><div class="target-meta" id="tm">—</div></div>
-        </div>
-      </div>
-      <div class="bp-markets-col">
-        <div class="sec-t">Top 5 Priority Markets</div>
-        <div class="bp-markets-sub">Ranked by Invest · Defend concentration across Q1/Q2 and Priority 1/2</div>
-        <div id="brMarkets"></div>
-      </div>
+    <div class="health-stats">
+      <div class="hs-item"><div class="hs-val" id="bankYoy" style="color:var(--red)">—</div><div class="hs-lbl">Bank YoY</div></div>
+      <div class="hs-vs">vs</div>
+      <div class="hs-item"><div class="hs-val" id="peerYoy" style="color:var(--muted)">—</div><div class="hs-peer-lbl">MA peer avg ⓘ<div class="hs-tooltip">Average YoY deposit growth across all Massachusetts community banks under $10B assets (FDIC Summary of Deposits). Scores and zones are benchmarked against this peer set only.</div></div></div>
+      <div class="hs-item"><div class="hs-val" id="yoyGap" style="color:var(--red)">—</div><div class="hs-lbl">Gap to peers</div></div>
+    </div>
+    <div class="health-risk">
+      <div class="risk-val" id="atRisk">—</div>
+      <div class="risk-lbl" id="atRiskLbl">scored Justify zone</div>
     </div>
   </div>
+
+  <div class="dash-grid">
+    <div class="dash-matrix-card">
+      <div class="dash-card-head" style="margin-bottom:8px">
+        <div class="sec-t">Branch matrix</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="metroSelect" style="font-size:11px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;color:var(--navy);background:var(--white);cursor:pointer;max-width:160px">
+            <option value="">All markets</option>
+          </select>
+          <div class="matrix-more" id="matrixMore"></div>
+        </div>
+      </div>
+      <div class="matrix-2x2">
+        <div class="mq mq-q2">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#27500A">Q2 · Strong market · Strong branch</span>
+          </div>
+          <div class="mq-play" id="mqPlay2" style="margin-bottom:5px"></div>
+          <div class="mq-tiles" id="mqQ2"></div>
+        </div>
+        <div class="mq mq-q1">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#185FA5">Q1 · Strong market · Needs attention</span>
+          </div>
+          <div class="mq-play" id="mqPlay1" style="margin-bottom:5px"></div>
+          <div class="mq-tiles" id="mqQ1"></div>
+        </div>
+        <div class="mq mq-q3">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#854D0E">Q3 · Weak market · Strong branch</span>
+          </div>
+          <div class="mq-play" id="mqPlay3" style="margin-bottom:5px"></div>
+          <div class="mq-tiles" id="mqQ3"></div>
+        </div>
+        <div class="mq mq-q4">
+          <div class="mq-head">
+            <span class="mq-qlbl" style="color:#A32D2D">Q4 · Weak market · Weak branch</span>
+          </div>
+          <div class="mq-play" id="mqPlay4" style="margin-bottom:5px"></div>
+          <div class="mq-tiles" id="mqQ4"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-priority-card" id="priorityPanel">
+      <div id="priorityView">
+        <div class="sec-t">Branch priority</div>
+        <div id="priorityList" style="margin-top:8px"></div>
+      </div>
+      <div id="branchDetailView" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="dash-cities" id="citiesSection">
+    <div class="dash-cities-head">
+      <div class="sec-t">Top cities to invest</div>
+      <div style="font-size:10px;color:var(--muted)">Invest/Analyze · Q1/Q2 concentration + market growth</div>
+    </div>
+    <div class="cities-grid" id="citiesGrid"></div>
+  </div>
+
+  <div class="dash-targets">
+    <div class="sec-t" style="margin-bottom:8px">Top competitor targets</div>
+    <div class="targets-grid" id="targetsGrid"></div>
+  </div>
+
+  <div style="display:none">
+    <div id="brInvest"></div><div id="brDefend"></div><div id="brMarkets"></div>
+    <div id="tn">—</div><div id="tm">—</div>
+    <div id="ss">—</div><div id="sy">—</div><div id="sm">—</div><div id="sd">—</div>
+    <div id="zi">—</div><div id="za">—</div><div id="zd">—</div><div id="zj">—</div>
+  </div>
+</div>
 
   <div class="wf-grid dn" id="wg">
     <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div><div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div><span class="wf-tag">PITCH</span></div>
@@ -621,14 +789,407 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_pop_growth,zhvi_yoy_pct&order=opportunity_score.desc`),
-    api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=1`)
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,latest_dep&order=opportunity_score.desc`),
+    api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`)
   ]);
-  allBr=br||[];bankData={rows,allBr,tgt:tgt?.[0]||null,ik};
+  allBr=br||[];bankData={rows,allBr,tgt:tgt||[],ik};
   if(!rows||!rows.length){set('bn','No branch data found');return;}
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
   set('bn',rows[0].namefull);set('bb',`${rows.length} branches`);set('db',`$${(tot/1e9).toFixed(1)}B`);
+  // ── HEALTH BAR ─────────────────────────────────────────────────────────────
+  const avgScore = avg('opportunity_score');
+  const avgBankYoy = avg('yoy_deposits') * 100;
+  const avgPeerYoy = avg('avg_comp_yoy') * 100;
+  const gap = avgBankYoy - avgPeerYoy;
+  const justifyDep = rows.filter(r=>r.opportunity_zone==='Justify').reduce((a,r)=>a+(+r.latest_dep||0),0);
+  const verdict = avgScore >= 75 ? 'Top performer' : avgScore >= 50 ? 'Above average' : avgScore >= 25 ? 'Below average' : 'Needs attention';
+  const pctLabel = avgScore >= 75 ? 'Top 25% of MA peers' : avgScore >= 50 ? '50th–75th percentile' : avgScore >= 25 ? 'Bottom 25–50th percentile' : 'Bottom 25% of MA peers';
+  const scoreColor = avgScore >= 50 ? '#27500A' : avgScore >= 25 ? '#854D0E' : '#A32D2D';
+  const gapColor = gap >= 0 ? '#27500A' : '#A32D2D';
+  g('healthScore').textContent = avgScore.toFixed(1);
+  g('healthScore').style.color = scoreColor;
+  g('healthVerdict').textContent = verdict;
+  g('healthVerdict').style.color = scoreColor;
+  g('healthPct').textContent = pctLabel;
+  g('healthFill').style.width = Math.min(avgScore, 100) + '%';
+  g('healthFill').style.background = scoreColor;
+  g('bankYoy').textContent = (avgBankYoy >= 0 ? '+' : '') + avgBankYoy.toFixed(1) + '%';
+  g('bankYoy').style.color = avgBankYoy >= 0 ? '#27500A' : '#A32D2D';
+  g('peerYoy').textContent = avgPeerYoy.toFixed(1) + '%';
+  g('yoyGap').textContent = (gap >= 0 ? '+' : '') + gap.toFixed(1) + 'pp';
+  g('yoyGap').style.color = gapColor;
+  const justifyDepB = justifyDep/1e9;
+  const justifyDepM = justifyDep/1e6;
+  const justifyDepStr = justifyDepB >= 1 
+    ? '$' + justifyDepB.toFixed(1) + 'B' 
+    : '$' + justifyDepM.toFixed(0) + 'M';
+  const totalDep2 = rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
+  const justifyPct = totalDep2 > 0 ? Math.round(justifyDep/totalDep2*100) : 0;
+  const justifyCount = rows.filter(r=>r.opportunity_zone==='Justify').length;
+  g('atRisk').textContent = justifyCount + ' branches';
+  if(g('atRiskLbl')) g('atRiskLbl').textContent = justifyPct + '% deposits below average';
+  g('atRisk').style.color = justifyPct > 40 ? '#A32D2D' : justifyPct > 20 ? '#854D0E' : '#27500A';
+
+  // ── MATRIX DOTS (top 10: all Invest + best Analyze + worst Justify by dep) ─
+  const byScore = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
+  const byDep   = (a,b) => (+b.latest_dep||0) - (+a.latest_dep||0);
+  const investBr  = allBr.filter(b=>b.opportunity_zone==='Invest');
+  const analyzeBr = allBr.filter(b=>b.opportunity_zone==='Analyze').sort(byScore);
+  const defendBr  = allBr.filter(b=>b.opportunity_zone==='Defend').sort(byScore);
+  const justifyBr = allBr.filter(b=>b.opportunity_zone==='Justify').sort(byDep);
+  const remaining = 10 - investBr.length;
+  const topAnalyze = analyzeBr.slice(0, Math.min(4, remaining));
+  const rem2 = remaining - topAnalyze.length;
+  const topDefend  = defendBr.slice(0, Math.min(2, rem2));
+  const rem3 = rem2 - topDefend.length;
+  const topJustify = justifyBr.slice(0, rem3);
+  const matrixBr = [...investBr, ...topAnalyze, ...topDefend, ...topJustify];
+  const allCount = allBr.length;
+  const shownCount = matrixBr.length;
+  g('matrixMore').textContent = allCount > shownCount ? `Top ${shownCount} shown · hover for detail` : `${allCount} branches · hover for detail`;
+
+  const maxDep = Math.max(...matrixBr.map(b => +b.latest_dep||0));
+  const dotSize = dep => Math.max(12, Math.min(38, 12 + (dep/maxDep)*26));
+  const dotColor = z => z==='Invest'?['#27500A','#C0DD97']:z==='Analyze'?['#185FA5','#B5D4F4']:z==='Defend'?['#854D0E','#FBBF24']:['#A32D2D','#F7C1C1'];
+  // Critical = Justify with high dep or declining
+  const isCritical = b => b.opportunity_zone==='Justify' && ((+b.yoy_deposits<0) || (+b.latest_dep/1e6 > 100));
+  const dotColorFn = b => isCritical(b) ? ['#A32D2D','#F7C1C1'] : dotColor(b.opportunity_zone);
+
+  // ── TILE MATRIX: 5 per quadrant, sorted by deposit size ─────────────────────
+  const QX_PLAY = {
+    Q2:{ Invest:'Aggressive Acquisition', Analyze:'Grow Share',    Defend:'Hold and Watch',    Justify:'No Action Needed' },
+    Q1:{ Invest:'Urgent Competitive Push',Analyze:'Competitive Defense',Defend:'Efficiency Review',Justify:'Rationalize' },
+    Q3:{ Invest:'Capitalize',             Analyze:'Maintain',       Defend:'Loyalty/Retention', Justify:'No Action Needed' },
+    Q4:{ Invest:'Turnaround',             Analyze:'Stabilize',      Defend:'Efficiency Review', Justify:'Rationalize' },
+  };
+  const QX_DESC = {
+    Q2:'Invest & grow — best position in the matrix.',
+    Q1:'Market is ready — branch is underperforming. Diagnose urgently.',
+    Q3:'Hold position — market is weak but branch is competing well.',
+    Q4:'Review investment — both market and performance need attention.',
+  };
+  let _selectedTile = null;
+
+  const showBranchDetail = (b) => {
+    const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
+    const cYoy = ((+b.avg_comp_yoy||0)*100).toFixed(1);
+    const gap = (yoy - cYoy).toFixed(1);
+    const dep = ((+b.latest_dep||0)/1e6).toFixed(1);
+    const opp = (+b.opportunity_score||0).toFixed(1);
+    const mgn = (+b.market_growth_normalized||0).toFixed(1);
+    const rgn = (+b.rel_growth_norm||0).toFixed(1);
+    const idn = (+b.inv_density_norm_winsor||0).toFixed(1);
+    const dsn = (+b.deposit_size_norm||0).toFixed(1);
+    const play = b.campaign||'—';
+    const zone = b.opportunity_zone||'—';
+    const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
+    const zColors={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854D0E',Justify:'#A32D2D'};
+    const zBg={Invest:'#EAF3DE',Analyze:'#DBEAFE',Defend:'#FEF9C3',Justify:'#FCEBEB'};
+    const zc = zColors[zone]||'#374151';
+    const zb = zBg[zone]||'#F3F4F6';
+    const yoyColor = +yoy >= 0 ? '#27500A' : '#A32D2D';
+    const gapColor = +gap >= 0 ? '#27500A' : '#A32D2D';
+
+    g('branchDetailView').innerHTML = `
+      <div class="br-detail">
+        <div class="br-detail-head">
+          <div>
+            <div class="br-detail-name">${b.namebr}</div>
+            <div class="br-detail-city">${b.citybr||''}, ${b.stalpbr||''} · $${dep}M deposits</div>
+          </div>
+          <button class="br-clear" onclick="clearBranchDetail()">✕ Back</button>
+        </div>
+        <div class="br-scores">
+          <div class="br-sc">
+            <div class="br-sc-val">${opp}</div>
+            <div class="br-sc-lbl">Opportunity score</div>
+            <div class="br-sc-sub" style="color:${zc};background:${zb};padding:1px 5px;border-radius:3px;display:inline-block">${zone}</div>
+          </div>
+          <div class="br-sc">
+            <div class="br-sc-val" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div>
+            <div class="br-sc-lbl">Branch YoY</div>
+            <div class="br-sc-sub" style="color:var(--muted)">vs peers ${+cYoy>=0?'+':''}${cYoy}%</div>
+          </div>
+          <div class="br-sc">
+            <div class="br-sc-val" style="color:${gapColor}">${+gap>=0?'+':''}${gap}pp</div>
+            <div class="br-sc-lbl">Gap to peers</div>
+            <div class="br-sc-sub" style="color:${zc};font-size:9px">${play}</div>
+          </div>
+        </div>
+        <div class="br-signals">
+          <div class="br-sig"><span class="br-sig-lbl">Market growth</span><span class="br-sig-val">${mgn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Relative growth</span><span class="br-sig-val">${rgn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl" title="Lower competition = higher score. Very low scores (0-10) = saturated market.">Inverted density <span style='font-size:9px;color:var(--muted)'>ⓘ</span></span><span class="br-sig-val">${idn} / 100 <span style="font-size:10px;font-weight:400;color:var(--muted)">${+idn<15?'· Very high competition':+idn<35?'· High competition':+idn<60?'· Moderate competition':+idn<80?'· Low competition':'· Very low competition'}</span></span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Deposit size</span><span class="br-sig-val">${dsn} / 100</span></div>
+          <div class="br-sig"><span class="br-sig-lbl">Quadrant</span><span class="br-sig-val">${b.matrix_quadrant||'—'}</span></div>
+        </div>
+      </div>`;
+    g('priorityView').style.display = 'none';
+    g('branchDetailView').style.display = 'block';
+  };
+
+  window.clearBranchDetail = () => {
+    g('priorityView').style.display = '';
+    g('branchDetailView').style.display = 'none';
+    if(_selectedTile){ _selectedTile.classList.remove('sel'); _selectedTile=null; }
+  };
+
+  g('matrixMore').textContent = allBr.length + ' branches total';
+
+  // ── METRO FILTER ────────────────────────────────────────────────────────────
+  const metros = [...new Set(allBr.map(b=>b.metro).filter(Boolean))].sort();
+  const metroSel = g('metroSelect');
+  // Only repopulate if bank changed
+  if(metroSel.dataset.bank !== ik){
+    metroSel.innerHTML = '<option value="">All markets</option>';
+    metros.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      metroSel.appendChild(opt);
+    });
+    metroSel.dataset.bank = ik;
+    metroSel.value = '';
+  }
+
+  const renderMatrix = (filterMetro) => {
+    const filteredBr = filterMetro ? allBr.filter(b=>b.metro===filterMetro) : allBr;
+    // ── Rebuild priority list for this market ──────────────────────────────
+    rebuildPriorityList(filteredBr);
+    // ── Rebuild competitor targets for this market ─────────────────────────
+    rebuildTargets(filteredBr, filterMetro);
+    const filterLabel = filterMetro
+      ? `${filteredBr.length} branches · ${filterMetro}`
+      : allBr.length + ' branches total';
+    g('matrixMore').textContent = filterLabel;
+
+    ['Q1','Q2','Q3','Q4'].forEach(q => {
+      g('mq'+q).innerHTML='';
+      // Sort: branches above deposit floor → by opportunity score (best first)
+    // Branches below floor (tiny/anomalous) → sorted last, by deposits
+    const allDeps = filteredBr.map(b=>(+b.latest_dep||0)).sort((a,b)=>a-b);
+    const medDep = allDeps[Math.floor(allDeps.length/2)] || 0;
+    const depFloor = Math.max(medDep * 0.15, 5000000); // 15% of median or $5M min
+    const qBranches = filteredBr
+        .filter(b => (b.matrix_quadrant||'').startsWith(q))
+        .sort((a,b) => {
+          const aBig = (+a.latest_dep||0) >= depFloor;
+          const bBig = (+b.latest_dep||0) >= depFloor;
+          if(aBig && bBig)  return (+b.opportunity_score||0) - (+a.opportunity_score||0);
+          if(aBig && !bBig) return -1;
+          if(!aBig && bBig) return 1;
+          return (+b.latest_dep||0) - (+a.latest_dep||0);
+        });
+      const shown = qBranches.slice(0,5);
+      const rest  = qBranches.slice(5);
+
+      const plays = qBranches.map(b=>b.campaign||'');
+      const playCount = {};
+      plays.forEach(p=>p&&(playCount[p]=(playCount[p]||0)+1));
+      const topPlay = Object.entries(playCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+      if(g('mqPlay'+q.slice(1))) g('mqPlay'+q.slice(1)).textContent = topPlay || QX_DESC[q];
+
+      shown.forEach(b => {
+        const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
+        const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
+        const yoyColor = +yoy>=0?'#27500A':'#A32D2D';
+        const shortName = b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
+        const tile = document.createElement('div');
+        tile.className = 'mq-tile';
+        tile.innerHTML = `<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+        tile.onclick = () => {
+          if(_selectedTile) _selectedTile.classList.remove('sel');
+          tile.classList.add('sel'); _selectedTile = tile;
+          showBranchDetail(b);
+        };
+        g('mq'+q).appendChild(tile);
+      });
+
+      if(rest.length){
+        const more = document.createElement('div');
+        more.className='mq-more'; more.textContent=`+${rest.length} more`;
+        let expanded=false;
+        more.onclick = () => {
+          if(!expanded){
+            rest.forEach(b=>{
+              const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+              const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+              const yoyColor=+yoy>=0?'#27500A':'#A32D2D';
+              const shortName=b.namebr.replace(/Branch|Savings Bank|Federal|Credit Union/gi,'').trim();
+              const tile=document.createElement('div'); tile.className='mq-tile';
+              tile.innerHTML=`<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyColor}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+              tile.onclick=()=>{if(_selectedTile)_selectedTile.classList.remove('sel');tile.classList.add('sel');_selectedTile=tile;showBranchDetail(b);};
+              g('mq'+q).insertBefore(tile, more);
+            });
+            more.textContent='Show less'; expanded=true;
+          } else {
+            Array.from(g('mq'+q).querySelectorAll('.mq-tile')).slice(5).forEach(t=>t.remove());
+            more.textContent=`+${rest.length} more`; expanded=false;
+          }
+        };
+        g('mq'+q).appendChild(more);
+      }
+      if(qBranches.length===0){
+        g('mq'+q).innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">No branches</div>';
+      }
+    });
+  };
+
+  renderMatrix('');
+  metroSel.onchange = () => {
+    clearBranchDetail();
+    const metro = metroSel.value;
+    const filtered = metro ? allBr.filter(b => b.metro === metro) : allBr;
+    renderMatrix(metro);
+    renderPriority(filtered);
+    renderCities(filtered);
+  };
+
+
+
+  // ── RENDER FUNCTIONS (accept filtered branch set) ────────────────────────
+  const renderPriority = (branches) => {
+    const byScore = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
+    const byDep   = (a,b) => (+b.latest_dep||0) - (+a.latest_dep||0);
+
+    const urgentLabel = b => {
+      const yoyPct = (+b.yoy_deposits||0)*100;
+      const relGap = yoyPct - (+b.avg_comp_yoy||0)*100;
+      if(yoyPct < -5 && (+b.latest_dep/1e6 > 100)) return '⚠ Critical — major deposit decline';
+      if(yoyPct < 0 && relGap < -10) return 'Losing deposits to competitors';
+      if(yoyPct < 0) return 'Deposits declining';
+      if(relGap < -10) return 'Losing market share';
+      if((b.matrix_quadrant||'').startsWith('Q1') && yoyPct < 0) return 'Underperforming attractive market';
+      return 'Needs attention';
+    };
+
+    const investBrP  = branches.filter(b=>b.opportunity_zone==='Invest');
+    const analyzeBrP = branches.filter(b=>b.opportunity_zone==='Analyze').sort(byScore);
+    const justifyBrP = branches.filter(b=>b.opportunity_zone==='Justify').sort(byDep);
+
+    const urgent = justifyBrP.filter(b=>((+b.yoy_deposits<0)||(+b.latest_dep/1e6>100))).slice(0,4);
+    const urgentAnalyze = branches.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDep);
+    const urgentAll = [...urgent,...urgentAnalyze].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,4);
+    const investReady = [...investBrP,...analyzeBrP.filter(b=>['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&(+b.yoy_deposits>=0))].filter(b=>(+b.latest_dep/1e6)>=5).sort(byScore).slice(0,3);
+    const usedIds = new Set([...urgentAll,...investReady].map(b=>b.uninumbr));
+    const watchBr = branches.filter(b=>!usedIds.has(b.uninumbr)).sort(byScore).slice(0,3);
+
+    let priHTML = '';
+    if(urgentAll.length){
+      priHTML += `<div class="pri-slbl" style="color:#A32D2D">Urgent — act now</div>`;
+      urgentAll.forEach(b=>{
+        const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+        const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+        const cYoy=((+b.avg_comp_yoy||0)*100).toFixed(1);
+        const gap2=(((+b.yoy_deposits||0)*100)-(+b.avg_comp_yoy||0)*100).toFixed(1);
+        const play=b.campaign||'—';
+        const q=(b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
+        priHTML+=`<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${urgentLabel(b)} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#A32D2D">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Why urgent</b>Deposits: ${+yoy>=0?'+':''}${yoy}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap2>=0?'+':''}${gap2}pp<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
+      });
+    }
+    if(investReady.length){
+      priHTML+=`<div class="pri-slbl" style="color:#27500A">Invest — campaign ready</div>`;
+      investReady.forEach(b=>{
+        const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+        const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+        const play=b.campaign||'—';
+        const q=(b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
+        priHTML+=`<div class="pri-row pri-invest"><div class="pri-dot" style="background:#27500A"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#27500A">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Best acquisition opportunity</b>Score: ${(+b.opportunity_score).toFixed(1)}<br>Play: ${play}</div></div>`;
+      });
+    }
+    if(watchBr.length){
+      priHTML+=`<div class="pri-slbl">Watch</div>`;
+      if(watchBr.length>=3&&new Set(watchBr.map(b=>b.opportunity_zone)).size===1){
+        const deps=watchBr.reduce((a,b)=>a+(+b.latest_dep||0),0);
+        const plays=[...new Set(watchBr.map(b=>b.campaign||'—'))].join(' · ');
+        priHTML+=`<div class="pri-group"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${watchBr.map(b=>b.namebr.split(' ')[0]).join(' · ')}</div><div class="pri-sub">${plays} · ${watchBr[0].opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${(deps/1e6).toFixed(0)}M</div></div></div>`;
+      } else {
+        watchBr.forEach(b=>{
+          const yoy=((+b.yoy_deposits||0)*100).toFixed(1);
+          const dep=((+b.latest_dep||0)/1e6).toFixed(0);
+          const play=b.campaign||'—';
+          const q=(b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
+          priHTML+=`<div class="pri-row"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:var(--muted)">${+yoy>=0?'+':''}${yoy}% YoY</div></div></div>`;
+        });
+      }
+    }
+    if(!urgentAll.length && !investReady.length && !watchBr.length)
+      priHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">No branches in this market</div>';
+    g('priorityList').innerHTML = priHTML;
+  };
+
+  const renderCities = (branches) => {
+  // ── TOP CITIES ─────────────────────────────────────────────────────────────
+    const cityMap = {};
+    branches.forEach(b=>{
+      const key = `${b.citybr}, ${b.stalpbr}`;
+      if(!cityMap[key]) cityMap[key]={city:b.citybr,state:b.stalpbr,branches:[],topScore:0,topQ:'',topZone:'',topPlay:'',incYoy:0,popYoy:0,zhvi:0,smb:0};
+      const m = cityMap[key];
+      m.branches.push(b);
+      if((+b.opportunity_score||0) > m.topScore){
+        m.topScore = +b.opportunity_score||0;
+        m.topQ = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
+        m.topZone = b.opportunity_zone||'';
+        m.topPlay = b.campaign||'—';
+        m.incYoy = (+b.household_income||0);
+        m.popYoy = (+b.yoy_pop_growth||0)*100;
+        m.zhviYoy = +b.zhvi_yoy_pct||0;
+        m.smbIndex = +b.smb_index||0;
+      }
+    });
+    const cityRanks = Object.values(cityMap).map(c=>{
+      let score = 0;
+      c.branches.forEach(b=>{
+        if(b.opportunity_zone==='Invest') score+=5;
+        if(b.opportunity_zone==='Analyze') score+=3;
+        if((b.matrix_quadrant||'').startsWith('Q1')||(b.matrix_quadrant||'').startsWith('Q2')) score+=2;
+      });
+      score += (c.topScore * 0.01);
+      if(c.zhvi > 2) score += 1;
+      if(c.smb > 30) score += 0.5;
+      return {...c, _score:score};
+    }).filter(c=>c._score>0).sort((a,b)=>b._score-a._score).slice(0,3);
+  
+    const qTagStyle = {
+      'Q2':['#EAF3DE','#27500A'],'Q1':['#E6F1FB','#185FA5'],
+      'Q3':['#FEF9C3','#854D0E'],'Q4':['#FCEBEB','#A32D2D']
+    };
+    g('citiesGrid').innerHTML = cityRanks.map(c=>{
+      const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
+      const inc = c.incYoy > 0 ? `Income $${(c.incYoy/1000).toFixed(0)}K` : '';
+      const pop = c.popYoy !== 0 ? `Pop ${c.popYoy>=0?'+':''}${c.popYoy.toFixed(1)}%` : '';
+      const zhvi = c.zhviYoy !== 0 ? `ZHVI ${c.zhviYoy>=0?'+':''}${c.zhviYoy.toFixed(1)}%` : '';
+      const smb = c.smbIndex > 0 ? `SMB idx ${c.smbIndex.toFixed(0)}` : '';
+      const line1 = [inc, pop].filter(Boolean).join(' · ') || '&nbsp;';
+      const line2 = [zhvi, smb].filter(Boolean).join(' · ');
+      return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${line1}${line2?'<br><span style="color:var(--muted)">'+line2+'</span>':''}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;
+    }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No Invest/Analyze markets found</div>';
+  };
+
+  // Initial render with all branches
+  renderPriority(allBr);
+  renderCities(allBr);
+
+
+  // ── COMPETITOR TARGETS (from network_top_targets) ─────────────────────────
+  const tgts = tgt||[];
+  if(tgts.length){
+    g('targetsGrid').innerHTML = tgts.slice(0,3).map(t=>{
+      const vy = (+t.avg_yoy_pct).toFixed(1);
+      const vColor = t.avg_vuln_score >= 300 ? '#A32D2D' : t.avg_vuln_score >= 200 ? '#854D0E' : '#374151';
+      const vLabel = t.avg_vuln_score >= 300 ? 'Critical' : t.avg_vuln_score >= 200 ? 'High' : 'Elevated';
+      const roa = t.target_roa && +t.target_roa !== 0
+        ? (+t.target_roa < 1 ? (+t.target_roa * 100).toFixed(2) + '%' : (+t.target_roa).toFixed(2) + '%')
+        : 'N/A';
+      const eff = t.target_efficiency_ratio && +t.target_efficiency_ratio > 0
+        ? 'Eff ' + (+t.target_efficiency_ratio).toFixed(0) + '%'
+        : '';
+      return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.target_institution}</div><div class="tgt-sub">${t.branches_in_radius} branch${t.branches_in_radius!==1?'es':''} exposed · ${vy>=0?'+':''}${vy}% YoY${roa!=='N/A'?' · ROA '+roa:''}${eff?' · '+eff:''}</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.avg_vuln_score)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;
+    }).join('');
+  } else {
+    g('targetsGrid').innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px">Run network targets for this institution</div>';
+  }
+
   set('ss',avg('opportunity_score').toFixed(1));
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);
   set('sm',(avg('market_growth_score')*100).toFixed(1));set('sd',avg('inv_density_norm_winsor').toFixed(1));
@@ -764,7 +1325,7 @@ async function loadBank(ik){
       </div>
     </div>`;
   }).join('');
-  const t=tgt?.[0];
+  const t=Array.isArray(tgt)?tgt[0]:tgt;
   set('tn',t?t.target_institution:'No network targets computed yet');
   set('tm',t?`${t.branches_in_radius} branches exposed · Vuln ${t.avg_vuln_score} · YoY ${(+t.avg_yoy_pct).toFixed(1)}% · ROA ${t.target_roa}% · Efficiency ${t.target_efficiency_ratio}%`:'Run populate_network_top_targets for this institution');
   const sel=g('bselect');sel.innerHTML='<option value="">— select a branch —</option>';

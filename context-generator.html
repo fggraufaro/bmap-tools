@@ -1101,11 +1101,12 @@ async function loadBank(ik){
     c.branches.forEach(b=>{
       if(b.opportunity_zone==='Invest') score+=5;
       if(b.opportunity_zone==='Analyze') score+=3;
+      if(b.opportunity_zone==='Defend') score+=1;
       if((b.matrix_quadrant||'').startsWith('Q1')||(b.matrix_quadrant||'').startsWith('Q2')) score+=2;
     });
     score += (c.topScore * 0.01);
     return {...c, _score:score};
-  }).filter(c=>c._score>0).sort((a,b)=>b._score-a._score).slice(0,3);
+  }).sort((a,b)=>b._score-a._score).slice(0,3);
 
   const qTagStyle = {
     'Q2':['#EAF3DE','#27500A'],'Q1':['#E6F1FB','#185FA5'],

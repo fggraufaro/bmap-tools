@@ -1201,7 +1201,7 @@ async function loadBank(ik){
       const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
       const inc = c.incYoy > 0 ? `Income $${(c.incYoy/1000).toFixed(0)}K` : '';
       const pop = c.popYoy !== 0 ? `Pop ${c.popYoy>=0?'+':''}${c.popYoy.toFixed(1)}%` : '';
-      const zhvi = c.zhvi && +c.zhvi !== 0 ? `ZHVI ${(+c.zhvi>=0?'+':''}${(+c.zhvi).toFixed(1)}%` : '';
+      const zhvi = c.zhvi && +c.zhvi !== 0 ? `ZHVI ${(+c.zhvi>=0?'+':'')}${(+c.zhvi).toFixed(1)}%` : '';
       const smb = c.smb > 0 ? `SMB ${c.smb.toFixed(0)}` : '';
       const metrics = [inc,pop,zhvi,smb].filter(Boolean).join(' · ');
       return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${metrics||'&nbsp;'}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;

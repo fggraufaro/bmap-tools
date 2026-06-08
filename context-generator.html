@@ -740,7 +740,7 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public','vw_branch_opportunity_cbsa':'analytics','vw_network_top_targets':'analytics','network_top_targets':'analytics'};
+const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public'};
 async function api(table,params){
   try{
     const schema=SCHEMA_MAP[table]||'public';

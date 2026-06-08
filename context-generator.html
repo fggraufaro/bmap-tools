@@ -731,12 +731,11 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','vw_branch_opportunity_cbsa':'analytics','bank_website':'ref','vw_prospecting_score':'public','vw_network_top_targets':'public','network_top_targets':'public'};
+const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','vw_branch_opportunity_cbsa':'public','vw_network_top_targets':'public','network_top_targets':'public','bank_website':'ref','vw_prospecting_score':'public'};
 async function api(table,params){
   try{
     const schema=SCHEMA_MAP[table]||'public';
-    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY};
-    if(schema!=='public'){headers['Accept-Profile']=schema;}
+    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY,'Accept-Profile':schema};
     const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
     if(!r.ok){console.error(table,r.status,await r.text());return[];}
     return r.json();

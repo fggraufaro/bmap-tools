@@ -615,11 +615,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
             <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">YoY</th>
             <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Zone</th>
             <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Website</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Target Branch</th>
           </tr></thead>
           <tbody id="rrTbody"></tbody>
         </table>
       </div>
-      <div style="padding:10px 14px;background:#F0FBF7;border-top:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace;color:var(--muted)">CSV format: bank_name, bank_url — ready to upload directly to Rate Radar · Missing URLs can be filled manually</div>
+      <div style="padding:10px 14px;background:#F0FBF7;border-top:1px solid var(--border);font-size:10px;font-family:IBM Plex Mono,monospace;color:var(--muted)">CSV format: bank_name, bank_url, branch_address — ready to upload directly to Rate Radar · branch_address carries the highest-vulnerability target branch (ZIP unlocks gated rate pages) · Missing URLs can be filled manually</div>
     </div>
   </div>
 
@@ -1648,26 +1649,34 @@ async function loadRRWidget(){
   g('rrTitle').textContent=rows[0]?.namefull||'—';
   g('rrMeta').textContent='Loading top 20 competitors by vulnerability score...';
   g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);font-family:IBM Plex Mono,monospace;font-size:11px"><span class="spin"></span> Pulling from BMAP...</td></tr>';
-  let rawComp=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone&order=vuln_score.desc&limit=1000`);
-  if(!rawComp||!rawComp.length){g('rrTbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found</td></tr>';g('rrMeta').textContent='No data';return;}
+  let rawComp=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone,target_uninumbr&order=vuln_score.desc&limit=1000`);
+  if(!rawComp||!rawComp.length){g('rrTbody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">No competitor data found</td></tr>';g('rrMeta').textContent='No data';return;}
   const grouped={};
-  rawComp.forEach(r=>{const k=r.target_inst_key;if(!k)return;if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{}};}if(r.vuln_score!=null)grouped[k].vuln_scores.push(+r.vuln_score);const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;});
+  rawComp.forEach(r=>{const k=r.target_inst_key;if(!k)return;if(!grouped[k]){grouped[k]={target_inst_key:k,target_namefull:r.target_namefull||'—',vuln_scores:[],dep_vals:[],yoy_vals:[],zones:{},topVuln:-Infinity,topUni:null};}if(r.vuln_score!=null){grouped[k].vuln_scores.push(+r.vuln_score);if(+r.vuln_score>grouped[k].topVuln&&r.target_uninumbr!=null){grouped[k].topVuln=+r.vuln_score;grouped[k].topUni=r.target_uninumbr;}}const depVal=r["target_dep_M"]??r["target_dep_m"]??null;if(depVal!=null)grouped[k].dep_vals.push(+depVal);const yoyVal=r["target_yoy_pct"]??null;if(yoyVal!=null)grouped[k].yoy_vals.push(+yoyVal);const zoneVal=r["target_zone"]||null;if(zoneVal)grouped[k].zones[zoneVal]=(grouped[k].zones[zoneVal]||0)+1;});
   const avgArr=arr=>arr.length?arr.reduce((a,v)=>a+v,0)/arr.length:null;
   const domZone=z=>Object.entries(z).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
-  const sorted=Object.values(grouped).map(grp=>({target_inst_key:grp.target_inst_key,target_namefull:grp.target_namefull,avg_vuln:avgArr(grp.vuln_scores),avg_dep:avgArr(grp.dep_vals),avg_yoy:avgArr(grp.yoy_vals),zone:domZone(grp.zones)})).filter(r=>r.avg_vuln!=null).sort((a,b)=>b.avg_vuln-a.avg_vuln).slice(0,20);
+  const sorted=Object.values(grouped).map(grp=>({target_inst_key:grp.target_inst_key,target_namefull:grp.target_namefull,avg_vuln:avgArr(grp.vuln_scores),avg_dep:avgArr(grp.dep_vals),avg_yoy:avgArr(grp.yoy_vals),zone:domZone(grp.zones),topUni:grp.topUni})).filter(r=>r.avg_vuln!=null).sort((a,b)=>b.avg_vuln-a.avg_vuln).slice(0,20);
   const rssdIds=sorted.map(t=>{const k=t.target_inst_key||'';return k.startsWith('bank_')?k.replace('bank_',''):null;}).filter(Boolean);
   const websiteRows=rssdIds.length?await api('bank_website',`FED_RSSD=in.(${rssdIds.join(',')})&select=FED_RSSD,WEBADDR`):[];
   const urlMap={};(websiteRows||[]).forEach(r=>{if(r.FED_RSSD&&r.WEBADDR)urlMap['bank_'+r.FED_RSSD]=r.WEBADDR;});
-  rrData=sorted.map((t,i)=>({rank:i+1,bank_name:t.target_namefull,bank_url:urlMap[t.target_inst_key]||'',vuln:t.avg_vuln,dep:t.avg_dep,yoy:t.avg_yoy,zone:t.zone,inst_key:t.target_inst_key}));
+  // v27: pull the address of each institution's highest-vulnerability target branch
+  // (public.vw_branch_opportunity_cbsa keyed by uninumbr) — this ZIP unlocks
+  // ZIP-gated rate pages in Rate Radar and ties rates to the targeted market
+  const uniIds=sorted.map(t=>t.topUni).filter(u=>u!=null);
+  const addrRows=uniIds.length?await api('vw_branch_opportunity_cbsa',`uninumbr=in.(${uniIds.join(',')})&select=uninumbr,addresbr,citybr,stalpbr,zipbr`):[];
+  const addrMap={};(addrRows||[]).forEach(r=>{if(r.uninumbr!=null&&!addrMap[r.uninumbr]){const parts=[r.addresbr,r.citybr,r.stalpbr,r.zipbr].filter(Boolean);addrMap[r.uninumbr]=parts.join(', ');}});
+  rrData=sorted.map((t,i)=>({rank:i+1,bank_name:t.target_namefull,bank_url:urlMap[t.target_inst_key]||'',branch_address:t.topUni!=null?(addrMap[t.topUni]||''):'',vuln:t.avg_vuln,dep:t.avg_dep,yoy:t.avg_yoy,zone:t.zone,inst_key:t.target_inst_key}));
   const zoneColor=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
-  g('rrTbody').innerHTML=rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee"><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td><td style="padding:8px 14px;font-weight:600">${r.bank_name}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln!=null?(+r.vuln).toFixed(1):'—'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep!=null?(+r.dep).toFixed(0)+'M':'—'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy!=null?((+r.yoy).toFixed(1)+'%'):'—'}</td><td style="padding:8px 14px"><span class="spill ${zoneColor(r.zone)}">${r.zone}</span></td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td></tr>`).join('');
+  g('rrTbody').innerHTML=rrData.map(r=>`<tr style="border-bottom:1px solid #f0f0ee"><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;color:var(--muted)">${r.rank}</td><td style="padding:8px 14px;font-weight:600">${r.bank_name}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-weight:700;color:var(--red)">${r.vuln!=null?(+r.vuln).toFixed(1):'—'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">$${r.dep!=null?(+r.dep).toFixed(0)+'M':'—'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace">${r.yoy!=null?((+r.yoy).toFixed(1)+'%'):'—'}</td><td style="padding:8px 14px"><span class="spill ${zoneColor(r.zone)}">${r.zone}</span></td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px">${r.bank_url?`<a href="${r.bank_url.startsWith('http')?r.bank_url:'https://'+r.bank_url}" target="_blank" style="color:var(--blue)">${r.bank_url}</a>`:'<span style="color:var(--muted)">—</span>'}</td><td style="padding:8px 14px;font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted)">${r.branch_address||'—'}</td></tr>`).join('');
   const withUrl=rrData.filter(r=>r.bank_url).length;
-  g('rrMeta').textContent=`Top ${rrData.length} competitors by vulnerability score · ${withUrl} with website URLs`;
+  const withAddr=rrData.filter(r=>r.branch_address).length;
+  g('rrMeta').textContent=`Top ${rrData.length} competitors by vulnerability score · ${withUrl} with website URLs · ${withAddr} with target branch`;
 }
 
 function downloadRRcsv(){
   if(!rrData.length)return;
-  const rows=['bank_name,bank_url',...rrData.map(r=>`"${r.bank_name}","${r.bank_url||''}"`)];
+  const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+  const rows=['bank_name,bank_url,branch_address',...rrData.map(r=>`${esc(r.bank_name)},${esc(r.bank_url)},${esc(r.branch_address)}`)];
   const blob=new Blob([rows.join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   const bankName=(bankData?.rows?.[0]?.namefull||'bank').replace(/[^a-z0-9]/gi,'_');

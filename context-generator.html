@@ -48,6 +48,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .bdg{font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;border-radius:4px;font-weight:500;border:1px solid}
 .bdg-g{background:rgba(39,80,10,.25);color:#8fc45a;border-color:rgba(39,80,10,.35)}
 .bdg-a{background:rgba(29,158,117,.2);color:var(--teal);border-color:rgba(29,158,117,.3)}
+.qx-wrap{position:relative}
+.qx-btn{background:var(--teal);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.qx-btn:hover{opacity:.9}
+.qx-btn:disabled{opacity:.45;cursor:not-allowed}
+.qx-menu{position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:220px;z-index:40;overflow:hidden;display:none}
+.qx-menu.on{display:block}
+.qx-opt{padding:10px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.qx-opt:last-child{border-bottom:none}
+.qx-opt:hover{background:#F0FBF7}
+.qx-opt-sub{font-size:10px;color:var(--muted);font-weight:400;margin-top:1px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)}
 .stat{padding:12px 16px;border-right:1px solid var(--border);text-align:center}
 .stat:last-child{border-right:none}
@@ -231,6 +241,25 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
 .pr-filter select{border:none;outline:none;font-size:12px;color:var(--text);background:transparent;cursor:pointer;font-family:'Inter',system-ui,sans-serif}
 .pr-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:'Inter',system-ui,sans-serif;outline:none}
 .pr-search:focus{border-color:var(--navy)}
+.pr-search-wrap{position:relative;flex:1;min-width:160px}
+.pr-search-wrap .pr-search{width:100%}
+.pr-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:340px;overflow-y:auto;z-index:30;display:none}
+.pr-dd.on{display:block}
+.pr-dd-item{padding:9px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;border-bottom:1px solid var(--border)}
+.pr-dd-item:last-child{border-bottom:none}
+.pr-dd-item:hover,.pr-dd-item.hi{background:#F0FBF7}
+.pr-dd-item.is-picked{background:#EAF7F0}
+.pr-dd-l{min-width:0}
+.pr-dd-name{font-size:12.5px;font-weight:700;color:var(--text)}
+.pr-dd-name mark{background:#D4F5E9;border-radius:2px;padding:0 2px;font-style:normal;color:var(--text);font-weight:700}
+.pr-dd-meta{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:1px}
+.pr-dd-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.pr-dd-score{font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;padding:2px 6px;border-radius:4px}
+.pr-dd-add{font-size:10px;font-weight:700;color:var(--teal);border:1px solid var(--teal);border-radius:5px;padding:3px 8px;background:#fff;white-space:nowrap}
+.pr-dd-add.added{color:#fff;background:var(--teal);border-color:var(--teal)}
+.pr-dd-msg{padding:12px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.pr-row-flash{animation:prFlash 1.4s ease}
+@keyframes prFlash{0%{background:#D4F5E9}100%{background:transparent}}
 .pr-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .pr-metric{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
 .pr-metric-l{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
@@ -452,7 +481,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:
   <div class="card dn" id="bp">
   <div class="bank-hdr">
     <div class="bank-hdr-name" id="bn">—</div>
-    <div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="badges"><span class="bdg bdg-g" id="bb">—</span><span class="bdg bdg-a" id="db">—</span></div>
+      <div class="qx-wrap">
+        <button class="qx-btn" id="qxBtn" onclick="qxToggle()">⬇ Quick Export <span style="font-size:9px">▾</span></button>
+        <div class="qx-menu" id="qxMenu">
+          <div class="qx-opt" onclick="qxRun('snapshot')">⬇ Snapshot PPTX</div>
+          <div class="qx-opt" onclick="qxRun('brief')">⬇ Board Brief PDF</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="health-bar">
@@ -1283,6 +1321,8 @@ async function loadBank(ik){
   const briefBtn=document.getElementById('briefBtn');
   if(snapBtn){snapBtn.disabled=false;snapBtn.textContent='⬇ Generate & Export BMAP Snapshot';snapBtn.style.background='';}
   if(briefBtn){briefBtn.disabled=false;briefBtn.textContent='⬇ Generate Board Brief PDF';briefBtn.style.background='var(--navy)';}
+  const qxBtn=document.getElementById('qxBtn');
+  if(qxBtn){qxBtn.disabled=false;qxBtn.innerHTML='⬇ Quick Export <span style="font-size:9px">▾</span>';}
   document.getElementById('snapLd').classList.remove('on');
   document.getElementById('briefLd').classList.remove('on');
   show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');
@@ -1338,6 +1378,31 @@ async function boardBriefExport() {
     setTimeout(()=>{btn.textContent='⬇ Generate Board Brief PDF';btn.style.background='var(--navy)';btn.disabled=false;},3500);
   }catch(err){alert('Brief failed: '+err.message);btn.disabled=false;}
   ld.classList.remove('on');
+}
+
+// ── Quick Export menu (bank header) — reuses snapshotExport/boardBriefExport ──
+function qxToggle(){
+  const m=document.getElementById('qxMenu');
+  if(!m)return;
+  m.classList.toggle('on');
+}
+document.addEventListener('click',function(e){
+  const wrap=document.querySelector('.qx-wrap'),menu=document.getElementById('qxMenu');
+  if(menu&&menu.classList.contains('on')&&wrap&&!wrap.contains(e.target))menu.classList.remove('on');
+});
+async function qxRun(kind){
+  document.getElementById('qxMenu').classList.remove('on');
+  if(!window.selBank||!window.bankData){alert('Select a bank first.');return;}
+  const btn=document.getElementById('qxBtn'),orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':'Building PDF…';
+  try{
+    if(kind==='snapshot')await snapshotExport();
+    else await boardBriefExport();
+    btn.innerHTML='✓ Downloaded';
+    setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2200);
+  }catch(err){
+    btn.innerHTML=orig;btn.disabled=false;
+  }
 }
 
 async function runBatchExport() {
@@ -1931,6 +1996,74 @@ function prToggleRow(chk,ik){prSelected.has(ik)?prSelected.delete(ik):prSelected
 function prToggleAll(chk){if(chk.checked)prFiltered.forEach(r=>prSelected.add(r.inst_key));else prSelected.clear();prRender();}
 function prPageGo(dir){prPage+=dir;prRender();window.scrollTo(0,document.getElementById('panelPro').offsetTop);}
 function prClearSel(){prSelected.clear();prRender();}
+
+// ── Predictive search dropdown — fast bank pick-up for prospecting ──
+let prDdHi=-1,prDdItems=[];
+function prHighlightMatch(name,q){
+  if(!q)return name;
+  const i=name.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0)return name;
+  return name.slice(0,i)+'<mark>'+name.slice(i,i+q.length)+'</mark>'+name.slice(i+q.length);
+}
+function prSearchInput(){
+  prFilter(); // keep existing table-filter behavior
+  const q=(document.getElementById('prSearch').value||'').trim().toLowerCase();
+  const dd=document.getElementById('prDd');
+  if(!q||!prAllData.length){dd.classList.remove('on');dd.innerHTML='';prDdItems=[];prDdHi=-1;return;}
+  const starts=[],contains=[];
+  for(const r of prAllData){
+    const nm=(r.institution_name||'').toLowerCase();
+    if(!nm)continue;
+    if(nm.startsWith(q))starts.push(r);
+    else if(nm.includes(q))contains.push(r);
+  }
+  const ranked=starts.sort((a,b)=>b.phase1_score-a.phase1_score)
+    .concat(contains.sort((a,b)=>b.phase1_score-a.phase1_score))
+    .slice(0,8);
+  prDdItems=ranked;prDdHi=-1;
+  if(!ranked.length){dd.innerHTML='<div class="pr-dd-msg">No banks match "'+q.replace(/</g,'')+'"</div>';dd.classList.add('on');return;}
+  dd.innerHTML=ranked.map(function(r,i){
+    const ik=r.inst_key,added=prSelected.has(ik);
+    const nm=prHighlightMatch(r.institution_name||'—',q);
+    return '<div class="pr-dd-item" data-idx="'+i+'" onmousedown="event.preventDefault();prPickSuggestion('+i+')">'
+      +'<div class="pr-dd-l"><div class="pr-dd-name">'+nm+'</div><div class="pr-dd-meta">'+(r.state_hq||'—')+' · '+prFmtA(r.total_deposits)+' deposits</div></div>'
+      +'<div class="pr-dd-r"><span class="pr-dd-score '+prScoreCls(r.phase1_score)+'">'+r.phase1_score+'</span>'
+      +'<span class="pr-dd-add'+(added?' added':'')+'">'+(added?'✓ Added':'+ Add')+'</span></div>'
+      +'</div>';
+  }).join('');
+  dd.classList.add('on');
+}
+function prSearchKey(e){
+  const dd=document.getElementById('prDd');
+  if(!dd.classList.contains('on')||!prDdItems.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();prDdHi=Math.min(prDdHi+1,prDdItems.length-1);prDdSetHi();}
+  else if(e.key==='ArrowUp'){e.preventDefault();prDdHi=Math.max(prDdHi-1,0);prDdSetHi();}
+  else if(e.key==='Enter'){e.preventDefault();if(prDdHi>=0)prPickSuggestion(prDdHi);}
+  else if(e.key==='Escape'){dd.classList.remove('on');}
+}
+function prDdSetHi(){
+  document.querySelectorAll('#prDd .pr-dd-item').forEach(function(el,i){el.classList.toggle('hi',i===prDdHi);});
+}
+function prPickSuggestion(i){
+  const r=prDdItems[i];if(!r)return;
+  const ik=r.inst_key;
+  if(prSelected.has(ik))prSelected.delete(ik);else prSelected.add(ik); // toggle, dropdown stays open for rapid multi-pick
+  prRender();
+  prRefreshDdAddState();
+}
+function prRefreshDdAddState(){
+  document.querySelectorAll('#prDd .pr-dd-item').forEach(function(el,i){
+    const r=prDdItems[i];if(!r)return;
+    const added=prSelected.has(r.inst_key);
+    const tag=el.querySelector('.pr-dd-add');
+    if(tag){tag.classList.toggle('added',added);tag.textContent=added?'✓ Added':'+ Add';}
+  });
+}
+document.addEventListener('click',function(e){
+  const wrap=document.getElementById('prSearch')&&document.getElementById('prSearch').closest('.pr-search-wrap');
+  const dd=document.getElementById('prDd');
+  if(dd&&dd.classList.contains('on')&&wrap&&!wrap.contains(e.target))dd.classList.remove('on');
+});
 function prUpdateSel(){
   const n=prSelected.size;
   document.getElementById('prCountSel').textContent=n;
@@ -2032,7 +2165,10 @@ function prExportCSV(){
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0" selected>All</option><option value="7">7+</option><option value="8">8+</option><option value="10">10+</option><option value="12">12+</option></select></div>
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Min Deposits</label><select id="prDepFilter" onchange="prFilter()"><option value="0" selected>All</option><option value="500">$500M+</option><option value="1000">$1B+</option><option value="5000">$5B+</option><option value="10000">$10B+</option></select></div>
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Size</label><select id="prSizeFilter" onchange="prFilter()"><option value="">All</option><option value="small">&lt;$1B</option><option value="mid">$1B–$10B</option><option value="large">&gt;$10B</option></select></div>
-    <input class="pr-search" id="prSearch" type="text" placeholder="Search bank name..." oninput="prFilter()">
+    <div class="pr-search-wrap">
+      <input class="pr-search" id="prSearch" type="text" placeholder="Search bank name..." autocomplete="off" oninput="prSearchInput()" onfocus="prSearchInput()" onkeydown="prSearchKey(event)">
+      <div class="pr-dd" id="prDd"></div>
+    </div>
   </div>
 
   <div class="pr-metrics">

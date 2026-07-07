@@ -200,6 +200,9 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .ag-gen-btn:hover{opacity:.88}
 .ag-gen-btn:disabled{opacity:.35;cursor:not-allowed}
 .ag-note{font-size:10px;color:var(--muted);font-style:italic;margin-top:8px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.ag-persona{background:var(--lteal);border:1px solid #D9F2F6;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.6;color:var(--navy)}
+.ag-persona-lbl{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#014B57;margin-bottom:4px}
+.ag-seg-persona{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px;font-style:italic;color:var(--muted);line-height:1.45}
 
 /* ── WF06 PPT NARRATIVE ── */
 .ppt-tone-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
@@ -624,6 +627,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="ag-sec-hdr"><span>Audience segments</span><span id="agSegLabel" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></div>
       <div class="ag-sec-body">
         <div class="ag-summary" id="agSummary"></div>
+        <div id="agPersona"></div>
         <div class="ag-seg-grid" id="agSegGrid"></div>
         <div class="ag-note" id="agNote"></div>
       </div>
@@ -1612,8 +1616,20 @@ function agCompute(){
   g('agSummary').innerHTML=`<div class="ag-scard"><div class="ag-scard-l">Deposit gap</div><div class="ag-scard-v ${gapCls}">${gap>=0?'+':''}${gap.toFixed(1)}pp</div></div><div class="ag-scard"><div class="ag-scard-l">Opp score</div><div class="ag-scard-v ${scoreCls}">${Math.round(d.oppScore)}</div></div><div class="ag-scard"><div class="ag-scard-l">Avg income</div><div class="ag-scard-v">$${Math.round(d.income)}k</div></div><div class="ag-scard"><div class="ag-scard-l">ZHVI</div><div class="ag-scard-v">$${Math.round(d.zhvi)}k</div></div><div class="ag-scard"><div class="ag-scard-l">SMB zone</div><div class="ag-scard-v" style="font-size:13px;padding-top:2px">${smbPill}</div></div>`;
   const metro=agTopMetro(focusRows);
   g('agSegLabel').textContent=`${focusRows.length} branch${focusRows.length!==1?'es':''} selected`;
+  agRenderSegGrid(focusRows,{});
+  window._agPersonaData=null;
+  agRenderPersona(focusRows,d).catch(()=>{});
 
-  // ── ONE CARD PER BRANCH ──────────────────────────────────
+  const hasSmbData=focusRows.some(r=>r.smb_index!=null);
+  g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
+  // Keep results for agGenerate segment logic
+  const results=AG_SEGS.map(s=>({...s,result:s.logic(d)})).sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
+  const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
+  window._agState={d,results,primary,secondary,focusRows,metro};
+}
+
+// ── ONE CARD PER BRANCH — reusable so persona lines can be layered in once ready ──
+function agRenderSegGrid(focusRows,personaMap){
   const zoneColor={Invest:'primary',Analyze:'secondary',Defend:'secondary',Justify:'off'};
   const zoneBadge={
     Invest:'<span class="ag-badge bp">Invest</span>',
@@ -1635,22 +1651,44 @@ function agCompute(){
     const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
     const sel=b._selReason||b.opportunity_zone;
     const sentence=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.`;
+    const selLine=[`Selection: ${sel}`,b.matrix_quadrant?`Matrix: ${b.matrix_quadrant}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
     const bullets=[
       `ZIP: ${zip} — ${city}`,
       `Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}`,
       `Median home value: ${zhvi}${zhviYoY}`,
-      `Selection: ${sel} · Matrix: ${b.matrix_quadrant||'—'} · Priority tier: ${b.priority_tier||'—'}`
+      selLine
     ];
     const bulletHtml=bullets.map(bl=>`<li>${bl}</li>`).join('');
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${b.namebr}</div><div class="ag-seg-desc">${city}</div><div class="ag-seg-sentence">${sentence}</div><ul class="ag-seg-bullets">${bulletHtml}</ul></div>`;
+    const personaLine=personaMap[b.uninumbr];
+    const personaHtml=personaLine?`<div class="ag-seg-persona">Audience read: ${personaLine}</div>`:'';
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${b.namebr}</div><div class="ag-seg-desc">${city}</div><div class="ag-seg-sentence">${sentence}</div><ul class="ag-seg-bullets">${bulletHtml}</ul>${personaHtml}</div>`;
   }).join('');
+}
 
-  const hasSmbData=focusRows.some(r=>r.smb_index!=null);
-  g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
-  // Keep results for agGenerate segment logic
-  const results=AG_SEGS.map(s=>({...s,result:s.logic(d)})).sort((a,b)=>({primary:0,secondary:1,off:2}[a.result.rank]-{primary:0,secondary:1,off:2}[b.result.rank]));
-  const primary=results.filter(r=>r.result.rank==='primary'),secondary=results.filter(r=>r.result.rank==='secondary');
-  window._agState={d,results,primary,secondary,focusRows,metro};
+// ── FIRST-LEVEL AUDIENCE PERSONA — auto-generated, no click required ──
+// Grounded only in the geographic/demographic fields BMAP already has (income, home value,
+// population trend, opportunity zone). This is meant as a starting input for Resonate/Analytics 360,
+// not a finished behavioral segment — the prompt is written to keep it honest about that.
+async function agRenderPersona(focusRows,d){
+  g('agPersona').innerHTML=`<div class="ag-persona-lbl">Audience read</div><div style="color:var(--muted)">Building first-level persona from priority markets…</div>`;
+  const branchCtx=focusRows.map(b=>`${b.namebr} (${b.citybr}, ${b.stalpbr}) — income $${b.household_income?Math.round(+b.household_income/1000):'—'}k, home value $${b.zhvi?Math.round(+b.zhvi/1000):'—'}k (${b.zhvi_yoy_pct?(+b.zhvi_yoy_pct).toFixed(1):'—'}% YoY), population ${b.total_population?Math.round(+b.total_population).toLocaleString():'—'} (${b.yoy_pop_growth?(+b.yoy_pop_growth*100).toFixed(1):'—'}% YoY), zone ${b.opportunity_zone}, opportunity score ${b.opportunity_score?(+b.opportunity_score).toFixed(0):'—'}/100`).join('\n');
+  const context=`Priority markets for this bank:\n${branchCtx}\n\nAggregate: avg income $${Math.round(d.income)}k, avg home value $${Math.round(d.zhvi)}k (${d.zhviYoy?.toFixed(1)}% YoY), avg opportunity score ${d.oppScore.toFixed(0)}/100.`;
+  try{
+    const rawTxt=await aiCall(`You are a first-level audience analyst at Verlocity. Given only geographic and demographic data (household income, home value/ZHVI trend, population trend, BMAP opportunity zone) for a bank's priority branch markets, write a short, honest composite reader of who likely lives in these markets. This is explicitly a FIRST-LEVEL geographic/demographic read meant to seed downstream tools (Resonate, Analytics 360) — do not invent behavioral, psychographic, or intent data that isn't implied by the numbers given. Ground every claim in the data provided. Return ONLY a JSON object with keys: marketPersona (string, 2-3 sentences, the composite read across all priority markets), branchLines (array of {name: exact branch name as given, line: one short sentence, grounded, no fluff}). No markdown, no preamble, ONLY valid JSON.`,context,700);
+    const txt=rawTxt.replace(/```json|```/g,'').trim();
+    const p=JSON.parse(txt);
+    g('agPersona').innerHTML=`<div class="ag-persona-lbl">Audience read — first-level, for Resonate / Analytics 360 input</div>${p.marketPersona||''}`;
+    const personaMap={};
+    (p.branchLines||[]).forEach(bl=>{
+      const match=focusRows.find(r=>r.namebr===bl.name);
+      if(match) personaMap[match.uninumbr]=bl.line;
+    });
+    agRenderSegGrid(focusRows,personaMap);
+    window._agPersonaData=p;
+  }catch(e){
+    g('agPersona').innerHTML='';
+    window._agPersonaData=null;
+  }
 }
 
 function agToggleParams(el){const body=el.nextElementSibling;const open=body.classList.toggle('open');el.textContent=(open?'▾':'▸')+' Manual build values';}
@@ -1675,6 +1713,12 @@ async function agGenerate(){
   txt+=`Deposit gap vs competitors: ${(d.bankYoy-d.compYoy)>=0?'+':''}${(d.bankYoy-d.compYoy).toFixed(1)}pp\n`;
   txt+=`Opportunity score: ${Math.round(d.oppScore)}/100\n`;
   if(crm==='yes') txt+=`CRM suppression: provided\n`;
+  const persona=window._agPersonaData;
+  if(persona?.marketPersona){
+    txt+='\n';
+    txt+=`AUDIENCE READ (first-level — for Resonate / Analytics 360 input)\n`;
+    txt+=`${persona.marketPersona}\n`;
+  }
   txt+='\n';
   // One section per branch
   focusRows.forEach((b,i)=>{
@@ -1687,12 +1731,15 @@ async function agGenerate(){
     const zhvi=b.zhvi?`$${Math.round(+b.zhvi/1000)}k`:'—';
     const zhviYoY=b.zhvi_yoy_pct?` (${(+b.zhvi_yoy_pct)>0?'+':''}${(+b.zhvi_yoy_pct).toFixed(1)}% YoY)`:'';
     const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
+    const selLine=[`Selection: ${b._selReason||b.opportunity_zone}`,b.matrix_quadrant?`Matrix: ${b.matrix_quadrant}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
+    const bl=persona?.branchLines?.find(x=>x.name===b.namebr);
     txt+=`BRANCH ${i+1} — ${b.namebr.toUpperCase()}\n`;
     txt+=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.\n\n`;
     txt+=`  • ZIP: ${zip} — ${city}\n`;
     txt+=`  • Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}\n`;
     txt+=`  • Median home value: ${zhvi}${zhviYoY}\n`;
-    txt+=`  • Selection: ${b._selReason||b.opportunity_zone} · Matrix: ${b.matrix_quadrant||'—'} · Priority tier: ${b.priority_tier||'—'}\n`;
+    txt+=`  • ${selLine}\n`;
+    if(bl?.line) txt+=`  • Audience read: ${bl.line}\n`;
     txt+='\n';
   });
   txt+=`${'─'.repeat(52)}\n`;

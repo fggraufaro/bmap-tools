@@ -200,8 +200,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .ag-gen-btn:hover{opacity:.88}
 .ag-gen-btn:disabled{opacity:.35;cursor:not-allowed}
 .ag-note{font-size:10px;color:var(--muted);font-style:italic;margin-top:8px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
-.ag-persona{background:var(--lteal);border:1px solid #D9F2F6;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.6;color:var(--navy)}
-.ag-persona-lbl{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#014B57;margin-bottom:4px}
 .ag-seg-persona{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px;font-style:italic;color:var(--muted);line-height:1.45}
 
 /* ── WF06 PPT NARRATIVE ── */
@@ -627,7 +625,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="ag-sec-hdr"><span>Audience segments</span><span id="agSegLabel" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></div>
       <div class="ag-sec-body">
         <div class="ag-summary" id="agSummary"></div>
-        <div id="agPersona"></div>
+        <div class="card dn" id="agPersonaCard" style="overflow:hidden;margin-bottom:14px">
+          <div style="background:var(--navy);padding:10px 18px"><div style="color:#fff;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">Audience Intelligence Brief</div></div>
+          <div style="padding:16px 20px" id="agPersona"><div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums"><span class="spin"></span>Generating audience brief...</div></div>
+        </div>
         <div class="ag-seg-grid" id="agSegGrid"></div>
         <div class="ag-note" id="agNote"></div>
       </div>
@@ -1665,28 +1666,23 @@ function agRenderSegGrid(focusRows,personaMap){
   }).join('');
 }
 
-// ── FIRST-LEVEL AUDIENCE PERSONA — auto-generated, no click required ──
+// ── FIRST-LEVEL AUDIENCE INTELLIGENCE BRIEF — auto-generated, no click required ──
 // Grounded only in the geographic/demographic fields BMAP already has (income, home value,
 // population trend, opportunity zone). This is meant as a starting input for Resonate/Analytics 360,
 // not a finished behavioral segment — the prompt is written to keep it honest about that.
 async function agRenderPersona(focusRows,d){
-  g('agPersona').innerHTML=`<div class="ag-persona-lbl">Audience read</div><div style="color:var(--muted)">Building first-level persona from priority markets…</div>`;
+  show('agPersonaCard');
+  g('agPersona').innerHTML=`<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums"><span class="spin"></span>Generating audience brief...</div>`;
   const branchCtx=focusRows.map(b=>`${b.namebr} (${b.citybr}, ${b.stalpbr}) — income $${b.household_income?Math.round(+b.household_income/1000):'—'}k, home value $${b.zhvi?Math.round(+b.zhvi/1000):'—'}k (${b.zhvi_yoy_pct?(+b.zhvi_yoy_pct).toFixed(1):'—'}% YoY), population ${b.total_population?Math.round(+b.total_population).toLocaleString():'—'} (${b.yoy_pop_growth?(+b.yoy_pop_growth*100).toFixed(1):'—'}% YoY), zone ${b.opportunity_zone}, opportunity score ${b.opportunity_score?(+b.opportunity_score).toFixed(0):'—'}/100`).join('\n');
   const context=`Priority markets for this bank:\n${branchCtx}\n\nAggregate: avg income $${Math.round(d.income)}k, avg home value $${Math.round(d.zhvi)}k (${d.zhviYoy?.toFixed(1)}% YoY), avg opportunity score ${d.oppScore.toFixed(0)}/100.`;
   try{
-    const rawTxt=await aiCall(`You are a first-level audience analyst at Verlocity. Given only geographic and demographic data (household income, home value/ZHVI trend, population trend, BMAP opportunity zone) for a bank's priority branch markets, write a short, honest composite reader of who likely lives in these markets. This is explicitly a FIRST-LEVEL geographic/demographic read meant to seed downstream tools (Resonate, Analytics 360) — do not invent behavioral, psychographic, or intent data that isn't implied by the numbers given. Ground every claim in the data provided. Return ONLY a JSON object with keys: marketPersona (string, 2-3 sentences, the composite read across all priority markets), branchLines (array of {name: exact branch name as given, line: one short sentence, grounded, no fluff}). No markdown, no preamble, ONLY valid JSON.`,context,700);
+    const rawTxt=await aiCall(`You are a first-level audience analyst at Verlocity writing a briefing note for the team's own use — the same tone and structure as our Financial Intelligence Brief, applied to audience/persona instead of financials. Given only geographic and demographic data (household income, home value/ZHVI trend, population trend, BMAP opportunity zone) for a bank's priority branch markets, write an honest, grounded read of who these markets are and where the audience opportunity is. This is explicitly a FIRST-LEVEL geographic/demographic read meant to seed downstream tools (Resonate, Analytics 360) — never invent behavioral, psychographic, or purchase-intent claims that aren't implied by the numbers given, and say plainly where the read is limited by data you don't have. Return ONLY a JSON object with keys: paragraph (string, 3-4 sentences — the composite audience read across all priority markets: who likely lives there, income/home-value tier, growth trajectory), strong (array of 3 strings, format 'Signal — what it means for targeting', the clearest audience opportunities visible in the data), watch (array of 2-3 strings, format 'Gap or limitation — what to validate before activating', honest about what this first-level read can't tell you), asymmetric (string, 2-3 sentences — the single most specific, actionable targeting angle this data points to, referencing actual branch names/markets). No markdown, no preamble, ONLY valid JSON.`,context,900);
     const txt=rawTxt.replace(/```json|```/g,'').trim();
     const p=JSON.parse(txt);
-    g('agPersona').innerHTML=`<div class="ag-persona-lbl">Audience read — first-level, for Resonate / Analytics 360 input</div>${p.marketPersona||''}`;
-    const personaMap={};
-    (p.branchLines||[]).forEach(bl=>{
-      const match=focusRows.find(r=>r.namebr===bl.name);
-      if(match) personaMap[match.uninumbr]=bl.line;
-    });
-    agRenderSegGrid(focusRows,personaMap);
+    g('agPersona').innerHTML=`<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">The audience in one paragraph</div><div style="font-size:12px;line-height:1.75;color:var(--navy)">${p.paragraph||''}</div></div><div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where the opportunity is strong</div>${(p.strong||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--teal);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}</div><div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Where to validate before activating</div>${(p.watch||[]).map(s=>`<div style="display:flex;gap:8px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--red);font-weight:700;flex-shrink:0">→</span><span>${s}</span></div>`).join('')}</div><div><div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">What this means for targeting</div><div style="background:#F0FAFB;border:1px solid #D9F2F6;border-radius:8px;padding:12px 16px;font-size:12px;line-height:1.75;color:var(--navy)">${p.asymmetric||''}</div></div>`;
     window._agPersonaData=p;
   }catch(e){
-    g('agPersona').innerHTML='';
+    g('agPersona').innerHTML=`<div style="color:var(--muted);font-size:12px;padding:8px">Error generating audience brief: ${e.message}</div>`;
     window._agPersonaData=null;
   }
 }
@@ -1714,10 +1710,21 @@ async function agGenerate(){
   txt+=`Opportunity score: ${Math.round(d.oppScore)}/100\n`;
   if(crm==='yes') txt+=`CRM suppression: provided\n`;
   const persona=window._agPersonaData;
-  if(persona?.marketPersona){
+  if(persona?.paragraph){
     txt+='\n';
-    txt+=`AUDIENCE READ (first-level — for Resonate / Analytics 360 input)\n`;
-    txt+=`${persona.marketPersona}\n`;
+    txt+=`AUDIENCE INTELLIGENCE BRIEF (first-level — for Resonate / Analytics 360 input)\n`;
+    txt+=`${persona.paragraph}\n\n`;
+    if(persona.strong?.length){
+      txt+=`Where the opportunity is strong:\n`;
+      persona.strong.forEach(s=>txt+=`  → ${s}\n`);
+      txt+='\n';
+    }
+    if(persona.watch?.length){
+      txt+=`Where to validate before activating:\n`;
+      persona.watch.forEach(s=>txt+=`  → ${s}\n`);
+      txt+='\n';
+    }
+    if(persona.asymmetric) txt+=`What this means for targeting: ${persona.asymmetric}\n`;
   }
   txt+='\n';
   // One section per branch
@@ -1732,14 +1739,12 @@ async function agGenerate(){
     const zhviYoY=b.zhvi_yoy_pct?` (${(+b.zhvi_yoy_pct)>0?'+':''}${(+b.zhvi_yoy_pct).toFixed(1)}% YoY)`:'';
     const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
     const selLine=[`Selection: ${b._selReason||b.opportunity_zone}`,b.matrix_quadrant?`Matrix: ${b.matrix_quadrant}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
-    const bl=persona?.branchLines?.find(x=>x.name===b.namebr);
     txt+=`BRANCH ${i+1} — ${b.namebr.toUpperCase()}\n`;
     txt+=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.\n\n`;
     txt+=`  • ZIP: ${zip} — ${city}\n`;
     txt+=`  • Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}\n`;
     txt+=`  • Median home value: ${zhvi}${zhviYoY}\n`;
     txt+=`  • ${selLine}\n`;
-    if(bl?.line) txt+=`  • Audience read: ${bl.line}\n`;
     txt+='\n';
   });
   txt+=`${'─'.repeat(52)}\n`;

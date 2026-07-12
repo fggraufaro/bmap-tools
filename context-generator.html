@@ -797,6 +797,14 @@ async function api(table,params){
     return r.json();
   }catch(e){console.error(e);return[];}
 }
+async function rpc(fnName,body){
+  try{
+    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
+    const r=await fetch(`${SUPA}/rest/v1/rpc/${fnName}`,{method:'POST',headers,body:JSON.stringify(body)});
+    if(!r.ok){console.error(fnName,r.status,await r.text());return[];}
+    return r.json();
+  }catch(e){console.error(e);return[];}
+}
 const g=id=>document.getElementById(id);
 const show=id=>g(id).classList.remove('dn');
 const hide=id=>g(id).classList.add('dn');
@@ -928,18 +936,36 @@ async function loadBank(ik){
     g('priorityView').style.display='none';
     g('brDetailView').style.display='block';
 
-    // Radius selector — target_dist_mi is precomputed up to 10mi per competitor,
-    // so every radius option below is a client-side filter over data already
-    // fetched here in one call, not a new query per radius click.
+    // Radius selector — fetch every branch within 10mi ONCE via a live geospatial
+    // query (Postgres/PostGIS, see branches_within_radius()), then every radius
+    // button below is just a client-side filter on distance_miles, no repeat
+    // queries per click. This replaced an earlier version built on
+    // branch_target_competitors, which turned out to be a curated top-3 sales-
+    // target shortlist, not a competitor census — it undercounted competitors
+    // and didn't match BMAP's Power BI Deep Dive numbers for the same branch.
     const RADII = [0.5, 1, 2, 5, 10];
     let selectedRadius = 5;
-    const compRows = await api('branch_target_competitors',
-      `my_branch_id=eq.${b.uninumbr}&select=target_dist_mi,target_dep_m&order=target_dist_mi.asc&limit=1000`);
+    let compRows = [];
+    const locLookup = await api('branch_opportunity_base',
+      `uninumbr=eq.${b.uninumbr}&select=sims_latitude,sims_longitude,inst_key&limit=1`);
+    const loc = locLookup[0];
+    if (loc && loc.sims_latitude && loc.sims_longitude) {
+      const excludeBankId = parseInt(String(loc.inst_key || '').replace(/^(bank_|cu_)/, ''), 10) || null;
+      const raw = await rpc('branches_within_radius', {
+        p_lat: +loc.sims_latitude,
+        p_lon: +loc.sims_longitude,
+        p_radius_miles: 10,
+        p_exclude_bank_id: excludeBankId,
+      });
+      compRows = (raw || []).map(c => ({ dist_mi: +c.distance_miles, dep_m: (+c.deposits || 0) / 1e6 }));
+    } else {
+      g('brRadiusStats').innerHTML = `<div style="font-size:11px;color:var(--muted)">Branch location not available — competitor radius unavailable.</div>`;
+    }
 
     const renderRadiusStats = (radius) => {
-      const inRadius = compRows.filter(c => c.target_dist_mi != null && +c.target_dist_mi <= radius);
+      const inRadius = compRows.filter(c => c.dist_mi != null && c.dist_mi <= radius);
       const compCount = inRadius.length;
-      const compDepM = inRadius.reduce((sum, c) => sum + (+c.target_dep_m || 0), 0);
+      const compDepM = inRadius.reduce((sum, c) => sum + (c.dep_m || 0), 0);
       const totalDepM = depM + compDepM;
       const shareP = totalDepM > 0 ? (depM / totalDepM * 100) : 0;
       g('brRadiusStats').innerHTML = `
@@ -962,7 +988,7 @@ async function loadBank(ik){
         renderRadiusStats(selectedRadius);
       };
     });
-    renderRadiusStats(selectedRadius);
+    if (loc && loc.sims_latitude && loc.sims_longitude) renderRadiusStats(selectedRadius);
   };
 
   window.clearBrDetail = () => {

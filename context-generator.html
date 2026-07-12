@@ -321,7 +321,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .hs-vs{font-size:13px;color:var(--muted)}
 .health-risk{border-left:1px solid var(--border);padding-left:16px;flex-shrink:0}
 .risk-val{font-size:14px;font-weight:700;color:var(--red)}
-.risk-lbl{font-size:10px;color:var(--muted)}
+.risk-lbl{font-size:10px;color:var(--muted);border-bottom:1px dashed var(--muted);cursor:default;position:relative;display:inline-block}
+.risk-lbl:hover .hs-tooltip{display:block}
 .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)}
 .dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border)}
 .dash-priority-card{padding:14px 18px}
@@ -519,7 +520,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
     <div class="health-risk">
       <div class="risk-val" id="atRisk">—</div>
-      <div class="risk-lbl" id="atRiskLbl">branches below average</div>
+      <div class="risk-lbl" id="atRiskLbl">branches below average ⓘ<div class="hs-tooltip">Total deposits currently sitting in branches classified as Defend or Justify — locations growing below the local market rate in their own geography. This reflects today's zone classification, not a loss forecast.</div></div>
     </div>
   </div>
 
@@ -879,11 +880,12 @@ async function loadBank(ik){
   // ── TILE MATRIX ─────────────────────────────────────────────────────────────
   let _selTile = null;
 
-  const showBrDetail = (b) => {
+  const showBrDetail = async (b) => {
     const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
     const cYoy = ((+b.avg_comp_yoy||0)*100).toFixed(1);
     const gap2 = (yoy - cYoy).toFixed(1);
-    const dep = ((+b.latest_dep||0)/1e6).toFixed(1);
+    const depM = (+b.latest_dep||0)/1e6;
+    const dep = depM.toFixed(1);
     const opp = (+b.opportunity_score||0).toFixed(1);
     const zone = b.opportunity_zone||'—';
     const play = b.campaign||'—';
@@ -913,9 +915,54 @@ async function loadBank(ik){
         <div class="br-sig"><span class="br-sig-l">Deposit size</span><span class="br-sig-v">${dsn} / 100</span></div>
         <div class="br-sig"><span class="br-sig-l">Quadrant</span><span class="br-sig-v">${b.matrix_quadrant||'—'}</span></div>
       </div>
+      <div class="br-radius-card" style="margin-top:10px;padding:12px 14px;background:var(--gray);border:1px solid var(--border);border-radius:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Market Share by Radius</span>
+          <div id="brRadiusBtns" style="display:flex;gap:4px"></div>
+        </div>
+        <div id="brRadiusStats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div style="font-size:11px;color:var(--muted)">Loading competitor data…</div>
+        </div>
+      </div>
     </div>`;
     g('priorityView').style.display='none';
     g('brDetailView').style.display='block';
+
+    // Radius selector — target_dist_mi is precomputed up to 10mi per competitor,
+    // so every radius option below is a client-side filter over data already
+    // fetched here in one call, not a new query per radius click.
+    const RADII = [0.5, 1, 2, 5, 10];
+    let selectedRadius = 5;
+    const compRows = await api('branch_target_competitors',
+      `my_branch_id=eq.${b.uninumbr}&select=target_dist_mi,target_dep_m&order=target_dist_mi.asc&limit=1000`);
+
+    const renderRadiusStats = (radius) => {
+      const inRadius = compRows.filter(c => c.target_dist_mi != null && +c.target_dist_mi <= radius);
+      const compCount = inRadius.length;
+      const compDepM = inRadius.reduce((sum, c) => sum + (+c.target_dep_m || 0), 0);
+      const totalDepM = depM + compDepM;
+      const shareP = totalDepM > 0 ? (depM / totalDepM * 100) : 0;
+      g('brRadiusStats').innerHTML = `
+        <div><div style="font-size:16px;font-weight:800;color:var(--navy)">${compCount}</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitors</div></div>
+        <div><div style="font-size:16px;font-weight:800;color:var(--navy)">$${compDepM.toFixed(0)}M</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitor deposits</div></div>
+        <div><div style="font-size:16px;font-weight:800;color:var(--teal)">${shareP.toFixed(1)}%</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Market share</div></div>`;
+    };
+
+    g('brRadiusBtns').innerHTML = RADII.map(r =>
+      `<button class="br-radius-btn" data-r="${r}" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:${r===selectedRadius?'var(--navy)':'var(--white)'};color:${r===selectedRadius?'#fff':'var(--text)'};cursor:pointer">${r}mi</button>`
+    ).join('');
+    g('brRadiusBtns').querySelectorAll('.br-radius-btn').forEach(btn => {
+      btn.onclick = () => {
+        selectedRadius = +btn.dataset.r;
+        g('brRadiusBtns').querySelectorAll('.br-radius-btn').forEach(b2 => {
+          const active = +b2.dataset.r === selectedRadius;
+          b2.style.background = active ? 'var(--navy)' : 'var(--white)';
+          b2.style.color = active ? '#fff' : 'var(--text)';
+        });
+        renderRadiusStats(selectedRadius);
+      };
+    });
+    renderRadiusStats(selectedRadius);
   };
 
   window.clearBrDetail = () => {

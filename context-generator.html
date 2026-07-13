@@ -736,6 +736,18 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 </div>
 
 <script>
+// ── WEBINAR MODE ─────────────────────────────────────────────
+// Temporarily hides the Prospecting tab and the Pitch Deck Context
+// workflow tile for the July 15 webinar. To turn both back on after
+// the webinar, just flip this one flag to false — nothing else to
+// touch, nothing was deleted.
+const WEBINAR_MODE = true;
+if (WEBINAR_MODE) {
+  const tabPro = document.getElementById('tabPro');
+  if (tabPro) tabPro.classList.add('dn');
+  const w1 = document.getElementById('w1');
+  if (w1) w1.classList.add('dn');
+}
 // ── ACCESS CONTROL ─────────────────────────────────────────────
 const ACCESS_TOKEN = 'verlocity2026';
 // ── ANTHROPIC API KEY ──────────────────────────────────────────
@@ -902,9 +914,6 @@ async function loadBank(ik){
     const zB={Invest:'#EAF3DE',Analyze:'#DBEAFE',Defend:'#FEF9C3',Justify:'#FCEBEB'};
     const zc=zC[zone]||'#374151', zb=zB[zone]||'#F3F4F6';
     const yoyC=+yoy>=0?'#27500A':'#A32D2D', gapC=+gap2>=0?'#27500A':'#A32D2D';
-    const mgn=(+b.market_growth_normalized||0).toFixed(1);
-    const rgn=(+b.rel_growth_norm||0).toFixed(1);
-    const idn=(+b.inv_density_norm_winsor||0).toFixed(1);
     const dsn=(+b.deposit_size_norm||0).toFixed(1);
     g('brDetailView').innerHTML=`<div class="br-detail">
       <div class="br-dhead">
@@ -917,11 +926,9 @@ async function loadBank(ik){
         <div class="br-sc"><div class="br-sc-val" style="color:${gapC}">${+gap2>=0?'+':''}${gap2}pp</div><div class="br-sc-lbl">Gap to peers</div><span class="br-sc-sub" style="color:${zc}">${play}</span></div>
       </div>
       <div class="br-sigs">
-        <div class="br-sig"><span class="br-sig-l">Market growth</span><span class="br-sig-v">${mgn} / 100</span></div>
-        <div class="br-sig"><span class="br-sig-l">Relative growth</span><span class="br-sig-v">${rgn} / 100</span></div>
-        <div class="br-sig"><span class="br-sig-l">Inverted density</span><span class="br-sig-v">${idn} / 100</span></div>
         <div class="br-sig"><span class="br-sig-l">Deposit size</span><span class="br-sig-v">${dsn} / 100</span></div>
         <div class="br-sig"><span class="br-sig-l">Quadrant</span><span class="br-sig-v">${b.matrix_quadrant||'—'}</span></div>
+        <div class="br-sig"><span class="br-sig-l">Play</span><span class="br-sig-v">${play}</span></div>
       </div>
       <div class="br-radius-card" style="margin-top:10px;padding:12px 14px;background:var(--gray);border:1px solid var(--border);border-radius:8px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -931,6 +938,7 @@ async function loadBank(ik){
         <div id="brRadiusStats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
           <div style="font-size:11px;color:var(--muted)">Loading competitor data…</div>
         </div>
+        <div id="brTopComp" style="margin-top:10px"></div>
       </div>
     </div>`;
     g('priorityView').style.display='none';
@@ -957,7 +965,7 @@ async function loadBank(ik){
         p_radius_miles: 10,
         p_exclude_bank_id: excludeBankId,
       });
-      compRows = (raw || []).map(c => ({ dist_mi: +c.distance_miles, dep_m: (+c.deposits || 0) / 1e6 }));
+      compRows = (raw || []).map(c => ({ dist_mi: +c.distance_miles, dep_m: (+c.deposits || 0) / 1e6, bank_name: c.bank_name || '—' }));
     } else {
       g('brRadiusStats').innerHTML = `<div style="font-size:11px;color:var(--muted)">Branch location not available — competitor radius unavailable.</div>`;
     }
@@ -972,6 +980,34 @@ async function loadBank(ik){
         <div><div style="font-size:16px;font-weight:800;color:var(--navy)">${compCount}</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitors</div></div>
         <div><div style="font-size:16px;font-weight:800;color:var(--navy)">$${compDepM.toFixed(0)}M</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitor deposits</div></div>
         <div><div style="font-size:16px;font-weight:800;color:var(--teal)">${shareP.toFixed(1)}%</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Market share</div></div>`;
+
+      // Top 3 by deposits within the currently selected radius. Each row's
+      // "market share" uses the SAME denominator as the aggregate figure
+      // above (own branch deposits + all competitor deposits in radius),
+      // so the numbers are directly comparable, not a separate calculation.
+      const top3 = [...inRadius].sort((a, b2) => (b2.dep_m || 0) - (a.dep_m || 0)).slice(0, 3);
+      if (top3.length === 0) {
+        g('brTopComp').innerHTML = `<div style="font-size:10px;color:var(--muted);padding-top:6px;border-top:1px solid var(--border)">No competitors within ${radius}mi.</div>`;
+      } else {
+        const rows = top3.map(c => {
+          const cShare = totalDepM > 0 ? (c.dep_m / totalDepM * 100) : 0;
+          return `<tr>
+            <td style="padding:4px 0;font-size:10.5px;color:var(--text)">${c.bank_name}</td>
+            <td style="padding:4px 0;font-size:10.5px;color:var(--navy);font-weight:700;text-align:right">$${c.dep_m.toFixed(0)}M</td>
+            <td style="padding:4px 0;font-size:10.5px;color:var(--teal);font-weight:700;text-align:right">${cShare.toFixed(1)}%</td>
+          </tr>`;
+        }).join('');
+        g('brTopComp').innerHTML = `
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:6px;border-top:1px solid var(--border);margin-bottom:4px">Top Competitors by Deposits</div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="text-align:left;font-size:8.5px;color:var(--muted);text-transform:uppercase;font-weight:700;padding-bottom:2px">Bank</th>
+              <th style="text-align:right;font-size:8.5px;color:var(--muted);text-transform:uppercase;font-weight:700;padding-bottom:2px">Deposits</th>
+              <th style="text-align:right;font-size:8.5px;color:var(--muted);text-transform:uppercase;font-weight:700;padding-bottom:2px">Share</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
     };
 
     g('brRadiusBtns').innerHTML = RADII.map(r =>

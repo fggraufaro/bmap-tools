@@ -965,7 +965,7 @@ async function loadBank(ik){
         p_radius_miles: 10,
         p_exclude_bank_id: excludeBankId,
       });
-      compRows = (raw || []).map(c => ({ dist_mi: +c.distance_miles, dep_m: (+c.deposits || 0) / 1e6, bank_name: c.bank_name || '—' }));
+      compRows = (raw || []).map(c => ({ dist_mi: +c.distance_miles, dep_m: (+c.deposits || 0) / 1e6, bank_name: c.bank_name || '—', bank_id: c.bank_id }));
     } else {
       g('brRadiusStats').innerHTML = `<div style="font-size:11px;color:var(--muted)">Branch location not available — competitor radius unavailable.</div>`;
     }
@@ -985,7 +985,13 @@ async function loadBank(ik){
       // "market share" uses the SAME denominator as the aggregate figure
       // above (own branch deposits + all competitor deposits in radius),
       // so the numbers are directly comparable, not a separate calculation.
-      const top3 = [...inRadius].sort((a, b2) => (b2.dep_m || 0) - (a.dep_m || 0)).slice(0, 3);
+      const byBank = new Map();
+      for (const c of inRadius) {
+        const key = c.bank_id != null ? c.bank_id : c.bank_name;
+        if (!byBank.has(key)) byBank.set(key, { bank_name: c.bank_name, dep_m: 0 });
+        byBank.get(key).dep_m += (c.dep_m || 0);
+      }
+      const top3 = [...byBank.values()].sort((a, b2) => (b2.dep_m || 0) - (a.dep_m || 0)).slice(0, 3);
       if (top3.length === 0) {
         g('brTopComp').innerHTML = `<div style="font-size:10px;color:var(--muted);padding-top:6px;border-top:1px solid var(--border)">No competitors within ${radius}mi.</div>`;
       } else {

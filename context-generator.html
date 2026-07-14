@@ -756,7 +756,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <div class="mp-field"><label>Avg funded balance</label><input type="number" id="mpAvgBalance" value="8500" oninput="mpCalc()"><div class="mp-hint">Per new funded account</div></div>
           <div class="mp-field"><label>12mo value per account</label><input type="number" id="mpValuePerAcct" value="350" oninput="mpCalc()"><div class="mp-hint">Contribution value, not just deposit</div></div>
           <div class="mp-field"><label>Branch capacity</label><input type="number" id="mpCapacity" value="300" oninput="mpCalc()"><div class="mp-hint">Net-new accounts branch can service</div></div>
-          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="9000" oninput="mpCalc()"><div class="mp-hint">Manual until Analytics 360 audience sizing is wired in</div></div>
+          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="27382" oninput="mpCalc()"><div class="mp-hint">BMAP adult population (18+) for branch ZIP, from Census age brackets — swap for Analytics 360 audience once wired in</div></div>
         </div>
         <div class="mp-hint" style="margin-top:14px">These are pre-loaded with the Hancock Whitney / Daphne Branch benchmark case — edit anything and the forecast recalculates live. Conversion rates and channel mix live under "Assumptions &amp; Benchmarks" — set those once and leave them unless you're deliberately tuning the model.</div>
       </div>
@@ -954,7 +954,7 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,adult_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt||[],ik};
@@ -1665,8 +1665,15 @@ function mpRenderQual(){
     const b=mpBranch;
     nameEl.textContent=`${b.namebr} — ${b.citybr||''}, ${b.stalpbr||''}`;
     metaEl.textContent=`Zone: ${b.opportunity_zone||'—'} · Opportunity Score: ${b.opportunity_score?(+b.opportunity_score).toFixed(0):'—'} · Play: ${b.campaign||'—'} · Household Income: $${b.household_income?Math.round(+b.household_income).toLocaleString():'—'} · Population: ${b.total_population?Math.round(+b.total_population).toLocaleString():'—'}${b.yoy_pop_growth?` (${(+b.yoy_pop_growth*100>=0?'+':'')+(+b.yoy_pop_growth*100).toFixed(1)}% YoY)`:''}`;
-    // Rough audience proxy from population until Analytics 360 is wired in — editable
-    if(b.total_population){const aud=g('mpAudience');if(aud)aud.value=Math.round(+b.total_population*0.25);}
+    // Qualified audience = BMAP adult population (18+) for the branch ZIP,
+    // computed from Census ACS age brackets — not a guessed multiplier.
+    // Still a placeholder for true Analytics 360 audience sizing, but now
+    // grounded in real BMAP demographic data instead of a flat assumption.
+    const aud=g('mpAudience');
+    if(aud){
+      if(b.adult_population)aud.value=Math.round(+b.adult_population);
+      else if(b.total_population)aud.value=Math.round(+b.total_population*0.76); // fallback: national avg adult share
+    }
   } else {
     nameEl.textContent='Daphne Branch (example — select a branch above)';
     metaEl.textContent='Zone: Invest · Opportunity Score: 71 · Play: Grow Share · Household Income: $89,000 · Population: 36,484 (+5.6% YoY)';

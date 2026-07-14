@@ -891,9 +891,9 @@ async function rpc(fnName,body){
   }catch(e){console.error(e);return[];}
 }
 const g=id=>document.getElementById(id);
-const show=id=>g(id).classList.remove('dn');
-const hide=id=>g(id).classList.add('dn');
-const set=(id,v)=>g(id).textContent=v;
+const show=id=>{const el=g(id);if(el)el.classList.remove('dn');};
+const hide=id=>{const el=g(id);if(el)el.classList.add('dn');};
+const set=(id,v)=>{const el=g(id);if(el)el.textContent=v;};
 const spill=z=>({Invest:'sp-i',Analyze:'sp-a',Defend:'sp-d',Justify:'sp-j'})[z]||'sp-a';
 
 function hl(name,q){

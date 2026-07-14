@@ -132,6 +132,29 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .ag-field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .ag-field select{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--white);color:var(--text);font-family:'Inter',system-ui,sans-serif}
 .ag-field select:focus{border-color:var(--navy);outline:none}
+.mp-field{display:flex;flex-direction:column;gap:4px}
+.mp-field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.mp-field input{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--white);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.mp-field input:focus{border-color:var(--navy);outline:none}
+.mp-hint{font-size:9px;color:var(--muted);opacity:.8;margin-top:1px}
+.mp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.mp-chan-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.mp-chan-table th{padding:6px 8px;text-align:left;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.mp-chan-table td{padding:5px 8px;border-bottom:1px solid #f0f0ee}
+.mp-chan-table input{width:64px;padding:4px 6px;border:1.5px solid var(--border);border-radius:5px;font-size:11px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.mp-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;border-top:1px solid var(--border)}
+.mp-metric{text-align:center;padding:14px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.mp-metric:last-child{border-right:none}
+.mp-metric-v{font-size:19px;font-weight:800;color:var(--navy);font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.mp-metric-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+.mp-verdict{padding:12px 20px;text-align:center;font-size:13px;font-weight:800;letter-spacing:.03em}
+.mp-verdict-go{background:var(--lgreen);color:var(--green)}
+.mp-verdict-review{background:#FDF3E3;color:#8A5A00}
+.mp-funnel{padding:14px 20px;font-size:11px;line-height:2;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.mp-funnel b{color:var(--navy)}
+.mp-qual{background:var(--navy);padding:12px 20px;color:#fff}
+.mp-qual-b{font-size:14px;font-weight:700}
+.mp-qual-d{font-size:10px;color:rgba(255,255,255,.55);margin-top:3px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .ag-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
 .ag-scard{background:var(--gray);border-radius:7px;padding:9px 12px}
 .ag-scard-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
@@ -593,11 +616,12 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
     <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
     <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Rate Radar CSV</div><div class="wf-d">Top 20 competitors by vulnerability score — ready to drop into Rate Radar</div><span class="wf-tag">RATE RADAR</span></div>
+    <div class="wf" id="w7" onclick="selWf(7)"><div class="wf-n">06</div><div class="wf-t">MediaPredict ROI Calculator</div><div class="wf-d">Predictive deposit-growth funnel — budget, CAC, and value-to-CAC before a dollar is spent</div><span class="wf-tag">MEDIAPREDICT · NEW</span></div>
   </div>
 
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch for deep dive</div>
-    <select class="inp" id="bselect" style="cursor:pointer"><option value="">— select a branch —</option></select>
+    <select class="inp" id="bselect" style="cursor:pointer" onchange="if(selWfN===7)mpOnBranchChange()"><option value="">— select a branch —</option></select>
   </div>
 
   <!-- WF02 AUDIENCE GENERATOR -->
@@ -708,7 +732,56 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
   </div>
 
-  <button class="gen-btn dn" id="gb" onclick="generate()">Generate Context →</button>
+  <!-- WF07 MEDIAPREDICT ROI CALCULATOR -->
+  <div class="dn" id="mpWidget">
+    <div class="card" style="overflow:hidden">
+      <div class="mp-qual">
+        <div class="mp-qual-b" id="mpBranchName">Daphne Branch (example — select a branch above)</div>
+        <div class="mp-qual-d" id="mpBranchMeta">Zone: Invest · Opportunity Score: 71 · Play: Grow Share · Household Income: $89,000 · Population: 36,484 (+5.6% YoY)</div>
+      </div>
+      <div class="card-pad">
+        <div class="label" style="margin-bottom:10px">Campaign goal &amp; conversion funnel</div>
+        <div class="mp-grid">
+          <div class="mp-field"><label>Deposit goal (12mo)</label><input type="number" id="mpDepositGoal" value="2000000" oninput="mpCalc()"><div class="mp-hint">Target new consumer checking deposits</div></div>
+          <div class="mp-field"><label>Avg funded balance</label><input type="number" id="mpAvgBalance" value="8500" oninput="mpCalc()"><div class="mp-hint">Per new funded account</div></div>
+          <div class="mp-field"><label>Open→funded rate</label><input type="number" step="0.01" id="mpFundedRate" value="0.70" oninput="mpCalc()"><div class="mp-hint">Benchmark: 65%–75%</div></div>
+          <div class="mp-field"><label>App→open rate</label><input type="number" step="0.01" id="mpAppOpenRate" value="0.80" oninput="mpCalc()"><div class="mp-hint">Benchmark: 75%–85%</div></div>
+          <div class="mp-field"><label>LP visitor→app start</label><input type="number" step="0.01" id="mpLpAppRate" value="0.10" oninput="mpCalc()"><div class="mp-hint">Benchmark: 8%–12%</div></div>
+          <div class="mp-field"><label>Click→LP engagement</label><input type="number" step="0.01" id="mpClickLpRate" value="0.25" oninput="mpCalc()"><div class="mp-hint">Benchmark: 20%–30%</div></div>
+          <div class="mp-field"><label>12mo value per account</label><input type="number" id="mpValuePerAcct" value="350" oninput="mpCalc()"><div class="mp-hint">Contribution value, not just deposit</div></div>
+          <div class="mp-field"><label>Branch capacity</label><input type="number" id="mpCapacity" value="300" oninput="mpCalc()"><div class="mp-hint">Net-new accounts branch can service</div></div>
+          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="9000" oninput="mpCalc()"><div class="mp-hint">Manual until Analytics 360 audience sizing is wired in</div></div>
+        </div>
+
+        <div class="label" style="margin:18px 0 4px">Paid media channel mix — click-through rate</div>
+        <table class="mp-chan-table">
+          <thead><tr><th>Channel</th><th>Weight</th><th>Base CTR</th></tr></thead>
+          <tbody>
+            <tr><td>Display</td><td><input type="number" step="0.01" id="mpCtrWDisplay" value="0.40" oninput="mpCalc()"></td><td><input type="number" step="0.0001" id="mpCtrDisplay" value="0.0018" oninput="mpCalc()"></td></tr>
+            <tr><td>Paid Social (Meta)</td><td><input type="number" step="0.01" id="mpCtrWSocial" value="0.35" oninput="mpCalc()"></td><td><input type="number" step="0.0001" id="mpCtrSocial" value="0.0100" oninput="mpCalc()"></td></tr>
+            <tr><td>Paid Search (Google)</td><td><input type="number" step="0.01" id="mpCtrWSearch" value="0.15" oninput="mpCalc()"></td><td><input type="number" step="0.0001" id="mpCtrSearch" value="0.0550" oninput="mpCalc()"></td></tr>
+            <tr><td>YouTube / OLV</td><td><input type="number" step="0.01" id="mpCtrWYt" value="0.10" oninput="mpCalc()"></td><td><input type="number" step="0.0001" id="mpCtrYt" value="0.0015" oninput="mpCalc()"></td></tr>
+          </tbody>
+        </table>
+
+        <div class="label" style="margin:18px 0 4px">Paid media channel mix — CPM</div>
+        <table class="mp-chan-table">
+          <thead><tr><th>Channel</th><th>Weight</th><th>Base CPM</th></tr></thead>
+          <tbody>
+            <tr><td>Display</td><td><input type="number" step="0.01" id="mpCpmWDisplay" value="0.40" oninput="mpCalc()"></td><td><input type="number" step="0.01" id="mpCpmDisplay" value="5.00" oninput="mpCalc()"></td></tr>
+            <tr><td>Paid Social (Meta)</td><td><input type="number" step="0.01" id="mpCpmWSocial" value="0.35" oninput="mpCalc()"></td><td><input type="number" step="0.01" id="mpCpmSocial" value="15.00" oninput="mpCalc()"></td></tr>
+            <tr><td>Paid Search (Google)</td><td><input type="number" step="0.01" id="mpCpmWSearch" value="0.15" oninput="mpCalc()"></td><td><input type="number" step="0.01" id="mpCpmSearch" value="10.00" oninput="mpCalc()"></td></tr>
+            <tr><td>YouTube / OLV</td><td><input type="number" step="0.01" id="mpCpmWYt" value="0.10" oninput="mpCalc()"></td><td><input type="number" step="0.01" id="mpCpmYt" value="12.00" oninput="mpCalc()"></td></tr>
+          </tbody>
+        </table>
+        <div class="mp-hint" style="margin-top:10px">Fields are pre-loaded with the Hancock Whitney / Daphne Branch benchmark case — edit anything above and the forecast recalculates live.</div>
+      </div>
+
+      <div class="mp-funnel" id="mpFunnel"></div>
+      <div class="mp-metrics" id="mpMetrics"></div>
+      <div class="mp-verdict" id="mpVerdict"></div>
+    </div>
+  </div>
   <div class="loading" id="ld"><span class="spin"></span>Pulling data from BMAP...</div>
   <div class="out-card dn" id="oc">
     <div class="out-hdr"><div class="out-t" id="ot">CONTEXT OUTPUT</div><button class="copy-btn" id="cb" onclick="copyOut()">Copy to clipboard</button></div>
@@ -864,7 +937,7 @@ async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt||[],ik};
@@ -1446,7 +1519,7 @@ async function loadBank(ik){
   if(qxBtn){qxBtn.disabled=false;qxBtn.innerHTML='⬇ Quick Export <span style="font-size:9px">▾</span>';}
   document.getElementById('snapLd').classList.remove('on');
   document.getElementById('briefLd').classList.remove('on');
-  show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');
+  show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');hide('mpWidget');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
 }
 
@@ -1454,12 +1527,13 @@ function selWf(n){
   selWfN=n;
   document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');
-  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');
+  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');hide('mpWidget');
   g('agLd').classList.remove('on');
   if(n===2){hide('gb');hide('bsel');show('agWidget');agLoadAndCompute();return;}
   if(n===5){hide('gb');hide('bsel');loadRRWidget();return;}
   if(n===3){hide('gb');hide('bsel');renderBrief();return;}
   if(n===6){hide('gb');hide('bsel');show('pptWidget');return;}
+  if(n===7){hide('gb');show('bsel');show('mpWidget');mpOnBranchChange();mpCalc();return;}
   if(n===1){hide('gb');hide('bsel');generate();return;}
   show('gb');n===4?show('bsel'):hide('bsel');
 }
@@ -1549,8 +1623,104 @@ async function runBatchExport() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// WF02 — AUDIENCE GENERATOR
+// WF07 — MEDIAPREDICT ROI CALCULATOR
 // ══════════════════════════════════════════════════════════════
+let mpBranch=null;
+
+function mpOnBranchChange(){
+  const uid=g('bselect')?g('bselect').value:'';
+  if(!uid||!bankData){mpBranch=null;mpRenderQual();return;}
+  mpBranch=(bankData.allBr||[]).find(r=>String(r.uninumbr)===String(uid))||null;
+  mpRenderQual();
+}
+
+function mpRenderQual(){
+  const nameEl=g('mpBranchName'),metaEl=g('mpBranchMeta');
+  if(!nameEl||!metaEl)return;
+  if(mpBranch){
+    const b=mpBranch;
+    nameEl.textContent=`${b.namebr} — ${b.citybr||''}, ${b.stalpbr||''}`;
+    metaEl.textContent=`Zone: ${b.opportunity_zone||'—'} · Opportunity Score: ${b.opportunity_score?(+b.opportunity_score).toFixed(0):'—'} · Play: ${b.campaign||'—'} · Household Income: $${b.household_income?Math.round(+b.household_income).toLocaleString():'—'} · Population: ${b.total_population?Math.round(+b.total_population).toLocaleString():'—'}${b.yoy_pop_growth?` (${(+b.yoy_pop_growth*100>=0?'+':'')+(+b.yoy_pop_growth*100).toFixed(1)}% YoY)`:''}`;
+    // Rough audience proxy from population until Analytics 360 is wired in — editable
+    if(b.total_population){const aud=g('mpAudience');if(aud)aud.value=Math.round(+b.total_population*0.25);}
+  } else {
+    nameEl.textContent='Daphne Branch (example — select a branch above)';
+    metaEl.textContent='Zone: Invest · Opportunity Score: 71 · Play: Grow Share · Household Income: $89,000 · Population: 36,484 (+5.6% YoY)';
+  }
+}
+
+function mpNum(id){const el=g(id);return el?(parseFloat(el.value)||0):0;}
+
+function mpBlend(wIds,vIds){
+  let w=0,acc=0;
+  for(let i=0;i<wIds.length;i++){const wi=mpNum(wIds[i]);acc+=wi*mpNum(vIds[i]);w+=wi;}
+  return acc; // weighted sum already accounts for weight normalization if weights sum to 1
+}
+
+function mpCalc(){
+  if(!g('mpFunnel'))return;
+  const depositGoal=mpNum('mpDepositGoal');
+  const avgBalance=mpNum('mpAvgBalance')||1;
+  const fundedRate=mpNum('mpFundedRate')||0.01;
+  const appOpenRate=mpNum('mpAppOpenRate')||0.01;
+  const lpAppRate=mpNum('mpLpAppRate')||0.01;
+  const clickLpRate=mpNum('mpClickLpRate')||0.01;
+  const valuePerAcct=mpNum('mpValuePerAcct');
+  const capacity=mpNum('mpCapacity')||1;
+  const audience=mpNum('mpAudience');
+
+  const blendedCTR=mpBlend(['mpCtrWDisplay','mpCtrWSocial','mpCtrWSearch','mpCtrWYt'],['mpCtrDisplay','mpCtrSocial','mpCtrSearch','mpCtrYt'])||0.0001;
+  const blendedCPM=mpBlend(['mpCpmWDisplay','mpCpmWSocial','mpCpmWSearch','mpCpmWYt'],['mpCpmDisplay','mpCpmSocial','mpCpmSearch','mpCpmYt']);
+
+  const fundedAccounts=Math.round(depositGoal/avgBalance);
+  const openedAccounts=Math.round(fundedAccounts/fundedRate);
+  const applications=Math.round(openedAccounts/appOpenRate);
+  const lpVisitors=Math.round(applications/lpAppRate);
+  const adClicks=Math.round(lpVisitors/clickLpRate);
+  const impressions=Math.round(adClicks/blendedCTR);
+  const annualSpend=Math.round((impressions/1000)*blendedCPM);
+  const mediaCAC=fundedAccounts>0?(annualSpend/fundedAccounts):0;
+  const totalContribution=Math.round(fundedAccounts*valuePerAcct);
+  const netContribution=totalContribution-annualSpend;
+  const valueToCAC=mediaCAC>0?(valuePerAcct/mediaCAC):0;
+  const capacityUtil=capacity>0?(fundedAccounts/capacity*100):0;
+  const capacityPass=fundedAccounts<=capacity;
+
+  // Reach/frequency gate — audience should cover unique reach at a 15x cap over 4 flights
+  const freqCap=20,flights=4;
+  const minReachPerFlight=Math.round((impressions/flights)/freqCap);
+  const audienceOK=audience>=minReachPerFlight;
+
+  const fmt=(n)=>Math.round(n).toLocaleString();
+  const fmtM=(n)=>'$'+fmt(n);
+
+  g('mpFunnel').innerHTML=
+    `Deposit goal: <b>${fmtM(depositGoal)}</b> ÷ avg balance <b>${fmtM(avgBalance)}</b> → <b>${fmt(fundedAccounts)}</b> funded accounts required<br>`+
+    `÷ open→funded rate <b>${(fundedRate*100).toFixed(0)}%</b> → <b>${fmt(openedAccounts)}</b> opened accounts required<br>`+
+    `÷ app→open rate <b>${(appOpenRate*100).toFixed(0)}%</b> → <b>${fmt(applications)}</b> completed applications required<br>`+
+    `÷ LP→app rate <b>${(lpAppRate*100).toFixed(0)}%</b> → <b>${fmt(lpVisitors)}</b> landing page visitors required<br>`+
+    `÷ click→LP rate <b>${(clickLpRate*100).toFixed(0)}%</b> → <b>${fmt(adClicks)}</b> ad-driven clicks required<br>`+
+    `÷ blended CTR <b>${(blendedCTR*100).toFixed(2)}%</b> → <b>${fmt(impressions)}</b> impressions required<br>`+
+    `× blended CPM <b>$${blendedCPM.toFixed(2)}</b> → <b>${fmtM(annualSpend)}</b> estimated annual media spend<br>`+
+    `Audience check: need ≥<b>${fmt(minReachPerFlight)}</b> unique reach/flight vs. <b>${fmt(audience)}</b> qualified audience — ${audienceOK?'<b style="color:var(--green)">covers required reach</b>':'<b style="color:var(--red)">audience may be too small — widen radius or add segments</b>'}`;
+
+  g('mpMetrics').innerHTML=
+    `<div class="mp-metric"><div class="mp-metric-v">${fmt(fundedAccounts)}</div><div class="mp-metric-l">Funded accounts</div></div>`+
+    `<div class="mp-metric"><div class="mp-metric-v">$${mediaCAC.toFixed(2)}</div><div class="mp-metric-l">Media CAC / account</div></div>`+
+    `<div class="mp-metric"><div class="mp-metric-v">${fmtM(totalContribution)}</div><div class="mp-metric-l">12mo contribution value</div></div>`+
+    `<div class="mp-metric"><div class="mp-metric-v">${valueToCAC.toFixed(1)}x</div><div class="mp-metric-l">Value-to-CAC ratio</div></div>`+
+    `<div class="mp-metric"><div class="mp-metric-v">${fmtM(netContribution)}</div><div class="mp-metric-l">Net contribution</div></div>`+
+    `<div class="mp-metric"><div class="mp-metric-v">${capacityUtil.toFixed(1)}%</div><div class="mp-metric-l">Capacity utilization</div></div>`;
+
+  const go=valueToCAC>=3&&capacityPass&&audienceOK;
+  const vEl=g('mpVerdict');
+  vEl.className='mp-verdict '+(go?'mp-verdict-go':'mp-verdict-review');
+  vEl.textContent=go
+    ?`GO — ${valueToCAC.toFixed(1)}x value-to-CAC, ${capacityUtil.toFixed(0)}% capacity utilization, audience covers required reach`
+    :`NEEDS REVIEW — ${!capacityPass?'exceeds branch capacity. ':''}${valueToCAC<3?'value-to-CAC below 3x guardrail. ':''}${!audienceOK?'qualified audience below required reach.':''}`;
+}
+
+
 let agBranchData=null;
 async function agLoadAndCompute(){
   if(!selBank||!bankData)return;

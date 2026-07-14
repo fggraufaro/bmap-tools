@@ -155,6 +155,11 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .mp-qual{background:var(--navy);padding:12px 20px;color:#fff}
 .mp-qual-b{font-size:14px;font-weight:700}
 .mp-qual-d{font-size:10px;color:rgba(255,255,255,.55);margin-top:3px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.mp-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--gray)}
+.mp-tab{padding:11px 18px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;transition:all .15s}
+.mp-tab:hover{color:var(--navy)}
+.mp-tab.active{color:var(--navy);border-bottom:3px solid var(--teal);background:var(--white)}
+.mp-tabpanel.dn{display:none}
 .ag-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
 .ag-scard{background:var(--gray);border-radius:7px;padding:9px 12px}
 .ag-scard-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
@@ -739,18 +744,30 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
         <div class="mp-qual-b" id="mpBranchName">Daphne Branch (example — select a branch above)</div>
         <div class="mp-qual-d" id="mpBranchMeta">Zone: Invest · Opportunity Score: 71 · Play: Grow Share · Household Income: $89,000 · Population: 36,484 (+5.6% YoY)</div>
       </div>
-      <div class="card-pad">
-        <div class="label" style="margin-bottom:10px">Campaign goal &amp; conversion funnel</div>
+      <div class="mp-tabs">
+        <div class="mp-tab active" id="mpTabBtnInput" onclick="mpSwitchTab('input')">Campaign Input</div>
+        <div class="mp-tab" id="mpTabBtnSetup" onclick="mpSwitchTab('setup')">Assumptions &amp; Benchmarks</div>
+      </div>
+
+      <div class="card-pad mp-tabpanel" id="mpTabInput">
+        <div class="label" style="margin-bottom:10px">What this campaign needs to hit</div>
         <div class="mp-grid">
           <div class="mp-field"><label>Deposit goal (12mo)</label><input type="number" id="mpDepositGoal" value="2000000" oninput="mpCalc()"><div class="mp-hint">Target new consumer checking deposits</div></div>
           <div class="mp-field"><label>Avg funded balance</label><input type="number" id="mpAvgBalance" value="8500" oninput="mpCalc()"><div class="mp-hint">Per new funded account</div></div>
+          <div class="mp-field"><label>12mo value per account</label><input type="number" id="mpValuePerAcct" value="350" oninput="mpCalc()"><div class="mp-hint">Contribution value, not just deposit</div></div>
+          <div class="mp-field"><label>Branch capacity</label><input type="number" id="mpCapacity" value="300" oninput="mpCalc()"><div class="mp-hint">Net-new accounts branch can service</div></div>
+          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="9000" oninput="mpCalc()"><div class="mp-hint">Manual until Analytics 360 audience sizing is wired in</div></div>
+        </div>
+        <div class="mp-hint" style="margin-top:14px">These are pre-loaded with the Hancock Whitney / Daphne Branch benchmark case — edit anything and the forecast recalculates live. Conversion rates and channel mix live under "Assumptions &amp; Benchmarks" — set those once and leave them unless you're deliberately tuning the model.</div>
+      </div>
+
+      <div class="card-pad mp-tabpanel dn" id="mpTabSetup">
+        <div class="label" style="margin-bottom:10px">Conversion funnel assumptions</div>
+        <div class="mp-grid">
           <div class="mp-field"><label>Open→funded rate</label><input type="number" step="0.01" id="mpFundedRate" value="0.70" oninput="mpCalc()"><div class="mp-hint">Benchmark: 65%–75%</div></div>
           <div class="mp-field"><label>App→open rate</label><input type="number" step="0.01" id="mpAppOpenRate" value="0.80" oninput="mpCalc()"><div class="mp-hint">Benchmark: 75%–85%</div></div>
           <div class="mp-field"><label>LP visitor→app start</label><input type="number" step="0.01" id="mpLpAppRate" value="0.10" oninput="mpCalc()"><div class="mp-hint">Benchmark: 8%–12%</div></div>
           <div class="mp-field"><label>Click→LP engagement</label><input type="number" step="0.01" id="mpClickLpRate" value="0.25" oninput="mpCalc()"><div class="mp-hint">Benchmark: 20%–30%</div></div>
-          <div class="mp-field"><label>12mo value per account</label><input type="number" id="mpValuePerAcct" value="350" oninput="mpCalc()"><div class="mp-hint">Contribution value, not just deposit</div></div>
-          <div class="mp-field"><label>Branch capacity</label><input type="number" id="mpCapacity" value="300" oninput="mpCalc()"><div class="mp-hint">Net-new accounts branch can service</div></div>
-          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="9000" oninput="mpCalc()"><div class="mp-hint">Manual until Analytics 360 audience sizing is wired in</div></div>
         </div>
 
         <div class="label" style="margin:18px 0 4px">Paid media channel mix — click-through rate</div>
@@ -774,7 +791,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
             <tr><td>YouTube / OLV</td><td><input type="number" step="0.01" id="mpCpmWYt" value="0.10" oninput="mpCalc()"></td><td><input type="number" step="0.01" id="mpCpmYt" value="12.00" oninput="mpCalc()"></td></tr>
           </tbody>
         </table>
-        <div class="mp-hint" style="margin-top:10px">Fields are pre-loaded with the Hancock Whitney / Daphne Branch benchmark case — edit anything above and the forecast recalculates live.</div>
+        <div class="mp-hint" style="margin-top:10px">Set these once per bank/market — they shouldn't need editing on every campaign.</div>
       </div>
 
       <div class="mp-funnel" id="mpFunnel"></div>
@@ -1626,6 +1643,13 @@ async function runBatchExport() {
 // WF07 — MEDIAPREDICT ROI CALCULATOR
 // ══════════════════════════════════════════════════════════════
 let mpBranch=null;
+
+function mpSwitchTab(tab){
+  g('mpTabBtnInput').classList.toggle('active',tab==='input');
+  g('mpTabBtnSetup').classList.toggle('active',tab==='setup');
+  g('mpTabInput').classList.toggle('dn',tab!=='input');
+  g('mpTabSetup').classList.toggle('dn',tab!=='setup');
+}
 
 function mpOnBranchChange(){
   const uid=g('bselect')?g('bselect').value:'';

@@ -2683,19 +2683,19 @@ async function runRadiusLookup(){
     return;
   }
   try{
-    const loc=await api('uszips',`zip=eq.${zip}&select=city,state&limit=1`);
-    if(!loc || !loc.length){
-      loading.style.display='none'; errBox.style.display='block';
-      errBox.textContent=`ZIP ${zip} not found in reference data.`;
-      return;
-    }
     const radii=[2,3,5];
     const rows=[];
     for(const mi of radii){
       const r=await rpc('radius_market_summary',{center_zip:zip,radius_miles:mi});
       rows.push({mi, d:(r&&r[0])||{}});
     }
-    g('radLocation').textContent=`${loc[0].city}, ${loc[0].state} ${zip}`;
+    const first=rows[0].d;
+    if(!first || !first.zip_city){
+      loading.style.display='none'; errBox.style.display='block';
+      errBox.textContent=`ZIP ${zip} not found in reference data.`;
+      return;
+    }
+    g('radLocation').textContent=`${first.zip_city}, ${first.zip_state} ${zip}`;
     g('radTableBody').innerHTML=rows.map(({mi,d})=>`
       <tr style="border-bottom:1px solid rgba(255,255,255,.08)">
         <td style="padding:8px 12px;font-weight:700">${mi} mi</td>

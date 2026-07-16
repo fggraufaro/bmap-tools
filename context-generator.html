@@ -831,7 +831,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 // workflow tile for the July 15 webinar. To turn both back on after
 // the webinar, just flip this one flag to false — nothing else to
 // touch, nothing was deleted.
-const WEBINAR_MODE = true;
+const WEBINAR_MODE = false;
 if (WEBINAR_MODE) {
   const tabPro = document.getElementById('tabPro');
   if (tabPro) tabPro.classList.add('dn');
@@ -839,22 +839,32 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── ACCESS CONTROL ─────────────────────────────────────────────
-const ACCESS_TOKEN = 'verlocity2026';
+// Passphrase is never stored in plaintext — only its SHA-256 hash lives here.
+// To change the passphrase: run in a terminal —
+//   python3 -c "import hashlib;print(hashlib.sha256('NEW_PASSPHRASE'.encode()).hexdigest())"
+// then paste the output below.
+const ACCESS_TOKEN_HASH = 'f841d3ca26fffbd6c4b8bd11255882c706c044747641bb2b1d4091e84a7e33d2';
 // ── ANTHROPIC API KEY ──────────────────────────────────────────
 const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 window.AI_PROXY = AI_PROXY;
 
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 (function(){
-  const stored = sessionStorage.getItem('bmap_access');
-  if(stored === ACCESS_TOKEN){
+  const stored = sessionStorage.getItem('bmap_access_hash');
+  if(stored === ACCESS_TOKEN_HASH){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
   }
 })();
-function checkAccess(){
+async function checkAccess(){
   const input = document.getElementById('tokenInput').value.trim();
-  if(input === ACCESS_TOKEN){
-    sessionStorage.setItem('bmap_access', ACCESS_TOKEN);
+  const inputHash = await sha256Hex(input);
+  if(inputHash === ACCESS_TOKEN_HASH){
+    sessionStorage.setItem('bmap_access_hash', ACCESS_TOKEN_HASH);
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
   } else {

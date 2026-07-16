@@ -493,6 +493,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 <div class="top-tabs">
   <div class="top-tab active" id="tabHub" onclick="switchTopTab('hub')">Intelligence Hub</div>
   <div class="top-tab" id="tabPro" onclick="switchTopTab('pro')">Prospecting <span class="tab-badge">NEW</span></div>
+  <div class="top-tab" id="tabRadius" onclick="switchTopTab('radius')">Punctual Radius <span class="tab-badge">NEW</span></div>
 </div>
 
 <div id="panelHub">
@@ -898,7 +899,7 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public'};
+const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public','uszips':'geo'};
 async function api(table,params){
   try{
     const schema=SCHEMA_MAP[table]||'public';
@@ -2249,8 +2250,10 @@ function copyOut(){
 function switchTopTab(tab){
   document.getElementById('panelHub').style.display=tab==='hub'?'block':'none';
   document.getElementById('panelPro').style.display=tab==='pro'?'block':'none';
+  document.getElementById('panelRadius').style.display=tab==='radius'?'block':'none';
   document.getElementById('tabHub').classList.toggle('active',tab==='hub');
   document.getElementById('tabPro').classList.toggle('active',tab==='pro');
+  document.getElementById('tabRadius').classList.toggle('active',tab==='radius');
   if(tab==='pro'&&!prLoaded) prLoad();
 }
 
@@ -2630,6 +2633,88 @@ function prExportCSV(){
 
 </div>
 </div><!-- /panelPro -->
+
+<div id="panelRadius" style="display:none">
+<div class="wrap">
+  <div class="card card-pad">
+    <div class="label">Punctual Radius Lookup</div>
+    <div style="color:rgba(255,255,255,.45);font-size:12px;margin-bottom:16px;line-height:1.5">
+      For addresses that are not retail branches (e.g. private banking offices). Enter a ZIP code —
+      we'll pull ZIP-centroid data, market demographics, and nearby branch/deposit context at 2, 3, and 5-mile radii.
+      <br><b style="color:#F5A623">Data quality note:</b> some ZIP centroids in this dataset use regional fallback
+      coordinates rather than precise centroids, which can occasionally pull in extra ZIPs at tighter radii.
+      Treat counts as directional, not exact.
+    </div>
+    <div class="search-row">
+      <div class="inp-wrap">
+        <input class="inp" id="radZip" type="text" placeholder="e.g. 11530" maxlength="5" style="max-width:160px">
+      </div>
+      <button class="btn" onclick="runRadiusLookup()">Run Lookup</button>
+    </div>
+    <div id="radLoading" style="display:none;color:rgba(255,255,255,.5);font-size:12px;margin-top:10px">Querying...</div>
+    <div id="radError" style="display:none;color:#F5A623;font-size:12px;margin-top:10px"></div>
+    <div id="radResults" style="display:none;margin-top:20px">
+      <div id="radLocation" style="color:#fff;font-size:14px;font-weight:700;margin-bottom:12px"></div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;color:rgba(255,255,255,.85)">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.15);text-align:left">
+            <th style="padding:8px 12px">Radius</th>
+            <th style="padding:8px 12px"># ZIPs</th>
+            <th style="padding:8px 12px">Population</th>
+            <th style="padding:8px 12px">Avg HH Income</th>
+            <th style="padding:8px 12px">Avg Home Value (ZHVI)</th>
+            <th style="padding:8px 12px"># Branches</th>
+            <th style="padding:8px 12px">Total Deposits</th>
+          </tr>
+        </thead>
+        <tbody id="radTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+async function runRadiusLookup(){
+  const zip=g('radZip').value.trim().padStart(5,'0');
+  const loading=g('radLoading'), errBox=g('radError'), results=g('radResults');
+  loading.style.display='block'; errBox.style.display='none'; results.style.display='none';
+  if(!/^[0-9]{5}$/.test(zip)){
+    loading.style.display='none'; errBox.style.display='block';
+    errBox.textContent='Enter a valid 5-digit ZIP code.';
+    return;
+  }
+  try{
+    const loc=await api('uszips',`zip=eq.${zip}&select=city,state&limit=1`);
+    if(!loc || !loc.length){
+      loading.style.display='none'; errBox.style.display='block';
+      errBox.textContent=`ZIP ${zip} not found in reference data.`;
+      return;
+    }
+    const radii=[2,3,5];
+    const rows=[];
+    for(const mi of radii){
+      const r=await rpc('radius_market_summary',{center_zip:zip,radius_miles:mi});
+      rows.push({mi, d:(r&&r[0])||{}});
+    }
+    g('radLocation').textContent=`${loc[0].city}, ${loc[0].state} ${zip}`;
+    g('radTableBody').innerHTML=rows.map(({mi,d})=>`
+      <tr style="border-bottom:1px solid rgba(255,255,255,.08)">
+        <td style="padding:8px 12px;font-weight:700">${mi} mi</td>
+        <td style="padding:8px 12px">${d.zip_count??'—'}</td>
+        <td style="padding:8px 12px">${d.total_population?Number(d.total_population).toLocaleString():'—'}</td>
+        <td style="padding:8px 12px">${d.avg_household_income?'$'+Number(d.avg_household_income).toLocaleString():'—'}</td>
+        <td style="padding:8px 12px">${d.avg_zhvi?'$'+Number(d.avg_zhvi).toLocaleString():'—'}</td>
+        <td style="padding:8px 12px">${d.branch_count??'—'}</td>
+        <td style="padding:8px 12px">${d.total_deposits?'$'+(Number(d.total_deposits)/1e6).toFixed(1)+'M':'—'}</td>
+      </tr>`).join('');
+    loading.style.display='none'; results.style.display='block';
+  }catch(e){
+    console.error(e);
+    loading.style.display='none'; errBox.style.display='block';
+    errBox.textContent='Lookup failed — check console for details.';
+  }
+}
+</script>
+</div><!-- /panelRadius -->
 
 </div>
 </body>

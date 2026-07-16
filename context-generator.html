@@ -839,32 +839,22 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── ACCESS CONTROL ─────────────────────────────────────────────
-// Passphrase is never stored in plaintext — only its SHA-256 hash lives here.
-// To change the passphrase: run in a terminal —
-//   python3 -c "import hashlib;print(hashlib.sha256('NEW_PASSPHRASE'.encode()).hexdigest())"
-// then paste the output below.
-const ACCESS_TOKEN_HASH = '558dc92ef0605aa771d73b8a4ef0e0ce4a65c4d019b690d55ece2ce1617ddff5';
+const ACCESS_TOKEN = 'verlocity2026!';
 // ── ANTHROPIC API KEY ──────────────────────────────────────────
 const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 window.AI_PROXY = AI_PROXY;
 
-async function sha256Hex(str){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
 (function(){
-  const stored = sessionStorage.getItem('bmap_access_hash');
-  if(stored === ACCESS_TOKEN_HASH){
+  const stored = sessionStorage.getItem('bmap_access');
+  if(stored === ACCESS_TOKEN){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
   }
 })();
-async function checkAccess(){
+function checkAccess(){
   const input = document.getElementById('tokenInput').value.trim();
-  const inputHash = await sha256Hex(input);
-  if(inputHash === ACCESS_TOKEN_HASH){
-    sessionStorage.setItem('bmap_access_hash', ACCESS_TOKEN_HASH);
+  if(input === ACCESS_TOKEN){
+    sessionStorage.setItem('bmap_access', ACCESS_TOKEN);
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
   } else {

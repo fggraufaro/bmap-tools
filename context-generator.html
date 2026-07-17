@@ -2653,7 +2653,11 @@ function prExportCSV(){
     <div id="radResults" style="display:none;margin-top:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div id="radLocation" style="color:var(--text);font-size:14px;font-weight:700"></div>
-        <button class="btn" onclick="exportRadiusData()" style="background:var(--teal)">⬇ Export ZIP Lists (CSV)</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="exportRadiusData()" style="background:var(--teal)">⬇ Export ZIP Lists (CSV)</button>
+          <button class="btn" onclick="exportRadiusBrief()" style="background:var(--navy)">⬇ Export Full Brief (TXT)</button>
+          <button class="btn" onclick="exportRadiusBriefCSV()" style="background:var(--emerald)">⬇ Export Full Brief (CSV)</button>
+        </div>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text);margin-bottom:20px">
         <thead>
@@ -2776,6 +2780,85 @@ async function generateRadiusPersona(row, idx){
     console.error('Persona generation failed for',mi,'mi:',e);
     target.innerHTML=`<div style="font-size:11px;color:var(--amber)">Persona generation failed — insufficient demographic data or AI service error.</div>`;
   }
+}
+
+function csvField(v){
+  const s=(v===null||v===undefined)?'':String(v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+
+function exportRadiusBriefCSV(){
+  if(!_radData) return;
+  const headers=[
+    'center_zip','city','state','radius_miles','zip_count','population',
+    'avg_household_income','avg_zhvi','branch_count','total_deposits',
+    'best_bank_name','best_branch_name','best_city','best_state','best_score',
+    'lowest_bank_name','lowest_branch_name','lowest_city','lowest_state','lowest_score',
+    'persona_name','persona_tagline','persona_life_stage','persona_wealth_signal',
+    'persona_primary_need','persona_switch_driver','zip_list'
+  ];
+  const lines=[headers.join(',')];
+
+  _radData.rows.forEach(({mi,d,zips,best,lowest,persona})=>{
+    const row=[
+      _radData.zip, _radData.city, _radData.state, mi,
+      d.zip_count??'', d.total_population??'', d.avg_household_income??'', d.avg_zhvi??'',
+      d.branch_count??'', d.total_deposits??'',
+      best?.bank_name??'', best?.branch_name??'', best?.city??'', best?.state??'', best?.opportunity_score??'',
+      lowest?.bank_name??'', lowest?.branch_name??'', lowest?.city??'', lowest?.state??'', lowest?.opportunity_score??'',
+      persona?.name??'', persona?.tagline??'', persona?.lifeStage??'', persona?.wealthSignal??'',
+      persona?.primaryNeed??'', persona?.switchDriver??'', zips.join('; ')
+    ];
+    lines.push(row.map(csvField).join(','));
+  });
+
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`market_discovery_brief_${_radData.zip}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+}
+
+function exportRadiusBrief(){
+  if(!_radData) return;
+  let txt=`MARKET DISCOVERY BRIEF — ${_radData.city}, ${_radData.state} ${_radData.zip}\n`;
+  txt+=`Verlocity Intelligence Hub · BMAP · First-level read — for Resonate / Analytics 360 input\n\n`;
+
+  _radData.rows.forEach(({mi,d,zips,best,lowest,persona})=>{
+    txt+=`${'='.repeat(60)}\n${mi}-MILE RADIUS\n${'='.repeat(60)}\n\n`;
+    txt+=`MARKET SNAPSHOT\n`;
+    txt+=`  ZIP codes in radius: ${d.zip_count??'—'}\n`;
+    txt+=`  Population: ${d.total_population?Number(d.total_population).toLocaleString():'—'}\n`;
+    txt+=`  Avg household income: ${d.avg_household_income?'$'+Number(d.avg_household_income).toLocaleString():'—'}\n`;
+    txt+=`  Avg home value (ZHVI): ${d.avg_zhvi?'$'+Number(d.avg_zhvi).toLocaleString():'—'}\n`;
+    txt+=`  Branches in radius: ${d.branch_count??'—'}\n`;
+    txt+=`  Total deposits: ${d.total_deposits?'$'+(Number(d.total_deposits)/1e6).toFixed(1)+'M':'—'}\n\n`;
+
+    txt+=`BEST OPPORTUNITY BRANCH\n`;
+    txt+=best?`  ${best.bank_name} — ${best.branch_name}\n  ${best.city}, ${best.state} · Score ${Number(best.opportunity_score).toFixed(1)}\n\n`:`  No branches in radius\n\n`;
+
+    txt+=`LOWEST OPPORTUNITY BRANCH\n`;
+    txt+=lowest?`  ${lowest.bank_name} — ${lowest.branch_name}\n  ${lowest.city}, ${lowest.state} · Score ${Number(lowest.opportunity_score).toFixed(1)}\n\n`:`  No branches in radius\n\n`;
+
+    txt+=`AUDIENCE PERSONA\n`;
+    if(persona){
+      txt+=`  ${persona.name||''} — ${persona.tagline||''}\n`;
+      txt+=`  Life stage: ${persona.lifeStage||'—'}\n`;
+      txt+=`  Wealth signal: ${persona.wealthSignal||'—'}\n`;
+      txt+=`  Primary need: ${persona.primaryNeed||'—'}\n`;
+      txt+=`  Switch driver: ${persona.switchDriver||'—'}\n\n`;
+    } else {
+      txt+=`  Not generated (insufficient data or AI service error)\n\n`;
+    }
+
+    txt+=`ZIP CODES (${zips.length})\n  ${zips.join(', ')}\n\n`;
+  });
+
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`market_discovery_brief_${_radData.zip}.txt`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }
 
 function exportRadiusData(){

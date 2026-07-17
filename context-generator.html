@@ -2639,100 +2639,140 @@ function prExportCSV(){
   <div class="card card-pad">
     <div class="label">Market Discovery</div>
     <div style="color:var(--muted);font-size:12px;margin-bottom:16px;line-height:1.5">
-      For non-branch locations (private banking offices, etc.) — the AudienceFinder workflow, but centered on a ZIP code instead of a branch. Enter a ZIP code to pull market context at 2, 3, and 5-mile radii before handing the ZIP + radius off to A360/Resonate for audience list generation.
+      For non-branch locations (private banking offices, etc.) — the AudienceFinder workflow, but centered on a ZIP code instead of a branch. Pick a radius, run it, and export a per-ZIP breakdown for A360/Resonate.
       <br><b style="color:var(--amber)">Data quality note:</b> ZIP centroids are sourced from the official Census Bureau Gazetteer file. Counts reflect real geographic distance.
     </div>
-    <div class="search-row">
+    <div class="search-row" style="align-items:center;gap:12px">
       <div class="inp-wrap">
         <input class="inp" id="radZip" type="text" placeholder="e.g. 11530" maxlength="5" style="max-width:160px">
       </div>
+      <div id="radSlicer" style="display:flex;gap:6px">
+        <button class="rad-slice active" data-mi="2" onclick="selectRadiusSlice(2)">2 mi</button>
+        <button class="rad-slice" data-mi="3" onclick="selectRadiusSlice(3)">3 mi</button>
+        <button class="rad-slice" data-mi="5" onclick="selectRadiusSlice(5)">5 mi</button>
+      </div>
       <button class="btn" onclick="runRadiusLookup()">Run Lookup</button>
     </div>
+    <style>
+      .rad-slice{padding:8px 16px;border:1px solid var(--border);background:var(--white);border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+      .rad-slice.active{background:var(--navy);border-color:var(--navy);color:#fff}
+    </style>
     <div id="radLoading" style="display:none;color:var(--muted);font-size:12px;margin-top:10px">Querying...</div>
     <div id="radError" style="display:none;color:var(--amber);font-size:12px;margin-top:10px"></div>
     <div id="radResults" style="display:none;margin-top:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div id="radLocation" style="color:var(--text);font-size:14px;font-weight:700"></div>
         <div style="display:flex;gap:8px">
-          <button class="btn" onclick="exportRadiusData()" style="background:var(--teal)">⬇ Export ZIP Lists (CSV)</button>
+          <button class="btn" onclick="exportRadiusData()" style="background:var(--teal)">⬇ Export Per-ZIP Data (CSV)</button>
           <button class="btn" onclick="exportRadiusBrief()" style="background:var(--navy)">⬇ Export Full Brief (TXT)</button>
           <button class="btn" onclick="exportRadiusBriefCSV()" style="background:var(--emerald)">⬇ Export Full Brief (CSV)</button>
         </div>
       </div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text);margin-bottom:20px">
+
+      <div id="radSummaryBar" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Best Opportunity Branch</div>
+          <div id="radBestBranch" style="font-size:12px;line-height:1.6"></div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Lowest Opportunity Branch</div>
+          <div id="radLowestBranch" style="font-size:12px;line-height:1.6"></div>
+        </div>
+      </div>
+
+      <div id="radPersona" style="margin-bottom:18px;font-size:12px;color:var(--muted)"></div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text)">
         <thead>
           <tr style="border-bottom:1px solid var(--border);text-align:left">
-            <th style="padding:8px 12px">Radius</th>
-            <th style="padding:8px 12px"># ZIPs</th>
+            <th style="padding:8px 12px">Zip</th>
+            <th style="padding:8px 12px">City</th>
+            <th style="padding:8px 12px">State</th>
             <th style="padding:8px 12px">Population</th>
-            <th style="padding:8px 12px">Avg HH Income</th>
-            <th style="padding:8px 12px">Avg Home Value (ZHVI)</th>
-            <th style="padding:8px 12px"># Branches</th>
-            <th style="padding:8px 12px">Total Deposits</th>
+            <th style="padding:8px 12px">Avg Income</th>
+            <th style="padding:8px 12px">Avg Home Value</th>
+            <th style="padding:8px 12px">Branches</th>
+            <th style="padding:8px 12px">Deposits</th>
           </tr>
         </thead>
-        <tbody id="radTableBody"></tbody>
+        <tbody id="radZipTableBody"></tbody>
       </table>
-      <div id="radDetailCards"></div>
     </div>
   </div>
 </div>
 <script>
 let _radData=null;
+let _radSelectedMi=2;
+
+function selectRadiusSlice(mi){
+  _radSelectedMi=mi;
+  document.querySelectorAll('.rad-slice').forEach(b=>b.classList.toggle('active', Number(b.dataset.mi)===mi));
+}
 
 async function runRadiusLookup(){
   const zip=g('radZip').value.trim().padStart(5,'0');
+  const mi=_radSelectedMi;
   const loading=g('radLoading'), errBox=g('radError'), results=g('radResults');
   loading.style.display='block'; errBox.style.display='none'; results.style.display='none';
-  g('radDetailCards').innerHTML='';
   if(!/^[0-9]{5}$/.test(zip)){
     loading.style.display='none'; errBox.style.display='block';
     errBox.textContent='Enter a valid 5-digit ZIP code.';
     return;
   }
   try{
-    const radii=[2,3,5];
-    const rows=[];
-    for(const mi of radii){
-      const [summary,zipList,extremes]=await Promise.all([
-        rpc('radius_market_summary',{center_zip:zip,radius_miles:mi}),
-        rpc('radius_zip_list',{center_zip:zip,radius_miles:mi}),
-        rpc('radius_opportunity_extremes',{center_zip:zip,radius_miles:mi})
-      ]);
-      rows.push({
-        mi,
-        d:(summary&&summary[0])||{},
-        zips:(zipList||[]).map(r=>r.zip),
-        best:(extremes||[]).find(e=>e.extreme_type==='best'),
-        lowest:(extremes||[]).find(e=>e.extreme_type==='lowest')
-      });
-    }
-    const first=rows[0].d;
-    if(!first || !first.zip_city){
+    const [summary,zipDetail,extremes]=await Promise.all([
+      rpc('radius_market_summary',{center_zip:zip,radius_miles:mi}),
+      rpc('radius_zip_detail',{center_zip:zip,radius_miles:mi}),
+      rpc('radius_opportunity_extremes',{center_zip:zip,radius_miles:mi})
+    ]);
+    const d=(summary&&summary[0])||{};
+    if(!d.zip_city){
       loading.style.display='none'; errBox.style.display='block';
       errBox.textContent=`ZIP ${zip} not found in reference data.`;
       return;
     }
-    _radData={zip, city:first.zip_city, state:first.zip_state, rows};
+    const zips=zipDetail||[];
+    const best=(extremes||[]).find(e=>e.extreme_type==='best');
+    const lowest=(extremes||[]).find(e=>e.extreme_type==='lowest');
 
-    g('radLocation').textContent=`${first.zip_city}, ${first.zip_state} ${zip}`;
-    g('radTableBody').innerHTML=rows.map(({mi,d})=>`
+    _radData={zip, mi, city:d.zip_city, state:d.zip_state, d, zips, best, lowest, persona:null};
+
+    g('radLocation').textContent=`${d.zip_city}, ${d.zip_state} ${zip} — ${mi} mi radius`;
+
+    g('radSummaryBar').innerHTML=[
+      ['# ZIPs', d.zip_count??'—'],
+      ['Population', d.total_population?Number(d.total_population).toLocaleString():'—'],
+      ['Avg HH Income', d.avg_household_income?'$'+Number(d.avg_household_income).toLocaleString():'—'],
+      ['Avg Home Value', d.avg_zhvi?'$'+Number(d.avg_zhvi).toLocaleString():'—'],
+      ['# Branches', d.branch_count??'—'],
+      ['Total Deposits', d.total_deposits?'$'+(Number(d.total_deposits)/1e6).toFixed(1)+'M':'—']
+    ].map(([label,val])=>`
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${label}</div>
+        <div style="font-size:15px;font-weight:700;color:var(--navy)">${val}</div>
+      </div>`).join('');
+
+    g('radBestBranch').innerHTML=best?`<b>${best.bank_name}</b> — ${best.branch_name}<br>${best.city}, ${best.state} · Score ${Number(best.opportunity_score).toFixed(1)}`:'<span style="color:var(--muted)">No branches in radius</span>';
+    g('radLowestBranch').innerHTML=lowest?`<b>${lowest.bank_name}</b> — ${lowest.branch_name}<br>${lowest.city}, ${lowest.state} · Score ${Number(lowest.opportunity_score).toFixed(1)}`:'<span style="color:var(--muted)">No branches in radius</span>';
+
+    g('radZipTableBody').innerHTML=zips.map(z=>`
       <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:8px 12px;font-weight:700">${mi} mi</td>
-        <td style="padding:8px 12px">${d.zip_count??'—'}</td>
-        <td style="padding:8px 12px">${d.total_population?Number(d.total_population).toLocaleString():'—'}</td>
-        <td style="padding:8px 12px">${d.avg_household_income?'$'+Number(d.avg_household_income).toLocaleString():'—'}</td>
-        <td style="padding:8px 12px">${d.avg_zhvi?'$'+Number(d.avg_zhvi).toLocaleString():'—'}</td>
-        <td style="padding:8px 12px">${d.branch_count??'—'}</td>
-        <td style="padding:8px 12px">${d.total_deposits?'$'+(Number(d.total_deposits)/1e6).toFixed(1)+'M':'—'}</td>
+        <td style="padding:8px 12px;font-weight:700">${z.zip}</td>
+        <td style="padding:8px 12px">${z.city||'—'}</td>
+        <td style="padding:8px 12px">${z.state||'—'}</td>
+        <td style="padding:8px 12px">${z.population?Number(z.population).toLocaleString():'—'}</td>
+        <td style="padding:8px 12px">${z.avg_household_income?'$'+Number(z.avg_household_income).toLocaleString():'—'}</td>
+        <td style="padding:8px 12px">${z.avg_zhvi?'$'+Number(z.avg_zhvi).toLocaleString():'—'}</td>
+        <td style="padding:8px 12px">${z.branch_count??0}</td>
+        <td style="padding:8px 12px">${z.total_deposits?'$'+(Number(z.total_deposits)/1e6).toFixed(1)+'M':'—'}</td>
       </tr>`).join('');
 
-    // Render detail cards immediately (zip list + best/worst), personas fill in async
-    renderRadiusDetailCards(rows);
+    g('radPersona').innerHTML='Generating persona...';
     loading.style.display='none'; results.style.display='block';
 
-    // Generate personas per radius, one AI call each, filling in as they arrive
-    rows.forEach((row,idx)=>generateRadiusPersona(row,idx));
+    generateRadiusPersona();
 
   }catch(e){
     console.error(e);
@@ -2741,44 +2781,18 @@ async function runRadiusLookup(){
   }
 }
 
-function renderRadiusDetailCards(rows){
-  g('radDetailCards').innerHTML=rows.map(({mi,zips,best,lowest})=>`
-    <div class="card card-pad" style="margin-bottom:14px">
-      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">${mi}-Mile Radius Detail</div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Best Opportunity Branch</div>
-          ${best?`<div style="font-size:12px;line-height:1.6"><b>${best.bank_name}</b> — ${best.branch_name}<br>${best.city}, ${best.state} · Score ${Number(best.opportunity_score).toFixed(1)}</div>`:'<div style="font-size:12px;color:var(--muted)">No branches in radius</div>'}
-        </div>
-        <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Lowest Opportunity Branch</div>
-          ${lowest?`<div style="font-size:12px;line-height:1.6"><b>${lowest.bank_name}</b> — ${lowest.branch_name}<br>${lowest.city}, ${lowest.state} · Score ${Number(lowest.opportunity_score).toFixed(1)}</div>`:'<div style="font-size:12px;color:var(--muted)">No branches in radius</div>'}
-        </div>
-      </div>
-
-      <div id="radPersona_${mi}" style="margin-bottom:14px;font-size:12px;color:var(--muted)">Generating persona...</div>
-
-      <details>
-        <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.05em">ZIP codes in radius (${zips.length})</summary>
-        <div style="font-size:12px;color:var(--text);line-height:1.8;margin-top:8px">${zips.join(', ')}</div>
-      </details>
-    </div>`).join('');
-}
-
-async function generateRadiusPersona(row, idx){
-  const {mi,d}=row;
-  const target=g(`radPersona_${mi}`);
+async function generateRadiusPersona(){
+  const {mi,d}=_radData;
   try{
     const context=`ZIP ${_radData.zip} (${_radData.city}, ${_radData.state}), ${mi}-mile radius. Population: ${d.total_population||'unknown'}. Avg household income: $${d.avg_household_income||'unknown'}. Avg home value (ZHVI): $${d.avg_zhvi||'unknown'}. Branch count in radius: ${d.branch_count||0}. Total deposits in radius: $${d.total_deposits||0}.`;
     const rawTxt=await aiCall(`You are a first-level audience analyst at Verlocity writing a briefing note for internal use. Given only ZIP-radius geographic and demographic data (population, household income, home value/ZHVI, branch density) for a non-branch location, write a single grounded audience persona. This is explicitly a FIRST-LEVEL geographic/demographic read meant to seed downstream tools (Resonate, Analytics 360) — never invent behavioral, psychographic, or purchase-intent claims beyond what the numbers imply. Return ONLY a JSON object with keys: name (2-4 word evocative persona label), tagline (under 12 words), lifeStage (under 8 words, inferred only from income/home-value/population signals), wealthSignal (under 15 words citing the actual $ income and $ home value figures given), primaryNeed (under 12 words — the single deposit product this persona most likely needs, plus a short reason), switchDriver (under 15 words on what would plausibly drive this persona to switch or consolidate banks, inferred only from the demographic signals given). Every field must be traceable back to the figures provided. No markdown, no preamble, ONLY valid JSON.`,context,500);
     const clean=rawTxt.replace(/```json|```/g,'').trim();
     const p=JSON.parse(clean);
-    row.persona=p;
-    target.innerHTML=`<div style="border:1px solid #D9E2E8;border-radius:8px;padding:12px 14px;background:#FAFCFD"><div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px">${p.name||''}</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">${p.tagline||''}</div><div style="font-size:11px;line-height:1.75;color:var(--navy)"><b>Life stage:</b> ${p.lifeStage||'—'}<br><b>Wealth signal:</b> ${p.wealthSignal||'—'}<br><b>Primary need:</b> ${p.primaryNeed||'—'}<br><b>Switch driver:</b> ${p.switchDriver||'—'}</div></div>`;
+    _radData.persona=p;
+    g('radPersona').innerHTML=`<div style="border:1px solid #D9E2E8;border-radius:8px;padding:12px 14px;background:#FAFCFD"><div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px">${p.name||''}</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">${p.tagline||''}</div><div style="font-size:11px;line-height:1.75;color:var(--navy)"><b>Life stage:</b> ${p.lifeStage||'—'}<br><b>Wealth signal:</b> ${p.wealthSignal||'—'}<br><b>Primary need:</b> ${p.primaryNeed||'—'}<br><b>Switch driver:</b> ${p.switchDriver||'—'}</div></div>`;
   }catch(e){
-    console.error('Persona generation failed for',mi,'mi:',e);
-    target.innerHTML=`<div style="font-size:11px;color:var(--amber)">Persona generation failed — insufficient demographic data or AI service error.</div>`;
+    console.error('Persona generation failed:',e);
+    g('radPersona').innerHTML=`<div style="font-size:11px;color:var(--amber)">Persona generation failed — insufficient demographic data or AI service error.</div>`;
   }
 }
 
@@ -2787,89 +2801,78 @@ function csvField(v){
   return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
 }
 
-function exportRadiusBriefCSV(){
+function exportRadiusData(){
   if(!_radData) return;
-  const headers=[
-    'center_zip','city','state','radius_miles','zip_count','population',
-    'avg_household_income','avg_zhvi','branch_count','total_deposits',
-    'best_bank_name','best_branch_name','best_city','best_state','best_score',
-    'lowest_bank_name','lowest_branch_name','lowest_city','lowest_state','lowest_score',
-    'persona_name','persona_tagline','persona_life_stage','persona_wealth_signal',
-    'persona_primary_need','persona_switch_driver','zip_list'
-  ];
+  const headers=['center_zip','radius_miles','zip','city','state','population','avg_household_income','avg_zhvi','branch_count','total_deposits'];
   const lines=[headers.join(',')];
-
-  _radData.rows.forEach(({mi,d,zips,best,lowest,persona})=>{
-    const row=[
-      _radData.zip, _radData.city, _radData.state, mi,
-      d.zip_count??'', d.total_population??'', d.avg_household_income??'', d.avg_zhvi??'',
-      d.branch_count??'', d.total_deposits??'',
-      best?.bank_name??'', best?.branch_name??'', best?.city??'', best?.state??'', best?.opportunity_score??'',
-      lowest?.bank_name??'', lowest?.branch_name??'', lowest?.city??'', lowest?.state??'', lowest?.opportunity_score??'',
-      persona?.name??'', persona?.tagline??'', persona?.lifeStage??'', persona?.wealthSignal??'',
-      persona?.primaryNeed??'', persona?.switchDriver??'', zips.join('; ')
-    ];
+  _radData.zips.forEach(z=>{
+    const row=[_radData.zip,_radData.mi,z.zip,z.city,z.state,z.population??'',z.avg_household_income??'',z.avg_zhvi??'',z.branch_count??0,z.total_deposits??''];
     lines.push(row.map(csvField).join(','));
   });
-
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});
   const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=`market_discovery_brief_${_radData.zip}.csv`;
+  a.href=url; a.download=`market_discovery_${_radData.zip}_${_radData.mi}mi.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+}
+
+function exportRadiusBriefCSV(){
+  if(!_radData) return;
+  const {zip,mi,d,best,lowest,persona}=_radData;
+  const headers=[
+    'center_zip','radius_miles','zip_count','population','avg_household_income','avg_zhvi','branch_count','total_deposits',
+    'best_bank_name','best_branch_name','best_city','best_state','best_score',
+    'lowest_bank_name','lowest_branch_name','lowest_city','lowest_state','lowest_score',
+    'persona_name','persona_tagline','persona_life_stage','persona_wealth_signal','persona_primary_need','persona_switch_driver'
+  ];
+  const row=[
+    zip,mi,d.zip_count??'',d.total_population??'',d.avg_household_income??'',d.avg_zhvi??'',d.branch_count??'',d.total_deposits??'',
+    best?.bank_name??'',best?.branch_name??'',best?.city??'',best?.state??'',best?.opportunity_score??'',
+    lowest?.bank_name??'',lowest?.branch_name??'',lowest?.city??'',lowest?.state??'',lowest?.opportunity_score??'',
+    persona?.name??'',persona?.tagline??'',persona?.lifeStage??'',persona?.wealthSignal??'',persona?.primaryNeed??'',persona?.switchDriver??''
+  ];
+  const lines=[headers.join(','), row.map(csvField).join(',')];
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`market_discovery_brief_${zip}_${mi}mi.csv`;
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }
 
 function exportRadiusBrief(){
   if(!_radData) return;
-  let txt=`MARKET DISCOVERY BRIEF — ${_radData.city}, ${_radData.state} ${_radData.zip}\n`;
+  const {zip,mi,city,state,d,zips,best,lowest,persona}=_radData;
+  let txt=`MARKET DISCOVERY BRIEF — ${city}, ${state} ${zip} — ${mi} mi radius\n`;
   txt+=`Verlocity Intelligence Hub · BMAP · First-level read — for Resonate / Analytics 360 input\n\n`;
-
-  _radData.rows.forEach(({mi,d,zips,best,lowest,persona})=>{
-    txt+=`${'='.repeat(60)}\n${mi}-MILE RADIUS\n${'='.repeat(60)}\n\n`;
-    txt+=`MARKET SNAPSHOT\n`;
-    txt+=`  ZIP codes in radius: ${d.zip_count??'—'}\n`;
-    txt+=`  Population: ${d.total_population?Number(d.total_population).toLocaleString():'—'}\n`;
-    txt+=`  Avg household income: ${d.avg_household_income?'$'+Number(d.avg_household_income).toLocaleString():'—'}\n`;
-    txt+=`  Avg home value (ZHVI): ${d.avg_zhvi?'$'+Number(d.avg_zhvi).toLocaleString():'—'}\n`;
-    txt+=`  Branches in radius: ${d.branch_count??'—'}\n`;
-    txt+=`  Total deposits: ${d.total_deposits?'$'+(Number(d.total_deposits)/1e6).toFixed(1)+'M':'—'}\n\n`;
-
-    txt+=`BEST OPPORTUNITY BRANCH\n`;
-    txt+=best?`  ${best.bank_name} — ${best.branch_name}\n  ${best.city}, ${best.state} · Score ${Number(best.opportunity_score).toFixed(1)}\n\n`:`  No branches in radius\n\n`;
-
-    txt+=`LOWEST OPPORTUNITY BRANCH\n`;
-    txt+=lowest?`  ${lowest.bank_name} — ${lowest.branch_name}\n  ${lowest.city}, ${lowest.state} · Score ${Number(lowest.opportunity_score).toFixed(1)}\n\n`:`  No branches in radius\n\n`;
-
-    txt+=`AUDIENCE PERSONA\n`;
-    if(persona){
-      txt+=`  ${persona.name||''} — ${persona.tagline||''}\n`;
-      txt+=`  Life stage: ${persona.lifeStage||'—'}\n`;
-      txt+=`  Wealth signal: ${persona.wealthSignal||'—'}\n`;
-      txt+=`  Primary need: ${persona.primaryNeed||'—'}\n`;
-      txt+=`  Switch driver: ${persona.switchDriver||'—'}\n\n`;
-    } else {
-      txt+=`  Not generated (insufficient data or AI service error)\n\n`;
-    }
-
-    txt+=`ZIP CODES (${zips.length})\n  ${zips.join(', ')}\n\n`;
+  txt+=`MARKET SNAPSHOT\n`;
+  txt+=`  ZIP codes in radius: ${d.zip_count??'—'}\n`;
+  txt+=`  Population: ${d.total_population?Number(d.total_population).toLocaleString():'—'}\n`;
+  txt+=`  Avg household income: ${d.avg_household_income?'$'+Number(d.avg_household_income).toLocaleString():'—'}\n`;
+  txt+=`  Avg home value (ZHVI): ${d.avg_zhvi?'$'+Number(d.avg_zhvi).toLocaleString():'—'}\n`;
+  txt+=`  Branches in radius: ${d.branch_count??'—'}\n`;
+  txt+=`  Total deposits: ${d.total_deposits?'$'+(Number(d.total_deposits)/1e6).toFixed(1)+'M':'—'}\n\n`;
+  txt+=`BEST OPPORTUNITY BRANCH\n`;
+  txt+=best?`  ${best.bank_name} — ${best.branch_name}\n  ${best.city}, ${best.state} · Score ${Number(best.opportunity_score).toFixed(1)}\n\n`:`  No branches in radius\n\n`;
+  txt+=`LOWEST OPPORTUNITY BRANCH\n`;
+  txt+=lowest?`  ${lowest.bank_name} — ${lowest.branch_name}\n  ${lowest.city}, ${lowest.state} · Score ${Number(lowest.opportunity_score).toFixed(1)}\n\n`:`  No branches in radius\n\n`;
+  txt+=`AUDIENCE PERSONA\n`;
+  if(persona){
+    txt+=`  ${persona.name||''} — ${persona.tagline||''}\n`;
+    txt+=`  Life stage: ${persona.lifeStage||'—'}\n`;
+    txt+=`  Wealth signal: ${persona.wealthSignal||'—'}\n`;
+    txt+=`  Primary need: ${persona.primaryNeed||'—'}\n`;
+    txt+=`  Switch driver: ${persona.switchDriver||'—'}\n\n`;
+  } else {
+    txt+=`  Not generated (insufficient data or AI service error)\n\n`;
+  }
+  txt+=`ZIP-LEVEL DETAIL (${zips.length})\n`;
+  zips.forEach(z=>{
+    txt+=`  ${z.zip} — ${z.city}, ${z.state} · Pop ${z.population?Number(z.population).toLocaleString():'—'} · Income ${z.avg_household_income?'$'+Number(z.avg_household_income).toLocaleString():'—'} · ZHVI ${z.avg_zhvi?'$'+Number(z.avg_zhvi).toLocaleString():'—'} · Branches ${z.branch_count??0} · Deposits ${z.total_deposits?'$'+(Number(z.total_deposits)/1e6).toFixed(1)+'M':'—'}\n`;
   });
 
   const blob=new Blob([txt],{type:'text/plain'});
   const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=`market_discovery_brief_${_radData.zip}.txt`;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-}
-
-function exportRadiusData(){
-  if(!_radData) return;
-  const lines=['radius_miles,zip,city,state,center_zip'];
-  _radData.rows.forEach(({mi,zips})=>{
-    zips.forEach(z=>lines.push(`${mi},${z},${_radData.city},${_radData.state},${_radData.zip}`));
-  });
-  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
-  const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=`market_discovery_${_radData.zip}.csv`;
+  a.href=url; a.download=`market_discovery_brief_${zip}_${mi}mi.txt`;
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }

@@ -2665,7 +2665,6 @@ function prExportCSV(){
         <div style="display:flex;gap:8px">
           <button class="btn" onclick="exportRadiusData()" style="background:var(--teal)">⬇ Export Per-ZIP Data (CSV)</button>
           <button class="btn" onclick="exportRadiusBrief()" style="background:var(--navy)">⬇ Export Full Brief (TXT)</button>
-          <button class="btn" onclick="exportRadiusBriefCSV()" style="background:var(--emerald)">⬇ Export Full Brief (CSV)</button>
         </div>
       </div>
 
@@ -2803,38 +2802,28 @@ function csvField(v){
 
 function exportRadiusData(){
   if(!_radData) return;
-  const headers=['center_zip','radius_miles','zip','city','state','population','avg_household_income','avg_zhvi','branch_count','total_deposits'];
-  const lines=[headers.join(',')];
-  _radData.zips.forEach(z=>{
-    const row=[_radData.zip,_radData.mi,z.zip,z.city,z.state,z.population??'',z.avg_household_income??'',z.avg_zhvi??'',z.branch_count??0,z.total_deposits??''];
-    lines.push(row.map(csvField).join(','));
-  });
-  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
-  const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=`market_discovery_${_radData.zip}_${_radData.mi}mi.csv`;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-}
-
-function exportRadiusBriefCSV(){
-  if(!_radData) return;
-  const {zip,mi,d,best,lowest,persona}=_radData;
+  const {zip,mi,d,best,lowest,persona,zips}=_radData;
   const headers=[
-    'center_zip','radius_miles','zip_count','population','avg_household_income','avg_zhvi','branch_count','total_deposits',
+    'center_zip','radius_miles','zip','city','state','population','avg_household_income','avg_zhvi','branch_count','total_deposits',
+    'radius_zip_count','radius_total_population','radius_avg_household_income','radius_avg_zhvi','radius_branch_count','radius_total_deposits',
     'best_bank_name','best_branch_name','best_city','best_state','best_score',
     'lowest_bank_name','lowest_branch_name','lowest_city','lowest_state','lowest_score',
     'persona_name','persona_tagline','persona_life_stage','persona_wealth_signal','persona_primary_need','persona_switch_driver'
   ];
-  const row=[
-    zip,mi,d.zip_count??'',d.total_population??'',d.avg_household_income??'',d.avg_zhvi??'',d.branch_count??'',d.total_deposits??'',
-    best?.bank_name??'',best?.branch_name??'',best?.city??'',best?.state??'',best?.opportunity_score??'',
-    lowest?.bank_name??'',lowest?.branch_name??'',lowest?.city??'',lowest?.state??'',lowest?.opportunity_score??'',
-    persona?.name??'',persona?.tagline??'',persona?.lifeStage??'',persona?.wealthSignal??'',persona?.primaryNeed??'',persona?.switchDriver??''
-  ];
-  const lines=[headers.join(','), row.map(csvField).join(',')];
+  const lines=[headers.join(',')];
+  zips.forEach(z=>{
+    const row=[
+      zip,mi,z.zip,z.city,z.state,z.population??'',z.avg_household_income??'',z.avg_zhvi??'',z.branch_count??0,z.total_deposits??'',
+      d.zip_count??'',d.total_population??'',d.avg_household_income??'',d.avg_zhvi??'',d.branch_count??'',d.total_deposits??'',
+      best?.bank_name??'',best?.branch_name??'',best?.city??'',best?.state??'',best?.opportunity_score??'',
+      lowest?.bank_name??'',lowest?.branch_name??'',lowest?.city??'',lowest?.state??'',lowest?.opportunity_score??'',
+      persona?.name??'',persona?.tagline??'',persona?.lifeStage??'',persona?.wealthSignal??'',persona?.primaryNeed??'',persona?.switchDriver??''
+    ];
+    lines.push(row.map(csvField).join(','));
+  });
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});
   const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=`market_discovery_brief_${zip}_${mi}mi.csv`;
+  a.href=url; a.download=`market_discovery_${zip}_${mi}mi.csv`;
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }

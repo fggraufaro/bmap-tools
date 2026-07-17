@@ -2638,10 +2638,10 @@ function prExportCSV(){
 <div class="wrap">
   <div class="card card-pad">
     <div class="label">Punctual Radius Lookup</div>
-    <div style="color:rgba(255,255,255,.45);font-size:12px;margin-bottom:16px;line-height:1.5">
+    <div style="color:var(--muted);font-size:12px;margin-bottom:16px;line-height:1.5">
       For addresses that are not retail branches (e.g. private banking offices). Enter a ZIP code —
       we'll pull ZIP-centroid data, market demographics, and nearby branch/deposit context at 2, 3, and 5-mile radii.
-      <br><b style="color:#F5A623">Data quality note:</b> some ZIP centroids in this dataset use regional fallback
+      <br><b style="color:var(--amber)">Data quality note:</b> some ZIP centroids in this dataset use regional fallback
       coordinates rather than precise centroids, which can occasionally pull in extra ZIPs at tighter radii.
       Treat counts as directional, not exact.
     </div>
@@ -2651,13 +2651,13 @@ function prExportCSV(){
       </div>
       <button class="btn" onclick="runRadiusLookup()">Run Lookup</button>
     </div>
-    <div id="radLoading" style="display:none;color:rgba(255,255,255,.5);font-size:12px;margin-top:10px">Querying...</div>
-    <div id="radError" style="display:none;color:#F5A623;font-size:12px;margin-top:10px"></div>
+    <div id="radLoading" style="display:none;color:var(--muted);font-size:12px;margin-top:10px">Querying...</div>
+    <div id="radError" style="display:none;color:var(--amber);font-size:12px;margin-top:10px"></div>
     <div id="radResults" style="display:none;margin-top:20px">
-      <div id="radLocation" style="color:#fff;font-size:14px;font-weight:700;margin-bottom:12px"></div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;color:rgba(255,255,255,.85)">
+      <div id="radLocation" style="color:var(--text);font-size:14px;font-weight:700;margin-bottom:12px"></div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text)">
         <thead>
-          <tr style="border-bottom:1px solid rgba(255,255,255,.15);text-align:left">
+          <tr style="border-bottom:1px solid var(--border);text-align:left">
             <th style="padding:8px 12px">Radius</th>
             <th style="padding:8px 12px"># ZIPs</th>
             <th style="padding:8px 12px">Population</th>
@@ -2697,7 +2697,7 @@ async function runRadiusLookup(){
     }
     g('radLocation').textContent=`${first.zip_city}, ${first.zip_state} ${zip}`;
     g('radTableBody').innerHTML=rows.map(({mi,d})=>`
-      <tr style="border-bottom:1px solid rgba(255,255,255,.08)">
+      <tr style="border-bottom:1px solid var(--border)">
         <td style="padding:8px 12px;font-weight:700">${mi} mi</td>
         <td style="padding:8px 12px">${d.zip_count??'—'}</td>
         <td style="padding:8px 12px">${d.total_population?Number(d.total_population).toLocaleString():'—'}</td>

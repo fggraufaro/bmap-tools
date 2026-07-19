@@ -840,45 +840,50 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── ACCESS CONTROL ─────────────────────────────────────────────
-// Passphrase is never stored in plaintext — only its SHA-256 hash lives here.
-// To change the passphrase: run in a terminal —
-//   python3 -c "import hashlib;print(hashlib.sha256('NEW_PASSPHRASE'.encode()).hexdigest())"
-// then paste the output below.
-const ACCESS_TOKEN_HASH = 'f841d3ca26fffbd6c4b8bd11255882c706c044747641bb2b1d4091e84a7e33d2';
+// Password check now happens server-side on Railway — the browser
+// never holds anything that would let someone forge a session without
+// actually knowing the passphrase (a client-side hash, even SHA-256,
+// can be replayed straight from sessionStorage without ever knowing
+// the password — this closes that).
+const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 // ── ANTHROPIC API KEY ──────────────────────────────────────────
 const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 window.AI_PROXY = AI_PROXY;
 
-async function sha256Hex(str){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
 (function(){
-  const stored = sessionStorage.getItem('bmap_access_hash');
-  if(stored === ACCESS_TOKEN_HASH){
+  const stored = sessionStorage.getItem('hub_token');
+  if(stored){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
   }
 })();
 async function checkAccess(){
   const input = document.getElementById('tokenInput').value.trim();
-  const inputHash = await sha256Hex(input);
-  if(inputHash === ACCESS_TOKEN_HASH){
-    sessionStorage.setItem('bmap_access_hash', ACCESS_TOKEN_HASH);
+  const btn = document.querySelector('#authGate button');
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch(`${HUB_API}/auth/login`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({password: input})
+    });
+    if(!r.ok){
+      document.getElementById('authErr').style.display = 'block';
+      document.getElementById('tokenInput').value = '';
+      document.getElementById('tokenInput').focus();
+      if(btn) btn.disabled = false;
+      return;
+    }
+    const data = await r.json();
+    sessionStorage.setItem('hub_token', data.token);
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
-  } else {
+  }catch(e){
     document.getElementById('authErr').style.display = 'block';
-    document.getElementById('tokenInput').value = '';
-    document.getElementById('tokenInput').focus();
+    if(btn) btn.disabled = false;
   }
 }
 
-// ── SUPABASE ───────────────────────────────────────────────────
-const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
-const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
-window.SUPA_KEY = KEY;
 let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
 window.selBank = null; window.bankData = null;
 
@@ -899,21 +904,35 @@ async function aiCall(system, userMsg, max_tokens=800){
   return data.content?.find(b=>b.type==='text')?.text||'';
 }
 
-const SCHEMA_MAP={'dim_institutions':'ref','branch_opportunity_base':'analytics','branch_target_competitors':'analytics','bank_financial_snapshot_latest':'analytics','bank_website':'ref','vw_prospecting_score':'public','uszips':'geo'};
+// ── DATA — via Railway proxy, not Supabase directly ─────────────
+// Table/schema allowlist now lives server-side in secure_proxy.py;
+// the browser just asks for a table name and sends its session token.
 async function api(table,params){
   try{
-    const schema=SCHEMA_MAP[table]||'public';
-    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY};
-    if(schema!=='public'){headers['Accept-Profile']=schema;}
-    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
+    const token = sessionStorage.getItem('hub_token');
+    const r=await fetch(`${HUB_API}/api/${table}?${params}`,{headers:{'Authorization':'Bearer '+token}});
+    if(r.status===401){
+      sessionStorage.removeItem('hub_token');
+      location.reload();
+      return [];
+    }
     if(!r.ok){console.error(table,r.status,await r.text());return[];}
     return r.json();
   }catch(e){console.error(e);return[];}
 }
 async function rpc(fnName,body){
   try{
-    const headers={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
-    const r=await fetch(`${SUPA}/rest/v1/rpc/${fnName}`,{method:'POST',headers,body:JSON.stringify(body)});
+    const token = sessionStorage.getItem('hub_token');
+    const r=await fetch(`${HUB_API}/api/rpc/${fnName}`,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(r.status===401){
+      sessionStorage.removeItem('hub_token');
+      location.reload();
+      return [];
+    }
     if(!r.ok){console.error(fnName,r.status,await r.text());return[];}
     return r.json();
   }catch(e){console.error(e);return[];}

@@ -519,6 +519,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
         <div class="qx-menu" id="qxMenu">
           <div class="qx-opt" onclick="qxRun('snapshot')">⬇ Snapshot PPTX</div>
           <div class="qx-opt" onclick="qxRun('brief')">⬇ Board Brief PDF</div>
+          <div class="qx-opt" onclick="qxRun('assessment')">⬇ BMAP Assessment DOCX</div>
         </div>
       </div>
     </div>
@@ -716,6 +717,14 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       </div>
       <button class="gen-btn" style="margin-bottom:0;background:var(--navy)" id="briefBtn" onclick="boardBriefExport()">⬇ Generate Board Brief PDF</button>
       <div class="loading" id="briefLd" style="margin-top:8px"><span class="spin"></span><span id="briefMsg">Building board brief...</span></div>
+    </div>
+    <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--amber)">
+      <div class="label" style="margin-bottom:6px">BMAP Assessment DOCX — Full Network, $10K Deliverable</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:14px">
+        Full-network branch scoring (every branch, not a top-N teaser), competitive overview, 7-metric financial benchmarking, and a named next-step recommendation. Word doc — the paid Assessment deliverable, not the free outreach Snapshot.
+      </div>
+      <button class="gen-btn" style="margin-bottom:0;background:var(--amber);color:var(--navy)" id="assessBtn" onclick="assessmentExport()">⬇ Generate BMAP Assessment</button>
+      <div class="loading" id="assessLd" style="margin-top:8px"><span class="spin"></span><span id="assessMsg">Building full-network assessment...</span></div>
     </div>
     <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--teal)">
       <div class="label" style="margin-bottom:6px">Batch Export — Multiple Banks from CSV</div>
@@ -1560,12 +1569,15 @@ async function loadBank(ik){
   // Reset BMAP snapshot buttons on bank change so no stale state carries over
   const snapBtn=document.getElementById('snapBtn');
   const briefBtn=document.getElementById('briefBtn');
+  const assessBtn=document.getElementById('assessBtn');
   if(snapBtn){snapBtn.disabled=false;snapBtn.textContent='⬇ Generate & Export BMAP Snapshot';snapBtn.style.background='';}
   if(briefBtn){briefBtn.disabled=false;briefBtn.textContent='⬇ Generate Board Brief PDF';briefBtn.style.background='var(--navy)';}
+  if(assessBtn){assessBtn.disabled=false;assessBtn.textContent='⬇ Generate BMAP Assessment';assessBtn.style.background='var(--amber)';}
   const qxBtn=document.getElementById('qxBtn');
   if(qxBtn){qxBtn.disabled=false;qxBtn.innerHTML='⬇ Quick Export <span style="font-size:9px">▾</span>';}
   document.getElementById('snapLd').classList.remove('on');
   document.getElementById('briefLd').classList.remove('on');
+  document.getElementById('assessLd').classList.remove('on');
   show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');hide('mpWidget');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
 }
@@ -1622,6 +1634,23 @@ async function boardBriefExport() {
   ld.classList.remove('on');
 }
 
+async function assessmentExport() {
+  if (!window.selBank || !window.bankData) return;
+  const btn=document.getElementById('assessBtn'),ld=document.getElementById('assessLd'),msg=document.getElementById('assessMsg');
+  const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
+  btn.disabled=true;ld.classList.add('on');msg.textContent='Building full-network assessment (this can take longer for large networks)...';
+  try{
+    const resp=await fetch(`${BMAP_API}/generate-assessment`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
+    const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`BMAP_Assessment_${safe}_${date}.docx`;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+    btn.textContent='✓ Downloaded';btn.style.background='#02A7C2';
+    setTimeout(()=>{btn.textContent='⬇ Generate BMAP Assessment';btn.style.background='var(--amber)';btn.disabled=false;},3500);
+  }catch(err){alert('Assessment failed: '+err.message);btn.disabled=false;}
+  ld.classList.remove('on');
+}
+
 // ── Quick Export menu (bank header) — reuses snapshotExport/boardBriefExport ──
 function qxToggle(){
   const m=document.getElementById('qxMenu');
@@ -1636,9 +1665,10 @@ async function qxRun(kind){
   document.getElementById('qxMenu').classList.remove('on');
   if(!window.selBank||!window.bankData){alert('Select a bank first.');return;}
   const btn=document.getElementById('qxBtn'),orig=btn.innerHTML;
-  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':'Building PDF…';
+  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':kind==='assessment'?'Building DOCX…':'Building PDF…';
   try{
     if(kind==='snapshot')await snapshotExport();
+    else if(kind==='assessment')await assessmentExport();
     else await boardBriefExport();
     btn.innerHTML='✓ Downloaded';
     setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2200);

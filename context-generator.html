@@ -1638,16 +1638,40 @@ async function assessmentExport() {
   if (!window.selBank || !window.bankData) return;
   const btn=document.getElementById('assessBtn'),ld=document.getElementById('assessLd'),msg=document.getElementById('assessMsg');
   const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
-  btn.disabled=true;ld.classList.add('on');msg.textContent='Building full-network assessment (this can take longer for large networks)...';
+  btn.disabled=true;ld.classList.add('on');msg.textContent='Starting assessment...';
   try{
-    const resp=await fetch(`${BMAP_API}/generate-assessment`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
-    if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
-    const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download=`BMAP_Assessment_${safe}_${date}.docx`;document.body.appendChild(a);a.click();
+    // Kick off the background job — returns almost instantly, real work happens server-side
+    const startResp=await fetch(`${BMAP_API}/generate-assessment-async`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    if(!startResp.ok){const err=await startResp.json().catch(()=>({error:startResp.statusText}));throw new Error(err.error||startResp.statusText);}
+    const {job_id}=await startResp.json();
+
+    // Poll every 3s. Large networks (15 branch deep-dives, charts, AI narrative)
+    // can take a couple minutes -- no HTTP timeout risk now since each poll
+    // is its own quick request, not one long-held connection.
+    const maxPolls=80; // ~4 minutes ceiling
+    let statusRow=null;
+    for(let i=0;i<maxPolls;i++){
+      await new Promise(r=>setTimeout(r,3000));
+      const statusResp=await fetch(`${BMAP_API}/assessment-status/${job_id}`);
+      if(!statusResp.ok) continue;
+      statusRow=await statusResp.json();
+      msg.textContent=statusRow.stage||'Working...';
+      if(statusRow.status==='done'||statusRow.status==='error') break;
+    }
+    if(!statusRow||statusRow.status==='error'){
+      throw new Error(statusRow?.error_message||'Assessment timed out or failed — check Railway logs.');
+    }
+
+    // Job done -- fetch the actual file
+    const dlResp=await fetch(`${BMAP_API}/assessment-download/${job_id}`);
+    if(!dlResp.ok){const err=await dlResp.json().catch(()=>({error:dlResp.statusText}));throw new Error(err.error||dlResp.statusText);}
+    const blob=await dlResp.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=statusRow.filename||`BMAP_Assessment_${bankName.replace(/[^a-z0-9]/gi,'_')}.docx`;
+    document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
     btn.textContent='✓ Downloaded';btn.style.background='#02A7C2';
     setTimeout(()=>{btn.textContent='⬇ Generate BMAP Assessment';btn.style.background='var(--amber)';btn.disabled=false;},3500);
-  }catch(err){alert('Assessment failed: '+err.message);btn.disabled=false;}
+  }catch(err){alert('Assessment failed: '+err.message);btn.disabled=false;btn.textContent='⬇ Generate BMAP Assessment';btn.style.background='var(--amber)';}
   ld.classList.remove('on');
 }
 

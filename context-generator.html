@@ -2342,7 +2342,7 @@ async function prLoad(){
   document.getElementById('prTbody').innerHTML='<tr><td colspan="12" class="pr-empty"><span class="spin"></span> Loading from Supabase...</td></tr>';
   try{
     // PostgREST caps at 1000 rows — paginate to load all banks
-    const fields='select=inst_key,institution_name,state_hq,city_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,brokered_deposits_pct,phase1_score&order=phase1_score.desc';
+    const fields='select=inst_key,institution_name,state_hq,city_hq,zip_hq,total_assets,total_deposits,dep_yoy_pct,roa,loan_growth_pct,loans_to_deposits_pct,marketing_ratio,brokered_deposits_pct,phase1_score&order=phase1_score.desc';
     let data=[], offset=0, chunk;
     do {
       chunk = await api('vw_prospecting_score', fields+'&limit=1000&offset='+offset);
@@ -2361,7 +2361,7 @@ async function prLoad(){
       const mS=mktg>0.004?3:mktg>0.002?2:mktg>0?1:0;
       const rS=roa>1.5?2:roa>=1.0?1:0;
       const lS=loanGr>12?2:loanGr>=6?1:0;
-      const ldS=(ld>=75&&ld<=95)?2:((ld>=60&&ld<75)||(ld>95&&ld<=105))?1:0;
+      const ldS=(ld>=80&&ld<=110)?2:((ld>=65&&ld<80)||(ld>110))?1:0;
       const bS=brok<5?2:brok<=15?1:0;
       return{...r,
         phase1_score:+(r.phase1_score||0),  // use DB value
@@ -2384,6 +2384,7 @@ function prFilter(){
   const minDep   = +(document.getElementById('prDepFilter').value||0);
   const size     = document.getElementById('prSizeFilter').value;
   const q        = (document.getElementById('prSearch').value||'').toLowerCase().trim();
+  const zipMatchers = prParseZipFilter(document.getElementById('prZipFilter').value);
   prFiltered=prAllData.filter(r=>{
     if(state && r.state_hq!==state) return false;
     if(r.phase1_score < minScore) return false;
@@ -2392,6 +2393,7 @@ function prFilter(){
     if(size==='mid' && (r.total_assets<1e9||r.total_assets>=10e9)) return false;
     if(size==='large' && r.total_assets<10e9) return false;
     if(q && !(r.institution_name||'').toLowerCase().includes(q)) return false;
+    if(zipMatchers.length && !prZipMatches(r.zip_hq, zipMatchers)) return false;
     return true;
   });
   prFiltered.sort((a,b)=>{const av=a[prSortCol]||0,bv=b[prSortCol]||0;return typeof av==='string'?prSortAsc?av.localeCompare(bv):bv.localeCompare(av):prSortAsc?av-bv:bv-av;});
@@ -2399,6 +2401,38 @@ function prFilter(){
   document.getElementById('prFilteredCount').textContent=prFiltered.length.toLocaleString();
   prPage=0;
   prRender();
+}
+
+// ── HQ ZIP filter — accepts comma-separated exact zips, ranges (07601-07676), or prefixes (070) ──
+function prParseZipFilter(raw){
+  if(!raw||!raw.trim())return[];
+  return raw.split(',').map(s=>s.trim()).filter(Boolean).map(tok=>{
+    const m=tok.match(/^(\d{3,5})\s*[-–]\s*(\d{3,5})$/);
+    if(m)return{type:'range',from:m[1].padStart(5,'0'),to:m[2].padStart(5,'0')};
+    if(/^\d{5}$/.test(tok))return{type:'exact',val:tok};
+    if(/^\d{1,4}$/.test(tok))return{type:'prefix',val:tok};
+    return{type:'exact',val:tok};
+  });
+}
+function prZipMatches(zip,matchers){
+  if(!zip)return false;
+  const z=String(zip).padStart(5,'0');
+  return matchers.some(m=>{
+    if(m.type==='exact')return z===m.val;
+    if(m.type==='prefix')return z.startsWith(m.val);
+    if(m.type==='range')return z>=m.from && z<=m.to;
+    return false;
+  });
+}
+const PR_ZIP_PRESETS={
+  // Frank Giarratano / SGW — Northern NJ counties, per Tom 2026-08-13
+  sgw_njn:'07010, 07024, 07601-07676, 07101-07199, 07003, 07042, 07030, 07302-07311, 07047, 07501-07522, 07011-07014, 07801-07885, 07438, 07460'
+};
+function prApplyZipPreset(key){
+  const val=PR_ZIP_PRESETS[key];
+  if(!val)return;
+  document.getElementById('prZipFilter').value=val;
+  prFilter();
 }
 
 function prSort(col){if(prSortCol===col)prSortAsc=!prSortAsc;else{prSortCol=col;prSortAsc=false;}prFilter();}
@@ -2409,7 +2443,7 @@ function prFmtPct(v){const n=+(v||0);return n>0?'<span class="pr-pos">+'+n.toFix
 
 function prRender(){
   const tbody=document.getElementById('prTbody');
-  if(!prFiltered.length){tbody.innerHTML='<tr><td colspan="12" class="pr-empty">No prospects match filters.</td></tr>';prUpdateSel();return;}
+  if(!prFiltered.length){tbody.innerHTML='<tr><td colspan="13" class="pr-empty">No prospects match filters.</td></tr>';prUpdateSel();return;}
   const totalPages=Math.ceil(prFiltered.length/PR_PAGE_SIZE)||1;
   if(prPage>=totalPages)prPage=totalPages-1;
   const start=prPage*PR_PAGE_SIZE,end=start+PR_PAGE_SIZE;
@@ -2420,13 +2454,15 @@ function prRender(){
     const tip='Dep:'+r._dS+' Mktg:'+r._mS+' ROA:'+r._rS+' Loan:'+r._lS+' L/D:'+r._ldS+' Brok:'+r._bS;
     const mktg=r.marketing_ratio_val>0?(r.marketing_ratio_val*100).toFixed(3)+'%':'—';
     const ld=+(r.loans_to_deposits_pct||0);
-    const ldCls=(ld>=75&&ld<=95)?'pr-pos':'pr-muted';
+    const ldCls=(ld>=80&&ld<=110)?'pr-pos':'pr-muted';
     const roaCls=+(r.roa||0)>=1?'pr-pos':'pr-muted';
+    const brok=+(r.brokered_deposits_pct||0);
+    const brokCls=brok<5?'pr-pos':brok<=15?'pr-muted':'pr-neg';
     const ik=r.inst_key;
     const nm=(r.institution_name||'—').replace(/'/g,'&#39;');
     html+='<tr class="'+(sel?'pr-sel':'')+'">';
     html+='<td><input type="checkbox" '+(sel?'checked':'')+' onchange="prToggleRow(this,&quot;'+ik+'&quot;)"></td>';
-    html+='<td onclick="prToggleRow(null,&quot;'+ik+'&quot;)" style="cursor:pointer"><div class="pr-bank-name">'+(r.institution_name||'—')+'</div><div class="pr-bank-loc">'+(r.city_hq||'')+', '+(r.state_hq||'')+'</div></td>';
+    html+='<td onclick="prToggleRow(null,&quot;'+ik+'&quot;)" style="cursor:pointer"><div class="pr-bank-name">'+(r.institution_name||'—')+'</div><div class="pr-bank-loc">'+(r.city_hq||'')+', '+(r.state_hq||'')+(r.zip_hq?' '+r.zip_hq:'')+'</div></td>';
     html+='<td>'+(r.state_hq||'—')+'</td>';
     html+='<td>'+prFmtA(r.total_assets)+'</td>';
     html+='<td>'+prFmtA(r.total_deposits)+'</td>';
@@ -2435,6 +2471,7 @@ function prRender(){
     html+='<td>'+prFmtPct(r.loan_growth_pct)+'</td>';
     html+='<td class="'+ldCls+'">'+(r.loans_to_deposits_pct?r.loans_to_deposits_pct+'%':'—')+'</td>';
     html+='<td>'+mktg+'</td>';
+    html+='<td class="'+brokCls+'">'+(r.brokered_deposits_pct!=null?brok.toFixed(1)+'%':'—')+'</td>';
     html+='<td title="'+tip+'"><span class="pr-score-pill '+prScoreCls(r.phase1_score)+'">'+r.phase1_score+'</span><span style="font-size:9px;color:var(--muted);margin-left:3px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums">/14</span></td>';
     html+='<td><button class="pr-snap-btn" onclick="event.stopPropagation();prSingleSnap(&quot;'+ik+'&quot;,&quot;'+nm+'&quot;,this)">⬇ Snapshot</button></td>';
     html+='</tr>';
@@ -2598,11 +2635,13 @@ async function prRunBrief(useFiltered){
 function prExportCSV(){
   const rows=prSelected.size>0?prAllData.filter(r=>prSelected.has(r.inst_key)):prFiltered;
   if(!rows.length){alert('Nothing to export.');return;}
-  const hdr='inst_key,bank_name,state,assets,deposits,dep_yoy_pct,roa,loan_growth_pct,loan_to_deposit_pct,marketing_ratio_pct,brokered_pct,phase1_score,dep_s,mktg_s,roa_s,loan_s,ld_s,brok_s';
+  const hdr='inst_key,bank_name,city,state,zip_hq,assets,deposits,dep_yoy_pct,roa,loan_growth_pct,loan_to_deposit_pct,marketing_ratio_pct,brokered_pct,phase1_score,dep_s,mktg_s,roa_s,loan_s,ld_s,brok_s';
   const lines=rows.map(r=>[
     '"'+r.inst_key+'"',
     '"'+(r.institution_name||'')+'"',
+    '"'+(r.city_hq||'')+'"',
     '"'+(r.state_hq||'')+'"',
+    '"'+(r.zip_hq||'')+'"',
     r.total_assets||0,
     r.total_deposits||0,
     (+(r.dep_yoy_pct||0)).toFixed(2),
@@ -2629,6 +2668,8 @@ function prExportCSV(){
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Score ≥</label><select id="prScoreFilter" onchange="prFilter()"><option value="0" selected>All</option><option value="7">7+</option><option value="8">8+</option><option value="10">10+</option><option value="12">12+</option></select></div>
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Min Deposits</label><select id="prDepFilter" onchange="prFilter()"><option value="0" selected>All</option><option value="500">$500M+</option><option value="1000">$1B+</option><option value="5000">$5B+</option><option value="10000">$10B+</option></select></div>
     <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Size</label><select id="prSizeFilter" onchange="prFilter()"><option value="">All</option><option value="small">&lt;$1B</option><option value="mid">$1B–$10B</option><option value="large">&gt;$10B</option></select></div>
+    <div class="pr-filter"><label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">HQ ZIP</label><input id="prZipFilter" type="text" placeholder="e.g. 07601-07676, 07030" oninput="prFilter()" style="border:none;outline:none;font-size:12px;color:var(--text);background:transparent;font-family:'Inter',system-ui,sans-serif;width:180px"></div>
+    <button class="pr-filter" style="cursor:pointer" onclick="prApplyZipPreset('sgw_njn')" title="Bergen, Essex, Hudson, Passaic, Morris/Sussex/Warren HQ zip ranges">📍 Northern NJ (SGW)</button>
     <div class="pr-search-wrap">
       <input class="pr-search" id="prSearch" type="text" placeholder="Search bank name..." autocomplete="off" oninput="prSearchInput()" onfocus="prSearchInput()" onkeydown="prSearchKey(event)">
       <div class="pr-dd" id="prDd"></div>
@@ -2661,10 +2702,11 @@ function prExportCSV(){
           <th onclick="prSort('loan_growth_pct')">Loan Gr ↕</th>
           <th onclick="prSort('loans_to_deposits_pct')">L/D ↕</th>
           <th onclick="prSort('marketing_ratio_val')">Mktg % ↕</th>
+          <th onclick="prSort('brokered_deposits_pct')">Brokered % ↕</th>
           <th onclick="prSort('phase1_score')">Score ↕</th>
           <th></th>
         </tr></thead>
-        <tbody id="prTbody"><tr><td colspan="12" class="pr-empty"><span class="spin"></span> Loading prospects...</td></tr></tbody>
+        <tbody id="prTbody"><tr><td colspan="13" class="pr-empty"><span class="spin"></span> Loading prospects...</td></tr></tbody>
       </table>
     </div>
   </div>

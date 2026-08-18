@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verlocity Intelligence Hub · Lite</title>
+<link rel="icon" type="image/png" href="https://fggraufaro.github.io/bmap-tools/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.dn{display:none !important}
+:root{--navy:#083D5F;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;--blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;--gray:#F5F5F2;--border:#E0DED8;--text:#213141;--muted:#777;--white:#fff;--teal:#02A7C2;--lteal:#E3F6F9}
+html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;font-weight:300;background:var(--gray);color:var(--text);font-size:14px;font-variant-numeric:tabular-nums}
+
+/* ── Access gate (same as full Hub — Railway session auth) ──── */
+#authGate{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999}
+.gate-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center}
+.gate-lbl{color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em}
+.gate-inp{width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px;font-family:inherit}
+.gate-err{display:none;color:var(--teal);font-size:11px;margin-bottom:10px}
+.gate-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer}
+.gate-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Header ────────────────────────────────────────────────── */
+.header{height:54px;background:var(--navy);padding:0 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:3px solid var(--teal)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--teal)}
+.logo-text{color:#fff;font-size:14px;font-weight:700}
+.logo-sub{color:rgba(255,255,255,.35);font-size:9px;letter-spacing:.05em;text-transform:uppercase}
+.live-badge{background:rgba(2,167,194,.15);border:1px solid rgba(2,167,194,.3);color:var(--teal);font-size:10px;padding:3px 9px;border-radius:12px}
+.search-wrap{position:relative;width:340px}
+.search-inp{width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit}
+.search-inp::placeholder{color:rgba(255,255,255,.35)}
+.dd{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid var(--navy);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:260px;overflow-y:auto;display:none;z-index:50}
+.dd.open{display:block}
+.dd-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border)}
+.dd-item:last-child{border-bottom:none}
+.dd-item:hover,.dd-item.hi{background:var(--lteal)}
+.dd-name{font-size:12.5px;font-weight:600}
+.dd-name mark{background:#D9F2F6;padding:0 2px;font-style:normal;font-weight:700}
+.dd-meta{font-size:10px;color:var(--muted)}
+.dd-msg{padding:12px;font-size:11px;color:var(--muted);text-align:center}
+.lock-icon{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;flex-shrink:0}
+.lock-icon:hover{background:rgba(255,255,255,.12);color:rgba(255,255,255,.6)}
+.locked-msg{color:rgba(255,255,255,.35);font-size:11px}
+#unlockPop{position:fixed;inset:0;background:rgba(8,61,95,.85);display:none;align-items:center;justify-content:center;z-index:998}
+#unlockPop.open{display:flex}
+.unlock-box{background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:22px 26px;width:260px;text-align:center}
+.unlock-lbl{color:rgba(255,255,255,.5);font-size:10.5px;margin-bottom:10px;letter-spacing:.05em}
+.unlock-inp{width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 12px;color:#fff;font-size:13px;outline:none;text-align:center;margin-bottom:8px;font-family:inherit}
+.unlock-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:800;cursor:pointer}
+.unlock-cancel{margin-top:8px;font-size:10px;color:rgba(255,255,255,.4);cursor:pointer}
+
+/* ── Layout ────────────────────────────────────────────────── */
+#empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 54px);color:var(--muted);gap:8px}
+#empty .e-t{font-size:15px;font-weight:700;color:var(--navy)}
+#empty .e-s{font-size:12px}
+#main{display:none;flex-direction:column;height:calc(100vh - 54px);padding:14px 18px;gap:12px;overflow:hidden}
+
+/* Health bar — condensed from the full Hub */
+.health{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:22px;flex-shrink:0}
+.health-score{display:flex;flex-direction:column;align-items:center;min-width:82px}
+.hs-num{font-size:30px;font-weight:800;line-height:1}
+.hs-verdict{font-size:10.5px;font-weight:700;margin-top:2px}
+.hs-pct{font-size:9px;color:var(--muted)}
+.health-track-wrap{flex:1.3}
+.health-track{height:8px;background:var(--gray);border-radius:5px;overflow:hidden;border:1px solid var(--border)}
+.health-fill{height:100%;border-radius:5px;transition:width .4s}
+.health-zones{display:flex;justify-content:space-between;margin-top:4px;font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.health-stats{display:flex;align-items:center;gap:10px;flex:1}
+.hstat{text-align:center}
+.hstat .v{font-size:16px;font-weight:800}
+.hstat .l{font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.hs-vs{font-size:10px;color:var(--muted)}
+.bank-name-block{min-width:190px}
+.bn{font-size:15px;font-weight:700;color:var(--navy)}
+.bm{font-size:10px;color:var(--muted);margin-top:2px}
+
+.panels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;flex:1;min-height:0}
+.panel{background:#fff;border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.panel-hdr{background:var(--navy);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.panel-t{color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.panel-tag{font-size:9px;color:rgba(255,255,255,.4)}
+.panel-body{padding:12px 16px;overflow-y:auto;flex:1}
+
+/* Priority list — reuses full Hub's urgent/invest/watch categorisation */
+.pri-slbl{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px}
+.pri-slbl:first-child{margin-top:0}
+.pri-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.pri-row:last-child{border-bottom:none}
+.pri-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pri-name{font-size:12px;font-weight:700}
+.pri-sub{font-size:10px;color:var(--muted)}
+.pri-dep{font-size:11.5px;font-weight:700;color:var(--navy)}
+.pri-yoy{font-size:10px;font-weight:700}
+
+/* Deep dive teaser */
+.dd-branch{background:var(--gray);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.dd-branch .bn2{font-size:13px;font-weight:700}
+.dd-branch .bc2{font-size:10px;color:var(--muted)}
+.dd-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.dd-m{background:#fff;border:1px solid var(--border);border-radius:7px;padding:7px 10px}
+.dd-m .v{font-size:15px;font-weight:800;color:var(--navy)}
+.dd-m .l{font-size:9px;color:var(--muted);text-transform:uppercase}
+.comp-line{font-size:11px;padding:6px 0;border-bottom:1px dashed var(--border)}
+.comp-line b{color:var(--navy)}
+.lock-box{background:var(--navy);border-radius:8px;padding:12px 14px;margin-top:10px}
+.lock-t{color:var(--teal);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.lock-item{color:rgba(255,255,255,.75);font-size:11px;padding:3px 0;display:flex;gap:7px}
+.lock-item::before{content:'○';color:var(--teal);font-size:9px}
+.deal-tag{background:rgba(2,167,194,.18);color:var(--teal);font-size:9px;padding:2px 8px;border-radius:10px;display:inline-block;margin-top:8px}
+
+/* Rate radar */
+.rr-source{font-size:10px;color:var(--muted);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.rr-row{padding:9px 0;border-bottom:1px solid var(--border)}
+.rr-row:last-child{border-bottom:none}
+.rr-name{font-size:12px;font-weight:700;margin-bottom:5px}
+.rr-rates{display:flex;gap:6px;flex-wrap:wrap}
+.rr-chip{background:var(--gray);border-radius:6px;padding:4px 8px;font-size:10.5px}
+.rr-chip b{color:var(--green)}
+.rr-vuln{background:var(--lred);color:var(--red);font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px}
+.rr-empty{text-align:center;padding:20px 10px;color:var(--muted);font-size:11px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <div class="gate-box">
+    <div class="gate-lbl">ENTER ACCESS CODE</div>
+    <input id="tokenInput" class="gate-inp" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')checkAccess()">
+    <div id="authErr" class="gate-err">Incorrect code — try again</div>
+    <button class="gate-btn" onclick="checkAccess()">Access →</button>
+  </div>
+</div>
+
+<div id="appWrap" style="display:none">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <div><div class="logo-text">Intelligence Hub</div><div class="logo-sub">Verlocity · Lite</div></div>
+    </div>
+    <div id="searchArea" style="display:flex;align-items:center;gap:10px">
+      <div class="search-wrap dn" id="searchWrap">
+        <input class="search-inp" id="si" type="text" placeholder="Search institution — e.g. Hancock Whitney" autocomplete="off">
+        <div class="dd" id="dd"></div>
+      </div>
+      <div class="locked-msg dn" id="lockedMsg">Demo locked to one institution</div>
+      <div class="lock-icon" id="lockIcon" onclick="openUnlock()" title="Unlock search">🔒</div>
+    </div>
+    <div class="live-badge">LIVE · Supabase</div>
+  </div>
+
+  <div id="unlockPop">
+    <div class="unlock-box">
+      <div class="unlock-lbl">INTERNAL UNLOCK CODE</div>
+      <input id="unlockInput" class="unlock-inp" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')tryUnlock()">
+      <button class="unlock-btn" onclick="tryUnlock()">Unlock search</button>
+      <div class="unlock-cancel" onclick="closeUnlock()">Cancel</div>
+    </div>
+  </div>
+
+  <div id="empty">
+    <div class="e-t" id="emptyTitle">Search a client institution to begin</div>
+    <div class="e-s">One-screen demo view · no scrolling · live data</div>
+  </div>
+
+  <div id="main">
+    <div class="health">
+      <div class="bank-name-block"><div class="bn" id="bn">—</div><div class="bm" id="bm">—</div></div>
+      <div class="health-score">
+        <div class="hs-num" id="healthScore">—</div>
+        <div class="hs-verdict" id="healthVerdict">—</div>
+        <div class="hs-pct" id="healthPct">—</div>
+      </div>
+      <div class="health-track-wrap">
+        <div class="health-track"><div class="health-fill" id="healthFill" style="width:0%"></div></div>
+        <div class="health-zones"><span>Justify</span><span>Defend</span><span>Analyze</span><span>Invest</span></div>
+      </div>
+      <div class="health-stats">
+        <div class="hstat"><div class="v" id="bankYoy">—</div><div class="l">Bank YoY</div></div>
+        <div class="hs-vs">vs</div>
+        <div class="hstat"><div class="v" id="peerYoy" style="color:var(--muted)">—</div><div class="l">Peer avg</div></div>
+        <div class="hstat"><div class="v" id="yoyGap">—</div><div class="l">Gap</div></div>
+        <div class="hstat"><div class="v" id="atRisk" style="font-size:13px">—</div><div class="l">At risk</div></div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-t">Branch priority</div><div class="panel-tag">Live · BMAP</div></div>
+        <div class="panel-body" id="priorityList"><div class="rr-empty"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-t">Branch deep dive</div><div class="panel-tag">Preview</div></div>
+        <div class="panel-body" id="ddBody"><div class="rr-empty"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-t">Rate radar</div><div class="panel-tag">Live · Named competitors</div></div>
+        <div class="panel-body" id="rrBody"><div class="rr-empty"><span class="spin"></span>Loading...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Auth — same Railway session-proxy as the full Hub ───────────
+const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+
+const g=id=>document.getElementById(id);
+function afterAuth(){
+  g('authGate').style.display='none';
+  g('appWrap').style.display='block';
+  applyLockUI();
+  if(lockedBankIk){
+    g('emptyTitle').textContent='Loading...';
+    loadBank(lockedBankIk);
+  }
+}
+(function(){
+  if(sessionStorage.getItem('hub_token'))afterAuth();
+})();
+
+async function checkAccess(){
+  const input=g('tokenInput').value.trim();
+  const btn=document.querySelector('#authGate button');
+  if(btn)btn.disabled=true;
+  try{
+    const r=await fetch(`${HUB_API}/auth/login`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:input})
+    });
+    if(!r.ok){
+      g('authErr').style.display='block';g('tokenInput').value='';g('tokenInput').focus();
+      if(btn)btn.disabled=false;return;
+    }
+    const data=await r.json();
+    sessionStorage.setItem('hub_token',data.token);
+    afterAuth();
+  }catch(e){
+    g('authErr').style.display='block';if(btn)btn.disabled=false;
+  }
+}
+
+// ── Data — proxied through Railway, same allowlist as the full Hub ──
+async function api(table,params){
+  try{
+    const token=sessionStorage.getItem('hub_token');
+    const r=await fetch(`${HUB_API}/api/${table}?${params}`,{headers:{'Authorization':'Bearer '+token}});
+    if(r.status===401){sessionStorage.removeItem('hub_token');location.reload();return[];}
+    if(!r.ok){console.error(table,r.status,await r.text());return[];}
+    return r.json();
+  }catch(e){console.error(e);return[];}
+}
+
+// ── Customer-demo lock ───────────────────────────────────────────
+// Default: locked to a single institution passed via ?bank=inst_key
+// (Tom/Brock set this up before handing the screen to a customer).
+// No search box is rendered in locked mode, so a customer who gets
+// the keyboard can't browse other clients' data. The lock icon lets
+// Tom/Brock re-enable search with a second, separate internal code —
+// never the same code as the main Hub access gate.
+const SEARCH_UNLOCK_CODE = 'verlocity-internal';
+const params=new URLSearchParams(location.search);
+const lockedBankIk=params.get('bank');
+let searchUnlocked=sessionStorage.getItem('search_unlocked')==='1';
+
+function applyLockUI(){
+  if(searchUnlocked){
+    g('searchWrap').classList.remove('dn');
+    g('lockedMsg').classList.add('dn');
+    g('lockIcon').classList.add('dn');
+  }else{
+    g('searchWrap').classList.add('dn');
+    g('lockedMsg').classList.toggle('dn',!lockedBankIk); // show "locked" label only if a bank is preset via ?bank=
+    g('lockIcon').classList.remove('dn');
+  }
+}
+function openUnlock(){g('unlockPop').classList.add('open');g('unlockInput').value='';g('unlockInput').focus();}
+function closeUnlock(){g('unlockPop').classList.remove('open');}
+function tryUnlock(){
+  if(g('unlockInput').value.trim()===SEARCH_UNLOCK_CODE){
+    searchUnlocked=true;sessionStorage.setItem('search_unlocked','1');
+    closeUnlock();applyLockUI();
+  }else{
+    g('unlockInput').value='';g('unlockInput').placeholder='Incorrect code';
+  }
+}
+
+// ── Search ────────────────────────────────────────────────────
+let ddItems=[],ddIdx=-1,timer=null;
+function hl(name,q){
+  const words=q.trim().split(/\s+/).filter(w=>w.length>0);
+  let h=name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  words.forEach(w=>{const re=new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');h=h.replace(re,'<mark>$1</mark>');});
+  return h;
+}
+async function doSearch(q){
+  if(!q||q.length<2){closeDd();return;}
+  const dd=g('dd');dd.innerHTML='<div class="dd-msg"><span class="spin"></span>Searching...</div>';dd.classList.add('open');
+  const words=q.trim().split(/\s+/).filter(w=>w.length>1);
+  const map=new Map();
+  const promises=words.map(w=>api('dim_institutions',`institution_name=ilike.*${encodeURIComponent(w)}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=30`));
+  promises.push(api('dim_institutions',`institution_name=ilike.*${encodeURIComponent(q.trim())}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=30`));
+  const results=await Promise.all(promises);
+  results.forEach(arr=>{if(Array.isArray(arr))arr.forEach(b=>map.set(b.inst_key,b))});
+  const scored=[...map.values()].map(b=>{
+    const name=b.institution_name.toLowerCase();
+    const score=words.reduce((s,w)=>s+(name.includes(w.toLowerCase())?1:0),0);
+    return{...b,_score:score};
+  }).sort((a,b)=>b._score-a._score).slice(0,8);
+  ddItems=scored;ddIdx=-1;
+  if(!scored.length){dd.innerHTML='<div class="dd-msg">No results</div>';return;}
+  dd.innerHTML=scored.map((b,i)=>`<div class="dd-item" onmousedown="pick(${i})">
+    <div class="dd-name">${hl(b.institution_name,q)}</div>
+    <div class="dd-meta">${b.institution_type} · ${[b.city_hq,b.state_hq].filter(Boolean).join(', ')}</div></div>`).join('');
+}
+function pick(i){const b=ddItems[i];if(!b)return;g('si').value=b.institution_name;closeDd();loadBank(b.inst_key);}
+function closeDd(){g('dd').classList.remove('open');ddIdx=-1;}
+g('si').addEventListener('input',e=>{clearTimeout(timer);const v=e.target.value.trim();if(v.length<2){closeDd();return;}timer=setTimeout(()=>doSearch(v),250);});
+g('si').addEventListener('keydown',e=>{
+  const items=g('dd').querySelectorAll('.dd-item');
+  if(e.key==='ArrowDown'){e.preventDefault();ddIdx=Math.min(ddIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('hi',i===ddIdx));}
+  else if(e.key==='ArrowUp'){e.preventDefault();ddIdx=Math.max(ddIdx-1,0);items.forEach((el,i)=>el.classList.toggle('hi',i===ddIdx));}
+  else if(e.key==='Enter'){e.preventDefault();if(ddIdx>=0)pick(ddIdx);else doSearch(g('si').value);}
+  else if(e.key==='Escape')closeDd();
+});
+g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
+
+// ── Load bank ─────────────────────────────────────────────────
+async function loadBank(ik){
+  g('empty').style.display='none';g('main').style.display='flex';
+  g('bn').textContent='Loading...';
+  g('priorityList').innerHTML='<div class="rr-empty"><span class="spin"></span>Loading...</div>';
+  g('ddBody').innerHTML='<div class="rr-empty"><span class="spin"></span>Loading...</div>';
+  g('rrBody').innerHTML='<div class="rr-empty"><span class="spin"></span>Loading...</div>';
+
+  const [rows,br]=await Promise.all([
+    api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign&order=opportunity_score.desc`)
+  ]);
+  if(!rows||!rows.length){g('bn').textContent='No data found for this institution';return;}
+
+  const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
+  const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
+  g('bn').textContent=rows[0].namefull;
+  g('bm').textContent=`${rows.length} branches · $${(tot/1e9).toFixed(1)}B deposits`;
+
+  // ── Health bar — same calc as the full Hub, condensed ─────────
+  const avgScore=avg('opportunity_score');
+  const avgBankYoy=avg('yoy_deposits')*100;
+  const avgPeerYoy=avg('avg_comp_yoy')*100;
+  const gap=avgBankYoy-avgPeerYoy;
+  const justifyDep=rows.filter(r=>r.opportunity_zone==='Justify').reduce((a,r)=>a+(+r.latest_dep||0),0);
+  const verdict=avgScore>=75?'Top performer':avgScore>=50?'Above average':avgScore>=25?'Below average':'Needs attention';
+  const pctLabel=avgScore>=75?'Top 25% of peers':avgScore>=50?'50th–75th pctile':avgScore>=25?'Bottom 25–50th pctile':'Bottom 25% of peers';
+  const scoreColor=avgScore>=50?'#27500A':avgScore>=25?'#854D0E':'#A32D2D';
+  const gapColor=gap>=0?'#27500A':'#A32D2D';
+  g('healthScore').textContent=avgScore.toFixed(1);g('healthScore').style.color=scoreColor;
+  g('healthVerdict').textContent=verdict;g('healthVerdict').style.color=scoreColor;
+  g('healthPct').textContent=pctLabel;
+  g('healthFill').style.width=Math.min(avgScore,100)+'%';g('healthFill').style.background=scoreColor;
+  g('bankYoy').textContent=(avgBankYoy>=0?'+':'')+avgBankYoy.toFixed(1)+'%';
+  g('bankYoy').style.color=avgBankYoy>=0?'#27500A':'#A32D2D';
+  g('peerYoy').textContent=avgPeerYoy.toFixed(1)+'%';
+  g('yoyGap').textContent=(gap>=0?'+':'')+gap.toFixed(1)+'pp';g('yoyGap').style.color=gapColor;
+  g('atRisk').textContent='$'+(justifyDep/1e6).toFixed(0)+'M';
+  g('atRisk').style.color=justifyDep>0?'#A32D2D':'#27500A';
+
+  // ── Priority list — same urgent/invest/watch categorisation as the full Hub ──
+  const byDep=(a,b)=>(+b.latest_dep||0)-(+a.latest_dep||0);
+  const byScr=(a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0);
+  const urgent=[
+    ...br.filter(b=>b.opportunity_zone==='Justify'&&((+b.yoy_deposits<0)||(+b.latest_dep/1e6>100))).sort(byDep),
+    ...br.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDep)
+  ].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,3);
+  const urgentIds=new Set(urgent.map(b=>b.uninumbr));
+  const invest=br.filter(b=>!urgentIds.has(b.uninumbr)&&
+    (b.opportunity_zone==='Invest'||(b.opportunity_zone==='Analyze'&&['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&+b.yoy_deposits>=0))
+    &&+b.latest_dep/1e6>=5).sort(byScr).slice(0,4);
+
+  let h='';
+  const row=(b,color,sub)=>{
+    const y=((+b.yoy_deposits||0)*100).toFixed(1),d=((+b.latest_dep||0)/1e6).toFixed(0);
+    return `<div class="pri-row"><div class="pri-dot" style="background:${color}"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${sub}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:${color}">${+y>=0?'+':''}${y}%</div></div></div>`;
+  };
+  if(urgent.length){
+    h+='<div class="pri-slbl" style="color:#A32D2D">Urgent — act now</div>';
+    urgent.forEach(b=>{const q=(b.matrix_quadrant||'').match(/Q\d/)?.[0]||'—';h+=row(b,'#A32D2D',`${q} · ${b.opportunity_zone}`);});
+  }
+  if(invest.length){
+    h+='<div class="pri-slbl" style="color:#27500A">Invest — campaign ready</div>';
+    invest.forEach(b=>h+=row(b,'#27500A',b.campaign||b.opportunity_zone));
+  }
+  g('priorityList').innerHTML=h||'<div class="rr-empty">No priority branches found</div>';
+
+  // ── Deep dive teaser — top opportunity branch, named competitor ──
+  const top=br[0];
+  const compRows=await api('branch_target_competitors',`my_branch_id=eq.${top.uninumbr}&select=target_namefull,target_inst_key,target_dep_m,vuln_score,target_zone&order=vuln_score.desc&limit=1`);
+  const topComp=compRows?.[0];
+  g('ddBody').innerHTML=`
+    <div class="dd-branch">
+      <div class="bn2">${top.namebr}</div>
+      <div class="bc2">${top.citybr}, ${top.stalpbr} · Top opportunity branch</div>
+    </div>
+    <div class="dd-metrics">
+      <div class="dd-m"><div class="v">${(+top.opportunity_score).toFixed(1)}</div><div class="l">Opp score</div></div>
+      <div class="dd-m"><div class="v">${(+top.yoy_deposits*100).toFixed(1)}%</div><div class="l">Deposit YoY</div></div>
+      <div class="dd-m"><div class="v">${top.matrix_quadrant||'—'}</div><div class="l">Matrix quadrant</div></div>
+      <div class="dd-m"><div class="v">${top.campaign?top.campaign.split(' ').slice(0,2).join(' '):'—'}</div><div class="l">Recommended play</div></div>
+    </div>
+    ${topComp?`<div class="comp-line">Named target: <b>${topComp.target_namefull}</b> — $${(+topComp.target_dep_m).toFixed(0)}M deposits, vulnerability ${(+topComp.vuln_score).toFixed(1)}</div>`:''}
+    <div class="lock-box">
+      <div class="lock-t">🔒 Full assessment adds</div>
+      <div class="lock-item">All ${br.length} branches, ranked and scored</div>
+      <div class="lock-item">Every named competitor's vulnerability profile</div>
+      <div class="lock-item">16-play growth campaign matrix</div>
+      <div class="lock-item">Branch-level persona & media targeting</div>
+      <div class="lock-item">12-month priority action plan</div>
+      <div class="deal-tag">Verlocity Branch Assessment · $10K</div>
+    </div>`;
+
+  // ── Rate Radar ────────────────────────────────────────────────
+  // Real join key: rate_radar.py's CSV upload copies target_namefull
+  // straight into raw_rate_radar.bank_name (see the Hub's "Rate Radar
+  // CSV" export — same string, byte-for-byte, just .strip()'d). RSSDID
+  // is never populated in this workflow, so match on name — exact,
+  // case-insensitive, trimmed — not fuzzy, and not RSSDID.
+  const norm=s=>(s||'').trim().toLowerCase();
+  const compForRR=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=8`);
+  const namedComps=[...new Map((compForRR||[]).filter(c=>c.target_namefull).map(c=>[norm(c.target_namefull),c])).values()].slice(0,6);
+
+  let rrRows=[],fallback=false;
+  if(namedComps.length){
+    const rrAll=await api('vw_rate_radar_latest',`select=bank_name,cd_apy,cd_term,savings_apy,checking_apy,money_market_apy,vulnerability_flag,run_at&order=run_at.desc&limit=2000`);
+    const rrByName={};(rrAll||[]).forEach(r=>{const k=norm(r.bank_name);if(!rrByName[k])rrByName[k]=r;}); // most recent first
+    rrRows=namedComps.map(c=>({comp:c,live:rrByName[norm(c.target_namefull)]||null}));
+  }
+  const anyLive=rrRows.some(r=>r.live);
+  if(!namedComps.length){
+    g('rrBody').innerHTML='<div class="rr-empty">No named competitors computed for this branch yet.</div>';
+  }else if(!anyLive){
+    fallback=true;
+    g('rrBody').innerHTML=`<div class="rr-source">Named competitors identified · none crawled by Rate Radar yet</div>
+      ${rrRows.map(r=>`<div class="rr-row"><div class="rr-name">${r.comp.target_namefull}</div>
+        <div style="font-size:10.5px;color:var(--muted)">Not yet crawled · vulnerability ${(+r.comp.vuln_score).toFixed(1)}</div></div>`).join('')}`;
+  }else{
+    const chip=(label,v,sub)=>v?`<div class="rr-chip">${label} <b>${(+v).toFixed(2)}%</b>${sub?` <span style="color:var(--muted)">${sub}</span>`:''}</div>`:'';
+    g('rrBody').innerHTML=`
+      <div class="rr-source">Live · matched to named target competitors by institution name</div>
+      ${rrRows.map(r=>r.live?`
+        <div class="rr-row">
+          <div class="rr-name">${r.comp.target_namefull}${r.live.vulnerability_flag?`<span class="rr-vuln">${r.live.vulnerability_flag}</span>`:''}</div>
+          <div class="rr-rates">
+            ${chip('CD',r.live.cd_apy,r.live.cd_term?r.live.cd_term+'mo':'')}
+            ${chip('Savings',r.live.savings_apy)}
+            ${chip('MMA',r.live.money_market_apy)}
+            ${chip('Checking',r.live.checking_apy)}
+          </div>
+        </div>`:`
+        <div class="rr-row">
+          <div class="rr-name">${r.comp.target_namefull}</div>
+          <div style="font-size:10.5px;color:var(--muted)">Not yet crawled</div>
+        </div>`).join('')}`;
+  }
+}
+</script>
+</body>
+</html>

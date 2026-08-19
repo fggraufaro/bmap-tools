@@ -221,9 +221,12 @@ function afterAuth(){
     loadBank(lockedBankIk);
   }
 }
-(function(){
-  if(sessionStorage.getItem('hub_token'))afterAuth();
-})();
+// NOTE: the auto-login check that calls afterAuth() is deliberately placed
+// at the very end of this script, not here — afterAuth() -> applyLockUI()
+// depends on SEARCH_UNLOCK_CODE / searchUnlocked / lockedBankIk, which are
+// declared further down. Calling it this early throws a TDZ ReferenceError
+// that silently kills the rest of the script's initialization (including
+// tryUnlock ever working), so don't move this back up.
 
 async function checkAccess(){
   const input=g('tokenInput').value.trim();
@@ -468,6 +471,13 @@ async function loadBank(ik){
         </div>`).join('')}`;
   }
 }
+
+// Deferred to here so every const/let/function it depends on
+// (SEARCH_UNLOCK_CODE, searchUnlocked, lockedBankIk, applyLockUI, loadBank)
+// has already been declared.
+(function(){
+  if(sessionStorage.getItem('hub_token'))afterAuth();
+})();
 </script>
 </body>
 </html>

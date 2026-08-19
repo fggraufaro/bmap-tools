@@ -3500,6 +3500,42 @@ function checkCRStatus() {
 }
 checkCRStatus();
 
+// Auto-load a CSV passed in via ?autoload=<base64 CSV>&bank=<name> — lets the
+// Hub open Rate Radar pre-populated instead of the user downloading then
+// re-uploading a file by hand. Same-origin fetch to /upload, no CORS needed.
+function tryAutoload() {
+  const params = new URLSearchParams(window.location.search);
+  const b64 = params.get('autoload');
+  if (!b64) return;
+  let csvText;
+  try {
+    csvText = decodeURIComponent(escape(atob(decodeURIComponent(b64))));
+  } catch (e) {
+    console.error('autoload decode failed', e);
+    return;
+  }
+  const blob = new Blob([csvText], {type: 'text/csv'});
+  const fd = new FormData();
+  fd.append('csv', blob, (params.get('bank') || 'bank') + '.csv');
+  fetch('/upload', {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert('Autoload error: ' + data.error); return; }
+      document.getElementById('upload-msg').textContent = data.count + ' banks loaded from Intelligence Hub';
+      document.getElementById('upload-msg').style.display = 'block';
+      document.getElementById('crawl-section').style.display = 'block';
+      populateQueued(data.banks);
+      if (crPeriod && data.banks.some(b => b.RSSDID && b.RSSDID !== '')) {
+        document.getElementById('view-toggle').style.display = 'flex';
+      }
+      // Strip the (potentially long) autoload param from the visible URL
+      const clean = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, clean);
+    })
+    .catch(e => alert('Autoload failed: ' + e));
+}
+tryAutoload();
+
 function doUpload() {
   const input = document.getElementById('csv-input');
   if (!input.files || input.files.length === 0) { alert('Please select a CSV file first.'); return; }

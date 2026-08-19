@@ -484,7 +484,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <a href="rate-radar.html" class="radar-btn" title="Open Rate Radar"><span class="radar-dot"></span>Rate Radar →</a>
+    <a href="https://bmap-tools-production.up.railway.app" target="_blank" class="radar-btn" title="Open Rate Radar"><span class="radar-dot"></span>Rate Radar →</a>
     <div class="live-badge">LIVE · Supabase</div>
   </div>
 </div>
@@ -679,7 +679,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     <div class="card" style="overflow:hidden;margin-bottom:14px">
       <div style="background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
         <div><div style="color:#fff;font-size:15px;font-weight:700" id="rrTitle">—</div><div style="color:rgba(255,255,255,.4);font-size:10px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums" id="rrMeta">—</div></div>
-        <button onclick="downloadRRcsv()" style="background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em">⬇ Download CSV for Rate Radar</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="openInRateRadar()" style="background:var(--navy);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em">🚀 Open in Rate Radar</button>
+          <button onclick="downloadRRcsv()" style="background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em">⬇ Download CSV</button>
+        </div>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px" id="rrTable">
@@ -2189,6 +2192,23 @@ async function loadRRWidget(){
   const withUrl=rrData.filter(r=>r.bank_url).length;
   const withAddr=rrData.filter(r=>r.branch_address).length;
   g('rrMeta').textContent=`Top ${rrData.length} competitors by vulnerability score · ${withUrl} with website URLs · ${withAddr} with target branch`;
+}
+
+const RATE_RADAR_URL = 'https://bmap-tools-production.up.railway.app';
+
+function buildRRcsv(){
+  const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+  const rows=['bank_name,bank_url,branch_address',...rrData.map(r=>`${esc(r.bank_name)},${esc(r.bank_url)},${esc(r.branch_address)}`)];
+  return rows.join('\n');
+}
+
+function openInRateRadar(){
+  if(!rrData.length)return;
+  const csv = buildRRcsv();
+  const b64 = btoa(unescape(encodeURIComponent(csv)));
+  const bankName=(bankData?.rows?.[0]?.namefull||'bank');
+  const url = `${RATE_RADAR_URL}/?autoload=${encodeURIComponent(b64)}&bank=${encodeURIComponent(bankName)}`;
+  window.open(url, '_blank');
 }
 
 function downloadRRcsv(){

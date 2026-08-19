@@ -1,7 +1,0 @@
-flask
-playwright
-requests
-python-dotenv
-pandas
-numpy
-anthropic

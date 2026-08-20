@@ -2593,11 +2593,38 @@ async def run_crawler(banks):
                     await asyncio.sleep(2)  # breathe between batches
 
     crawl_state["phase"] = "crawling"
+    crawl_state["log"].append("── Launching browser ──")
     async with async_playwright() as p:
-        launch_kwargs = {"headless": True}
+        launch_kwargs = {
+            "headless": True,
+            # Railway (and most PaaS containers) don't grant Chromium's
+            # sandbox the namespaces it wants by default — without these
+            # flags the launch can hang or die silently with zero log output.
+            "args": [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ],
+        }
         if PROXY_URL:
             launch_kwargs["proxy"] = {"server": PROXY_URL}
-        browser = await p.chromium.launch(**launch_kwargs)
+        try:
+            browser = await asyncio.wait_for(p.chromium.launch(**launch_kwargs), timeout=45)
+            crawl_state["log"].append("  ✓ Browser launched")
+        except asyncio.TimeoutError:
+            crawl_state["log"].append(
+                "  ✗ Browser launch timed out after 45s — likely a sandbox/permissions "
+                "issue in this container. Crawl aborted.")
+            crawl_state["running"] = False
+            crawl_state["done"] = True
+            return
+        except Exception as e:
+            crawl_state["log"].append(
+                f"  ✗ Browser launch failed: {type(e).__name__}: {str(e)[:200]}")
+            crawl_state["running"] = False
+            crawl_state["done"] = True
+            return
 
         # ── v3.2: connectivity self-check ──────────────────────────────────
         # The 06-11 run silently produced 0 browser results because every

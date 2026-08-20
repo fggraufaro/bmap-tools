@@ -2801,12 +2801,25 @@ async def run_crawler(banks):
                     await page.close()
                     await ctx.close()
 
+        BANK_TIMEOUT_SECONDS = 150  # hard ceiling per bank — a stuck site can't hang the batch
+
+        async def process_bank_guarded(i, bank, http_session):
+            try:
+                await asyncio.wait_for(process_bank(i, bank, http_session),
+                                        timeout=BANK_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                crawl_state["log"].append(
+                    f"[{i+1}/{total}] {bank['bank_name']} — TIMED OUT after "
+                    f"{BANK_TIMEOUT_SECONDS}s, skipping")
+                # process_bank's own finally already closes page/ctx and bumps
+                # completed[0] on cancellation — nothing further to do here.
+
         if da_session_ctx:
             async with da_session_ctx as http_session:
-                await asyncio.gather(*[process_bank(i, bank, http_session)
+                await asyncio.gather(*[process_bank_guarded(i, bank, http_session)
                                        for i, bank in enumerate(banks)])
         else:
-            await asyncio.gather(*[process_bank(i, bank, None)
+            await asyncio.gather(*[process_bank_guarded(i, bank, None)
                                    for i, bank in enumerate(banks)])
 
         await browser.close()
@@ -2889,12 +2902,29 @@ def _build_result_from_preflight(bank, pre):
 
 
 def start_crawl_thread(banks):
+    MAX_CRAWL_SECONDS = 25 * 60  # hard ceiling for the whole batch, regardless of size
+    run_token = crawl_state["run_token"] = crawl_state.get("run_token", 0) + 1
+
     def run():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(run_crawler(banks))
         loop.close()
+
+    def watchdog():
+        # If the crawl thread is still marked running past the ceiling AND
+        # this is still the same run (not a newer one that already finished
+        # and started again), force-clear the flag so /start isn't stuck
+        # returning "Already running" forever.
+        if crawl_state["running"] and crawl_state.get("run_token") == run_token:
+            crawl_state["log"].append(
+                f"\u26a0 Watchdog: crawl exceeded {MAX_CRAWL_SECONDS//60} min — "
+                f"force-clearing running flag so a new crawl can start")
+            crawl_state["running"] = False
+            crawl_state["done"] = True
+
     threading.Thread(target=run, daemon=True).start()
+    threading.Timer(MAX_CRAWL_SECONDS, watchdog).start()
 
 
 # ── Export / auto-save ────────────────────────────────────────────────────────

@@ -520,6 +520,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <div class="qx-opt" onclick="qxRun('snapshot')">⬇ Snapshot PPTX</div>
           <div class="qx-opt" onclick="qxRun('brief')">⬇ Board Brief PDF</div>
           <div class="qx-opt" onclick="qxRun('assessment')">⬇ BMAP Assessment DOCX</div>
+          <div class="qx-opt" onclick="qxRun('preview')">⬇ Branch Preview DOCX (1 branch)</div>
         </div>
       </div>
     </div>
@@ -1637,6 +1638,23 @@ async function boardBriefExport() {
   ld.classList.remove('on');
 }
 
+// Quick Export dropdown only -- no dedicated panel button like Snapshot/Board
+// Brief have, so this doesn't touch any panel-specific DOM elements. branch_name
+// is deliberately omitted from the request body: the backend auto-selects the
+// most compelling branch (flagship risk, else top opportunity score) so this
+// stays a one-click export with no branch-picker UI needed.
+async function branchPreviewExport() {
+  if (!window.selBank || !window.bankData) return;
+  const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
+  try{
+    const resp=await fetch(`${BMAP_API}/generate-branch-preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
+    const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`BMAP_Preview_${safe}_${date}.docx`;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+  }catch(err){alert('Branch preview failed: '+err.message);throw err;}
+}
+
 async function assessmentExport() {
   if (!window.selBank || !window.bankData) return;
   const btn=document.getElementById('assessBtn'),ld=document.getElementById('assessLd'),msg=document.getElementById('assessMsg');
@@ -1692,10 +1710,11 @@ async function qxRun(kind){
   document.getElementById('qxMenu').classList.remove('on');
   if(!window.selBank||!window.bankData){alert('Select a bank first.');return;}
   const btn=document.getElementById('qxBtn'),orig=btn.innerHTML;
-  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':kind==='assessment'?'Building DOCX…':'Building PDF…';
+  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':kind==='assessment'?'Building DOCX…':kind==='preview'?'Building Preview…':'Building PDF…';
   try{
     if(kind==='snapshot')await snapshotExport();
     else if(kind==='assessment')await assessmentExport();
+    else if(kind==='preview')await branchPreviewExport();
     else await boardBriefExport();
     btn.innerHTML='✓ Downloaded';
     setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2200);

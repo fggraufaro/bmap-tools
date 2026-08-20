@@ -2558,7 +2558,10 @@ async def run_crawler(banks):
     # when running large lists. Each search call is ~2-4K tokens.
     preflight_results = {}   # bank_name → result dict or None
     banks_to_preflight = [b for b in banks if _bank_cache_key(b) not in today_cache]
+    crawl_state["preflight_total"] = len(banks_to_preflight)
+    crawl_state["preflight_done"] = 0
     if ANTHROPIC_OK and banks_to_preflight:
+        crawl_state["phase"] = "preflight"
         crawl_state["log"].append("── Preflight search pass ──")
         conn = aiohttp.TCPConnector(limit=10, ssl=False) if AIOHTTP_OK else None
         async with aiohttp.ClientSession(connector=conn, trust_env=True) as search_session:
@@ -2578,6 +2581,8 @@ async def run_crawler(banks):
                 except Exception as e:
                     crawl_state["log"].append(f"  [Search] {bank['bank_name']}: {e}")
                     preflight_results[bank["bank_name"]] = None
+                finally:
+                    crawl_state["preflight_done"] += 1
 
             # Batch size 3, 2s between batches — ~4K tokens each → stays well under 50K TPM
             BATCH_SIZE = 3
@@ -2587,6 +2592,7 @@ async def run_crawler(banks):
                 if i + BATCH_SIZE < len(banks_to_preflight):
                     await asyncio.sleep(2)  # breathe between batches
 
+    crawl_state["phase"] = "crawling"
     async with async_playwright() as p:
         launch_kwargs = {"headless": True}
         if PROXY_URL:
@@ -3159,7 +3165,8 @@ def start():
     force_refresh = (request.json.get("force_refresh", False) if request.is_json
                       else request.form.get("force_refresh") in ("true", "1", "on"))
     crawl_state.update({"running": True, "results": [], "log": [], "done": False,
-                        "ai_calls": 0, "crawl_mode": mode, "force_refresh": force_refresh})
+                        "ai_calls": 0, "crawl_mode": mode, "force_refresh": force_refresh,
+                        "preflight_total": 0, "preflight_done": 0, "phase": "starting"})
     crawl_state["log"].append(f"Mode: {mode.upper()}" + (" · AI Vision ON" if ANTHROPIC_OK else " · No API key"))
     start_crawl_thread(crawl_state["banks"])
     return jsonify({"ok": True, "mode": mode})
@@ -3169,15 +3176,18 @@ def status():
     total = len(crawl_state["banks"])
     done  = len(crawl_state["results"])
     return jsonify({
-        "running":        crawl_state["running"],
-        "done":           crawl_state["done"],
-        "total":          total,
-        "progress":       done,
-        "pct":            round(done / total * 100 if total else 0, 1),
-        "log":            crawl_state["log"][-50:],
-        "results":        crawl_state["results"],
-        "cr_period":      crawl_state["cr_period"],
-        "cr_prev_period": crawl_state["cr_prev_period"],
+        "running":         crawl_state["running"],
+        "done":            crawl_state["done"],
+        "total":           total,
+        "progress":        done,
+        "pct":             round(done / total * 100 if total else 0, 1),
+        "log":             crawl_state["log"][-50:],
+        "results":         crawl_state["results"],
+        "cr_period":       crawl_state["cr_period"],
+        "cr_prev_period":  crawl_state["cr_prev_period"],
+        "phase":           crawl_state.get("phase", ""),
+        "preflight_total": crawl_state.get("preflight_total", 0),
+        "preflight_done":  crawl_state.get("preflight_done", 0),
     })
 
 @app.route("/export")
@@ -3614,8 +3624,16 @@ function startCrawl() {
 
 function pollStatus() {
   fetch('/status').then(r => r.json()).then(data => {
-    document.getElementById('prog-fill').style.width = data.pct + '%';
-    document.getElementById('prog-label').textContent = data.progress + ' / ' + data.total;
+    if (data.phase === 'preflight' && data.preflight_total > 0) {
+      var pfPct = Math.round(data.preflight_done / data.preflight_total * 100);
+      document.getElementById('prog-fill').style.width = pfPct + '%';
+      document.getElementById('prog-label').textContent =
+        'Preflight search ' + data.preflight_done + ' / ' + data.preflight_total +
+        ' (browser crawl starts after)';
+    } else {
+      document.getElementById('prog-fill').style.width = data.pct + '%';
+      document.getElementById('prog-label').textContent = data.progress + ' / ' + data.total;
+    }
     var lb = document.getElementById('log-box');
     lb.innerHTML = data.log.map(l => {
       var cls = l.indexOf('✓') >= 0 ? 'log-hit' : (l.indexOf('○') >= 0 || l.indexOf('~') >= 0) ? 'log-miss' : '';

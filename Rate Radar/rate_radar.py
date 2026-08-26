@@ -3344,6 +3344,7 @@ def status():
         "phase":           crawl_state.get("phase", ""),
         "preflight_total": crawl_state.get("preflight_total", 0),
         "preflight_done":  crawl_state.get("preflight_done", 0),
+        "force_refresh":   crawl_state.get("force_refresh", False),
     })
 
 @app.route("/export")
@@ -3883,7 +3884,8 @@ function pollStatus() {
       document.getElementById('export-btn').disabled = false;
       document.getElementById('prompt-btn').disabled = false;
       document.getElementById('save-btn').disabled = allResults.length === 0;
-      document.getElementById('status-msg').textContent = 'Complete \u2014 ' + new Date().toLocaleTimeString();
+      document.getElementById('status-msg').textContent = 'Complete \u2014 ' + new Date().toLocaleTimeString() +
+        (data.force_refresh ? ' \u2014 cache bypassed (fresh crawl)' : ' \u2014 same-day cache reused where available');
     }
   });
 }

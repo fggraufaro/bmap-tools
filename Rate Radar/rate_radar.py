@@ -84,7 +84,8 @@ import threading
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
+import urllib.request as urlreq
 
 # Load .env automatically
 try:
@@ -3121,6 +3122,91 @@ def auto_save(results):
 def index():
     return render_template_string(HTML)
 
+@app.route("/search-banks")
+def search_banks():
+    """Typeahead against public.vw_bank_directory (dim_institutions x bank_website),
+    used by the '+ Add bank' box so a bank can be added without a CSV re-upload."""
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return jsonify([])
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        return jsonify({"error": "Supabase not configured"}), 500
+    url = (f"{SUPABASE_URL}/rest/v1/vw_bank_directory"
+           f"?bank_name=ilike.*{quote(q)}*"
+           f"&select=rssdid,bank_name,bank_url,city_hq,state_hq&limit=8")
+    req = urlreq.Request(url, headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+    })
+    try:
+        with urlreq.urlopen(req, timeout=8) as resp:
+            return jsonify(json.loads(resp.read().decode("utf-8")))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/add-bank", methods=["POST"])
+def add_bank():
+    """Append one manually-picked bank to the current queue without re-uploading a CSV."""
+    body = request.get_json(force=True, silent=True) or {}
+    name = (body.get("bank_name") or "").strip()
+    if not name:
+        return jsonify({"error": "bank_name required"}), 400
+    bank = {
+        "bank_name": name,
+        "bank_url":  (body.get("bank_url") or "").strip(),
+        "RSSDID":    str(body.get("RSSDID") or "").strip(),
+        "bank_type": (body.get("bank_type") or "").strip(),
+        "branch_address": (body.get("branch_address") or "").strip(),
+    }
+    crawl_state.setdefault("banks", [])
+    if any(b.get("bank_name","").lower() == name.lower() for b in crawl_state["banks"]):
+        return jsonify({"error": f"{name} is already in the list", "banks": crawl_state["banks"]}), 409
+    crawl_state["banks"].append(bank)
+    crawl_state["log"].append(f"+ Manually added: {name}")
+    return jsonify({"banks": crawl_state["banks"], "count": len(crawl_state["banks"])})
+
+@app.route("/manual-save", methods=["POST"])
+def manual_save():
+    """Persist the on-screen table (crawled + any hand-edited cells) to Supabase
+    as its own run, timestamped, so manual overrides are tracked over time
+    alongside crawled runs rather than silently overwriting them."""
+    body = request.get_json(force=True, silent=True) or {}
+    rows_in = body.get("results") or []
+    if not rows_in:
+        return jsonify({"error": "No rows to save"}), 400
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        return jsonify({"error": "Supabase not configured on server"}), 500
+
+    run_id   = f"manual-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_date = datetime.now().strftime("%Y-%m-%d")
+    for r in rows_in:
+        if r.get("_edited"):
+            note = (r.get("note") or "").strip()
+            r["note"] = (note + " | Manually verified/edited").strip(" |")
+    rows = build_supabase_rows(rows_in, run_id, run_date)
+    if not rows:
+        return jsonify({"error": "Nothing valid to save"}), 400
+
+    url = f"{SUPABASE_URL}/rest/v1/raw_rate_radar?on_conflict=run_id,bank_name"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Content-Profile": "raw",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    req = urlreq.Request(url, data=json.dumps(rows).encode("utf-8"),
+                         headers=headers, method="POST")
+    try:
+        with urlreq.urlopen(req, timeout=30) as resp:
+            crawl_state["log"].append(
+                f"Manual save: ✓ pushed {len(rows)} rows to raw.raw_rate_radar (run {run_id})")
+            return jsonify({"saved": len(rows), "run_id": run_id})
+    except Exception as e:
+        crawl_state["log"].append(f"Manual save failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/upload", methods=["POST"])
 def upload():
     f = request.files.get("csv")
@@ -3466,6 +3552,24 @@ tr:hover td { background: #F7FAFC; }
 
   <div id="crawl-section" style="display:none;">
 
+    <div class="card" style="position:relative">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap">+ Add bank manually:</label>
+        <input id="add-bank-input" type="text" autocomplete="off" placeholder="Start typing a bank name…"
+               style="flex:1;min-width:220px;padding:8px 10px;border:1px solid #d5dbe3;border-radius:6px;font-size:13px;font-family:Inter,system-ui,sans-serif">
+      </div>
+      <div id="add-bank-dd" style="display:none;position:absolute;left:16px;right:16px;top:56px;background:#fff;
+           border:1px solid #d5dbe3;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;max-height:280px;overflow-y:auto"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-navy" id="save-btn" onclick="manualSave()" disabled
+                title="Save the current table (including any manual edits) to Supabase">💾 Save to Supabase</button>
+      </div>
+      <div id="save-msg" style="display:none;font-size:12px;margin-top:8px"></div>
+    </div>
+
     <div class="card">
       <div class="controls-row">
         <button class="btn btn-amber" id="start-btn" onclick="startCrawl()">&#9654; Start Crawl</button>
@@ -3649,14 +3753,63 @@ function doUpload() {
 }
 
 function populateQueued(banks) {
-  document.getElementById('tbody-scraped').innerHTML = banks.map(b =>
-    '<tr><td><div class="bank-name">' + b.bank_name + '</div>' +
-    '<div class="bank-url"><a href="' + b.bank_url + '" target="_blank">' + b.bank_url + '</a></div></td>' +
-    '<td><span class="dash">-</span></td><td><span class="dash">-</span></td>' +
-    '<td><span class="dash">-</span></td><td><span class="dash">-</span></td>' +
-    '<td><span class="dash">-</span></td><td><span class="badge b-queued">Queued</span></td><td></td></tr>'
-  ).join('');
-  document.getElementById('result-count').textContent = banks.length + ' banks';
+  allResults = banks.map(function(b){
+    return {
+      bank_name: b.bank_name, bank_url: b.bank_url || '', RSSDID: b.RSSDID || '',
+      checking_apy: null, savings_apy: null, money_market_apy: null,
+      cd_apy: null, cd_term: null, min_balance: null,
+      status: 'Queued', note: '', source_url: '', _edited: false
+    };
+  });
+  renderTable();
+  document.getElementById('save-btn').disabled = allResults.length === 0;
+}
+
+// ── Manual bank add (typeahead against ref.dim_institutions x bank_website) ──
+var addBankTimer = null, addBankItems = [], addBankIdx = -1;
+document.getElementById('add-bank-input').addEventListener('input', function(e){
+  clearTimeout(addBankTimer);
+  var v = e.target.value.trim();
+  if (v.length < 2) { closeAddBankDd(); return; }
+  addBankTimer = setTimeout(function(){ addBankSearch(v); }, 250);
+});
+document.getElementById('add-bank-input').addEventListener('blur', function(){ setTimeout(closeAddBankDd, 150); });
+
+function closeAddBankDd(){
+  document.getElementById('add-bank-dd').style.display = 'none';
+  addBankIdx = -1;
+}
+
+function addBankSearch(q){
+  var dd = document.getElementById('add-bank-dd');
+  dd.style.display = 'block';
+  dd.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">Searching…</div>';
+  fetch('/search-banks?q=' + encodeURIComponent(q)).then(r => r.json()).then(function(data){
+    if (data.error) { dd.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#b23">' + data.error + '</div>'; return; }
+    addBankItems = data || [];
+    if (!addBankItems.length) { dd.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">No matches</div>'; return; }
+    dd.innerHTML = addBankItems.map(function(b, i){
+      return '<div onmousedown="pickAddBank(' + i + ')" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f0f2f5;font-size:13px" ' +
+             'onmouseover="this.style.background=\'#f7f9fc\'" onmouseout="this.style.background=\'\'">' +
+             '<strong>' + b.bank_name + '</strong> ' +
+             '<span style="color:var(--muted);font-size:11px">' + (b.bank_url||'') + (b.city_hq ? ' · ' + b.city_hq + ', ' + (b.state_hq||'') : '') + '</span></div>';
+    }).join('');
+  }).catch(function(e){ dd.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#b23">' + e + '</div>'; });
+}
+
+function pickAddBank(i){
+  var b = addBankItems[i];
+  if (!b) return;
+  fetch('/add-bank', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({bank_name: b.bank_name, bank_url: b.bank_url, RSSDID: b.rssdid})
+  }).then(r => r.json()).then(function(data){
+    if (data.error) { alert(data.error); return; }
+    document.getElementById('add-bank-input').value = '';
+    closeAddBankDd();
+    document.getElementById('crawl-section').style.display = 'block';
+    populateQueued(data.banks);
+    document.getElementById('save-btn').disabled = false;
+  }).catch(function(e){ alert('Add failed: ' + e); });
 }
 
 function startCrawl() {
@@ -3710,6 +3863,7 @@ function pollStatus() {
       document.getElementById('start-btn').textContent = '\u25B6 Re-crawl';
       document.getElementById('export-btn').disabled = false;
       document.getElementById('prompt-btn').disabled = false;
+      document.getElementById('save-btn').disabled = allResults.length === 0;
       document.getElementById('status-msg').textContent = 'Complete \u2014 ' + new Date().toLocaleTimeString();
     }
   });
@@ -3746,6 +3900,31 @@ function rateCell(val, sub) {
   return '<span class="' + cls + '">' + n.toFixed(2) + '%</span>' + termStr;
 }
 
+function editCell(bankName, field, val, isText) {
+  var v = (val === null || val === undefined) ? '' : val;
+  var type = isText ? 'text' : 'number';
+  var step = isText ? '' : ' step="0.01"';
+  return '<input type="' + type + '"' + step + ' value="' + String(v).replace(/"/g,'&quot;') +
+    '" data-bank="' + bankName.replace(/"/g,'&quot;') + '" data-field="' + field + '" ' +
+    'onchange="onRateEdit(this)" ' +
+    'style="width:' + (isText ? '70px' : '58px') + ';font-size:12px;padding:3px 5px;border:1px solid #d5dbe3;border-radius:4px;font-family:Inter,system-ui,sans-serif">';
+}
+
+function onRateEdit(input) {
+  var bankName = input.getAttribute('data-bank');
+  var field    = input.getAttribute('data-field');
+  var raw      = input.value.trim();
+  var isNumeric = field !== 'min_balance';
+  var val = raw === '' ? null : (isNumeric ? parseFloat(raw) : raw);
+  var r = allResults.find(function(x){ return x.bank_name === bankName; });
+  if (!r) return;
+  r[field] = (isNumeric && isNaN(val)) ? null : val;
+  r._edited = true;
+  input.style.borderColor = 'var(--amber, #d99b23)';
+  input.style.background  = '#fff8ec';
+  document.getElementById('save-btn').disabled = false;
+}
+
 function deltaCell(val, prevVal) {
   /* val = current quarter value, prevVal = prior quarter value */
   if (val === null || val === undefined || prevVal === null || prevVal === undefined) {
@@ -3778,6 +3957,7 @@ function badge(s, note) {
   var chatTag = (note && note.indexOf('💬') >= 0) ? ' <span style="font-size:10px">💬</span>' : '';
   if (s === 'Found')   return '<span class="badge b-found">Found</span>' + chatTag;
   if (s === 'Partial') return '<span class="badge b-partial">Partial</span>' + chatTag;
+  if (s === 'Queued')  return '<span class="badge b-queued">Queued</span>';
   return '<span class="badge b-np">Not public</span>';
 }
 
@@ -3804,12 +3984,12 @@ function renderTable() {
     document.getElementById('tbody-scraped').innerHTML = rows.map(r =>
       '<tr><td><div class="bank-name">' + r.bank_name + '</div>' +
       '<div class="bank-url"><a href="' + (r.bank_url||'') + '" target="_blank">' + (r.bank_url||'') + '</a></div></td>' +
-      '<td>' + rateCell(r.checking_apy, null) + '</td>' +
-      '<td>' + rateCell(r.savings_apy, null) + '</td>' +
-      '<td>' + rateCell(r.money_market_apy, null) + '</td>' +
-      '<td>' + rateCell(r.cd_apy, r.cd_term) + '</td>' +
-      '<td><span style="font-size:12px">' + (r.min_balance || '<span class="dash">-</span>') + '</span></td>' +
-      '<td>' + badge(r.status, r.note) + '</td>' +
+      '<td>' + editCell(r.bank_name, 'checking_apy', r.checking_apy) + '</td>' +
+      '<td>' + editCell(r.bank_name, 'savings_apy', r.savings_apy) + '</td>' +
+      '<td>' + editCell(r.bank_name, 'money_market_apy', r.money_market_apy) + '</td>' +
+      '<td>' + editCell(r.bank_name, 'cd_apy', r.cd_apy) + (r.cd_term && r.cd_term !== 'best found' ? '<br><small style="color:var(--muted)">' + r.cd_term + '</small>' : '') + '</td>' +
+      '<td>' + editCell(r.bank_name, 'min_balance', r.min_balance, true) + '</td>' +
+      '<td>' + badge(r.status, r.note) + (r._edited ? ' <span style="font-size:10px;color:var(--amber,#d99b23)">edited</span>' : '') + '</td>' +
       '<td><div class="note-cell">' + (r.note||'') + verifyLink(r.source_url) + '</div></td></tr>'
     ).join('');
   } else {
@@ -3880,6 +4060,36 @@ function vulnCell(val) {
 }
 
 function exportCSV()    { window.location = '/export'; }
+
+function manualSave() {
+  if (!allResults.length) { alert('Nothing to save yet — load or crawl some banks first.'); return; }
+  var btn = document.getElementById('save-btn');
+  var msg = document.getElementById('save-msg');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  fetch('/manual-save', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({results: allResults})
+  }).then(r => r.json()).then(function(data){
+    btn.textContent = '💾 Save to Supabase';
+    btn.disabled = false;
+    msg.style.display = 'block';
+    if (data.error) {
+      msg.style.color = '#b23';
+      msg.textContent = 'Save failed: ' + data.error;
+    } else {
+      msg.style.color = 'var(--teal)';
+      msg.textContent = '✓ Saved ' + data.saved + ' banks to Supabase (run ' + data.run_id + ', ' + new Date().toLocaleTimeString() + ')';
+      allResults.forEach(function(r){ r._edited = false; });
+      renderTable();
+    }
+  }).catch(function(e){
+    btn.textContent = '💾 Save to Supabase';
+    btn.disabled = false;
+    msg.style.display = 'block';
+    msg.style.color = '#b23';
+    msg.textContent = 'Save failed: ' + e;
+  });
+}
 function exportPrompt() { window.location = '/export_prompt'; }
 
 function resetAll() {

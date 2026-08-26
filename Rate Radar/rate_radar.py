@@ -3478,6 +3478,8 @@ header h1 span { color:var(--teal); font-weight:500; }
 header p { margin:0; font-size:12px; opacity:0.65; }
 main { max-width: 1400px; margin: 0 auto; padding: 24px; }
 .card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+.search-dd-item { padding:9px 14px; cursor:pointer; border-bottom:1px solid #f0f2f5; font-size:13px; }
+.search-dd-item:hover { background:#f7f9fc; }
 .upload-area { text-align: center; padding: 20px 0; }
 .upload-area h2 { margin: 0 0 8px; font-weight:700; }
 .upload-area p  { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
@@ -3807,8 +3809,7 @@ function addBankSearch(q){
     addBankItems = data || [];
     if (!addBankItems.length) { dd.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">No matches</div>'; return; }
     dd.innerHTML = addBankItems.map(function(b, i){
-      return '<div onmousedown="pickAddBank(' + i + ')" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f0f2f5;font-size:13px" ' +
-             'onmouseover="this.style.background=\'#f7f9fc\'" onmouseout="this.style.background=\'\'">' +
+      return '<div class="search-dd-item" onmousedown="pickAddBank(' + i + ')">' +
              '<strong>' + b.bank_name + '</strong> ' +
              '<span style="color:var(--muted);font-size:11px">' + (b.bank_url||'') + (b.city_hq ? ' · ' + b.city_hq + ', ' + (b.state_hq||'') : '') + '</span></div>';
     }).join('');

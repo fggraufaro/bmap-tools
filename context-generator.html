@@ -520,7 +520,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <div class="qx-opt" onclick="qxRun('snapshot')">⬇ Snapshot PPTX</div>
           <div class="qx-opt" onclick="qxRun('brief')">⬇ Board Brief PDF</div>
           <div class="qx-opt" onclick="qxRun('assessment')">⬇ BMAP Assessment DOCX</div>
-          <div class="qx-opt" onclick="qxRun('preview')">⬇ Branch Preview DOCX (1 branch)</div>
         </div>
       </div>
     </div>
@@ -619,17 +618,33 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 </div>
 
   <div class="wf-grid dn" id="wg">
-    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Pitch Deck Context</div><div class="wf-d">4-slide executive narrative for first conversation with bank leadership</div><span class="wf-tag">PITCH</span></div>
+    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Pick any branch, export the real one-branch Assessment-depth preview DOCX</div><span class="wf-tag">BRANCH PREVIEW</span></div>
     <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Audience Generator</div><div class="wf-d">Auto-suggests Resonate segments from BMAP data — rAI prompts ready for Pete</div><span class="wf-tag">RESONATE · NEW</span></div>
     <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
-    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Full branch intelligence report — the $9K Verlocity deliverable</div><span class="wf-tag">DEEP DIVE · $9K</span></div>
+    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Text Brief</div><div class="wf-d">One-branch text context blob — ready to paste into an AI tool, not a document</div><span class="wf-tag">TEXT CONTEXT</span></div>
     <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Rate Radar CSV</div><div class="wf-d">Top 20 competitors by vulnerability score — ready to drop into Rate Radar</div><span class="wf-tag">RATE RADAR</span></div>
     <div class="wf" id="w7" onclick="selWf(7)"><div class="wf-n">06</div><div class="wf-t">MediaPredict ROI Calculator</div><div class="wf-d">Predictive deposit-growth funnel — budget, CAC, and value-to-CAC before a dollar is spent</div><span class="wf-tag">MEDIAPREDICT · NEW</span></div>
   </div>
 
   <div class="card card-pad dn" id="bsel">
-    <div class="label">Select branch for deep dive</div>
+    <div class="label">Select branch</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <select class="inp" id="bselState" style="cursor:pointer;flex:1" onchange="bselFilterChanged('state')"><option value="">All states</option></select>
+      <select class="inp" id="bselCity" style="cursor:pointer;flex:1" onchange="bselFilterChanged('city')"><option value="">All cities</option></select>
+    </div>
     <select class="inp" id="bselect" style="cursor:pointer" onchange="if(selWfN===7)mpOnBranchChange()"><option value="">— select a branch —</option></select>
+  </div>
+
+  <!-- WF01 BRANCH DEEP DIVE — real DOCX export for one selected branch -->
+  <div class="dn" id="bpWidget">
+    <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--teal)">
+      <div class="label" style="margin-bottom:6px">Branch Preview DOCX — One Branch, Assessment Depth</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:14px">
+        Same rendering as the paid BMAP Assessment, scoped to the branch selected above. Pick a state and city to narrow a large network, then choose the branch.
+      </div>
+      <button class="gen-btn" style="margin-bottom:0;background:var(--teal)" id="bpBtn" onclick="branchPreviewExport()">⬇ Generate Branch Preview DOCX</button>
+      <div class="loading" id="bpLd" style="margin-top:8px"><span class="spin"></span><span id="bpMsg">Building branch preview...</span></div>
+    </div>
   </div>
 
   <!-- WF02 AUDIENCE GENERATOR -->
@@ -841,10 +856,10 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 
 <script>
 // ── WEBINAR MODE ─────────────────────────────────────────────
-// Temporarily hides the Prospecting tab and the Pitch Deck Context
-// workflow tile for the July 15 webinar. To turn both back on after
-// the webinar, just flip this one flag to false — nothing else to
-// touch, nothing was deleted.
+// Temporarily hides the Prospecting tab and the WF01 tile (Branch
+// Deep Dive as of this edit) for the July 15 webinar. To turn both
+// back on after the webinar, just flip this one flag to false —
+// nothing else to touch, nothing was deleted.
 const WEBINAR_MODE = false;
 if (WEBINAR_MODE) {
   const tabPro = document.getElementById('tabPro');
@@ -1567,8 +1582,10 @@ async function loadBank(ik){
   const t=Array.isArray(tgt)?tgt[0]:tgt;
   set('tn',t?t.target_institution:'No network targets computed yet');
   set('tm',t?`${t.branches_in_radius} branches exposed · Vuln ${t.avg_vuln_score} · YoY ${(+t.avg_yoy_pct).toFixed(1)}% · ROA ${t.target_roa}% · Efficiency ${t.target_efficiency_ratio}%`:'Run populate_network_top_targets for this institution');
-  const sel=g('bselect');sel.innerHTML='<option value="">— select a branch —</option>';
-  allBr.forEach(b=>{const o=document.createElement('option');o.value=b.uninumbr;o.textContent=`${b.namebr} — ${b.citybr}, ${b.stalpbr} (${(+b.opportunity_score).toFixed(1)})`;sel.appendChild(o);});
+  const stSel=g('bselState');stSel.innerHTML='<option value="">All states</option>';
+  [...new Set(allBr.map(b=>b.stalpbr).filter(Boolean))].sort().forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;stSel.appendChild(o);});
+  g('bselCity').innerHTML='<option value="">All cities</option>';
+  populateBranchSelect();
   window.selBank = selBank; window.bankData = bankData;
   // Reset BMAP snapshot buttons on bank change so no stale state carries over
   const snapBtn=document.getElementById('snapBtn');
@@ -1582,22 +1599,43 @@ async function loadBank(ik){
   document.getElementById('snapLd').classList.remove('on');
   document.getElementById('briefLd').classList.remove('on');
   document.getElementById('assessLd').classList.remove('on');
-  show('wg');hide('oc');hide('gb');hide('bsel');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');hide('mpWidget');
+  show('wg');hide('oc');hide('gb');hide('bsel');hide('bpWidget');hide('agWidget');hide('agOut');hide('rrWidget');hide('pptWidget');hide('briefWidget');hide('mpWidget');
   selWfN=null;document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
+}
+
+// ── Branch select — state/city cascading filter, feeds tiles 01/04/07 ──
+function populateBranchSelect(){
+  const stateVal=g('bselState').value,cityVal=g('bselCity').value;
+  const citySel=g('bselCity');
+  const priorCity=cityVal;
+  const citiesInState=[...new Set(allBr.filter(b=>!stateVal||b.stalpbr===stateVal).map(b=>b.citybr).filter(Boolean))].sort();
+  citySel.innerHTML='<option value="">All cities</option>';
+  citiesInState.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;citySel.appendChild(o);});
+  citySel.value=citiesInState.includes(priorCity)?priorCity:'';
+
+  const sel=g('bselect');const keepVal=sel.value;sel.innerHTML='<option value="">— select a branch —</option>';
+  allBr.filter(b=>(!stateVal||b.stalpbr===stateVal)&&(!citySel.value||b.citybr===citySel.value))
+    .forEach(b=>{const o=document.createElement('option');o.value=b.uninumbr;o.textContent=`${b.namebr} — ${b.citybr}, ${b.stalpbr} (${(+b.opportunity_score).toFixed(1)})`;sel.appendChild(o);});
+  if([...sel.options].some(o=>o.value===keepVal))sel.value=keepVal;
+}
+function bselFilterChanged(which){
+  if(which==='state')g('bselCity').value='';
+  populateBranchSelect();
+  if(selWfN===7)mpOnBranchChange();
 }
 
 function selWf(n){
   selWfN=n;
   document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
   g(`w${n}`).classList.add('on');
-  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');hide('mpWidget');
+  hide('oc');hide('briefWidget');hide('rrWidget');hide('agWidget');hide('agOut');hide('pptWidget');hide('mpWidget');hide('bpWidget');
   g('agLd').classList.remove('on');
   if(n===2){hide('gb');hide('bsel');show('agWidget');agLoadAndCompute();return;}
   if(n===5){hide('gb');hide('bsel');loadRRWidget();return;}
   if(n===3){hide('gb');hide('bsel');renderBrief();return;}
   if(n===6){hide('gb');hide('bsel');show('pptWidget');return;}
   if(n===7){hide('gb');show('bsel');show('mpWidget');mpOnBranchChange();mpCalc();return;}
-  if(n===1){hide('gb');hide('bsel');generate();return;}
+  if(n===1){hide('gb');show('bsel');show('bpWidget');return;}
   show('gb');n===4?show('bsel'):hide('bsel');
 }
 
@@ -1638,21 +1676,35 @@ async function boardBriefExport() {
   ld.classList.remove('on');
 }
 
-// Quick Export dropdown only -- no dedicated panel button like Snapshot/Board
-// Brief have, so this doesn't touch any panel-specific DOM elements. branch_name
-// is deliberately omitted from the request body: the backend auto-selects the
-// most compelling branch (flagship risk, else top opportunity score) so this
-// stays a one-click export with no branch-picker UI needed.
+// Triggered from the Branch Deep Dive tile (WF01) — requires an explicit
+// branch selection from #bselect (state/city filters narrow the list first).
+// branch_name is sent through to the backend, which matches it against the
+// network via pick_preview_branch() (exact, then case-insensitive substring).
+// If left blank the backend still falls back to auto-select, but the button
+// here is disabled until a branch is chosen so that path shouldn't trigger
+// from this tile in practice.
 async function branchPreviewExport() {
   if (!window.selBank || !window.bankData) return;
+  const uid=g('bselect').value;
+  if(!uid){alert('Select a branch first.');return;}
+  const branch=allBr.find(b=>String(b.uninumbr)===String(uid));
+  if(!branch){alert('Could not find that branch — try re-selecting it.');return;}
   const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
+  const btn=g('bpBtn'),ld=g('bpLd'),msg=g('bpMsg');
+  btn.disabled=true;ld.classList.add('on');msg.textContent=`Building preview for ${branch.namebr}...`;
   try{
-    const resp=await fetch(`${BMAP_API}/generate-branch-preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    const resp=await fetch(`${BMAP_API}/generate-branch-preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName,branch_name:branch.namebr})});
     if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
-    const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download=`BMAP_Preview_${safe}_${date}.docx`;document.body.appendChild(a);a.click();
+    const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),branchSafe=branch.namebr.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`BMAP_Preview_${safe}_${branchSafe}_${date}.docx`;document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-  }catch(err){alert('Branch preview failed: '+err.message);throw err;}
+    btn.textContent='✓ Downloaded';btn.style.background='#02A7C2';
+    setTimeout(()=>{btn.textContent='⬇ Generate Branch Preview DOCX';btn.style.background='var(--teal)';btn.disabled=false;},3500);
+  }catch(err){
+    alert('Branch preview failed: '+err.message);
+    btn.textContent='⬇ Generate Branch Preview DOCX';btn.style.background='var(--teal)';btn.disabled=false;
+  }
+  ld.classList.remove('on');
 }
 
 async function assessmentExport() {
@@ -1710,11 +1762,10 @@ async function qxRun(kind){
   document.getElementById('qxMenu').classList.remove('on');
   if(!window.selBank||!window.bankData){alert('Select a bank first.');return;}
   const btn=document.getElementById('qxBtn'),orig=btn.innerHTML;
-  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':kind==='assessment'?'Building DOCX…':kind==='preview'?'Building Preview…':'Building PDF…';
+  btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':kind==='assessment'?'Building DOCX…':'Building PDF…';
   try{
     if(kind==='snapshot')await snapshotExport();
     else if(kind==='assessment')await assessmentExport();
-    else if(kind==='preview')await branchPreviewExport();
     else await boardBriefExport();
     btn.innerHTML='✓ Downloaded';
     setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2200);
@@ -2325,15 +2376,7 @@ async function generate(){
   const top3P1=br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
   const topJustify=br.filter(b=>b.opportunity_zone==='Justify').sort((a,b2)=>b2.latest_dep-a.latest_dep).slice(0,3);
   let txt='',title='';
-  if(selWfN===1){
-    title='PITCH DECK CONTEXT';
-    const fin=(await api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`))?.[0]||{};
-    const states={};rows.forEach(r=>{states[r.stalpbr]=(states[r.stalpbr]||0)+1});
-    const stateLines=Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([s,c])=>{const inv=br.filter(b=>b.stalpbr===s&&b.opportunity_zone==='Invest').length;const q2=br.filter(b=>b.stalpbr===s&&b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')).length;return`  ${s}: ${c} branches | Invest: ${inv} | Q2: ${q2}`;}).join('\n');
-    const totalMkt=rows.reduce((a,r)=>a+(+r.total_deposits_10mi||0),0);const mktShare=totalMkt>0?((tot/totalMkt)*100).toFixed(1):'—';
-    txt=`VERLOCITY INTELLIGENCE HUB — PITCH DECK CONTEXT\nWorkflow: Executive Pitch Deck\nSource: BMAP · Community_Banks_Rates · Live\n\n━━━ NETWORK SUMMARY ━━━\nInstitution: ${rows[0]?.namefull}\nTotal branches: ${rows.length}\nTotal deposits: $${(tot/1e9).toFixed(2)}B\nTotal addressable market (10mi radius): $${(totalMkt/1e9).toFixed(0)}B\nEstimated market share: ${mktShare}%\nAverage opportunity score: ${avg('opportunity_score').toFixed(1)} / 100\nDeposit YoY (bank avg): ${avgYoY}%\nCompetitor deposit YoY (avg): ${avgComp}%\nGap vs competitors: ${(avgYoY-avgComp).toFixed(2)}pp\n\n━━━ ZONE DISTRIBUTION ━━━\nInvest:  ${invest} branches (${Math.round(invest/rows.length*100)}%) — concentrate growth here\nAnalyze: ${analyze} branches (${Math.round(analyze/rows.length*100)}%) — monitor and develop\nDefend:  ${defend} branches (${Math.round(defend/rows.length*100)}%) — protect share\nJustify: ${justify} branches (${Math.round(justify/rows.length*100)}%) — review investment case\n\n━━━ STATE BREAKDOWN ━━━\n${stateLines}\n\n━━━ TOP 3 BY OPPORTUNITY SCORE ━━━\n${top3Score.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n')}\n\n━━━ TOP 3 INVEST ZONE ━━━\n${top3Invest.length?top3Invest.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'None in Invest zone.'}\n\n━━━ TOP 3 Q2 — INVEST AND PROTECT ━━━\n${top3Q2.length?top3Q2.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Q2 branches found.'}\n\n━━━ TOP 3 PRIORITY TIER 1 ━━━\n${top3P1.length?top3P1.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Tier 1 branches found.'}\n\n━━━ BIGGEST RISK — JUSTIFY ZONE ━━━\n${topJustify.length?topJustify.map((b,i)=>`${i+1}. ${brLine(b)}`).join('\n'):'No Justify zone branches.'}\n\n━━━ CLIENT FINANCIAL HEALTH ━━━\nPeriod: ${fin.period||'Q4 2025'}\nROA: ${fin.roa||'—'}% | NIM: ${fin.nim||'—'}% | Efficiency ratio: ${fin.efficiency_ratio||'—'}%\nNet income YoY: ${fin.net_income_yoy_pct||'—'}%\nCost of funds: ${fin.cost_of_funds_pct||'—'}% | CoF YoY change: ${fin.cof_yoy_change||'—'}pp\nDeposit YoY: ${fin.dep_yoy_pct||'—'}% | Deposit QoQ: ${fin.dep_qoq_pct||'—'}%\nTier 1 capital: ${fin.tier1_capital_pct||'—'}% | Noncurrent assets: ${fin.noncurrent_assets_pct||'—'}%\n\n━━━ TOP NETWORK TARGET ━━━\n${t?`Institution: ${t.target_institution}\n${t.branches_in_radius} client branches have this competitor within 10 miles\nAverage vulnerability score: ${t.avg_vuln_score} | Deposit YoY: ${(+t.avg_yoy_pct).toFixed(1)}%\nROA: ${t.target_roa}% | Efficiency ratio: ${t.target_efficiency_ratio}%\nDominant zone: ${t.dominant_zone}`:'Not computed — run populate_network_top_targets.'}\n\n━━━ INSTRUCTION FOR AI ━━━\nGenerate a 4-slide executive pitch deck using all BMAP data above.\nFollow the BMAP Executive Strategist prompt exactly.`;
-  }
-  else if(selWfN===4){
+  if(selWfN===4){
     title='BRANCH DEEP DIVE';
     const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}
     const[cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);

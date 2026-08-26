@@ -1582,8 +1582,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     async def visit(url, priority=False):
         nonlocal found_on, rebrand_hint
         if url in visited: return
-        # Early exit — all 3 core rates already found
-        if all(best[k] is not None for k in ["checking", "savings", "cd"]):
+        # Early exit — all 4 tracked rates already found (checking/savings/cd/MM)
+        if all(best[k] is not None for k in ["checking", "savings", "cd", "money_market"]):
             return
         # Page budget — don't crawl more than 12 pages per bank
         # (priority pages — "View Rates"/"See Details" links found on a page
@@ -1811,8 +1811,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                         source_urls[k] = da.get("_source", "depositaccounts.com") + stale_flag
 
     # Full path scan — only if still incomplete after priority + early DA
-    count = sum(1 for k in ["checking", "savings", "cd"] if best[k] is not None)
-    if count < 3:
+    count = sum(1 for k in ["checking", "savings", "cd", "money_market"] if best[k] is not None)
+    if count < 4:
         remaining = [p for p in RATE_PATHS if p not in PRIORITY_PATHS]
         for path in remaining:
             await visit(base + path)
@@ -1917,9 +1917,9 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                                     source_urls[k] = f"[AI] {v_url}"
                         crawl_state["ai_calls"] = crawl_state.get("ai_calls", 0) + 1
                         crawl_state["log"].append(f"    [AI] ✓ {v_url.split('/')[-1] or 'home'}: sav={ai_result.get('savings')} cd={ai_result.get('cd')} chk={ai_result.get('checking')}")
-                        # Stop if we have all 3
-                        new_count = sum(1 for k in ["checking", "savings", "cd"] if best[k] is not None)
-                        if new_count >= 3:
+                        # Stop if we have all 4 tracked rates
+                        new_count = sum(1 for k in ["checking", "savings", "cd", "money_market"] if best[k] is not None)
+                        if new_count >= 4:
                             break
                 except Exception as ve:
                     crawl_state["log"].append(f"    [AI] skip {v_url}: {ve}")
@@ -2697,6 +2697,11 @@ async def run_crawler(banks):
             async with semaphore:
                 if not crawl_state["running"]:
                     return
+                if bank["bank_name"].lower() in crawl_state.get("removed", set()):
+                    crawl_state["log"].append(
+                        f"[{i+1}/{total}] {bank['bank_name']} — removed, skipping")
+                    completed[0] += 1
+                    return
                 mode = crawl_state.get("crawl_mode", "standard")
                 crawl_state["log"].append(f"[{i+1}/{total}] {bank['bank_name']}... [{mode}]")
 
@@ -2827,20 +2832,54 @@ async def run_crawler(banks):
                             result["status"] = ("Found" if new_count==3
                                                 else "Partial" if new_count>0 else "Not public")
 
+                    # ── Last-resort: today found nothing — check history ────
+                    # Doesn't touch any bank that found at least one rate today;
+                    # only fires for the complete-blank case, and is always
+                    # clearly labeled as historical, never presented as fresh.
+                    core_count_final = sum(1 for k in ["checking_apy","savings_apy",
+                                                        "cd_apy","money_market_apy"]
+                                           if result.get(k))
+                    if core_count_final == 0:
+                        hist = await fetch_last_known_good(bank["bank_name"], http_session)
+                        if hist:
+                            filled = []
+                            for k in ["checking_apy","savings_apy","cd_apy",
+                                     "cd_term","money_market_apy","min_balance"]:
+                                if hist.get(k) is not None:
+                                    result[k] = hist[k]
+                                    if k not in ("cd_term","min_balance"):
+                                        filled.append(k)
+                            if filled:
+                                as_of = hist.get("run_date") or hist.get("crawled_at","earlier")
+                                result["note"] = (
+                                    f"\u23f1 No fresh data found today — showing last "
+                                    f"confirmed rate from {as_of} | " +
+                                    (result.get("note","") or "")
+                                ).strip(" |")
+                                result["status"] = "Partial"
+                                crawl_state["log"].append(
+                                    f"    [History] \u21bb recovered {', '.join(filled)} "
+                                    f"from {as_of} (today's search found nothing)")
+
                     icon = "✓" if result["status"] == "Found" else "~" if result["status"] == "Partial" else "○"
                     chk  = f"{result['checking_apy']:.2f}%" if result["checking_apy"] else "—"
                     sav  = f"{result['savings_apy']:.2f}%"  if result["savings_apy"]  else "—"
                     cd   = f"{result['cd_apy']:.2f}%"       if result["cd_apy"]       else "—"
                     cod  = f"  CoD:{result['cr_cost_of_deposits']:.2f}%" if result.get("cr_cost_of_deposits") else ""
                     crawl_state["log"].append(f"  {icon} Chk:{chk} Sav:{sav} CD:{cd}{cod}")
-                    crawl_state["results"].append(result)
-                    if result.get("status") in ("Found","Partial","Not public"):
-                        async with cache_lock:
-                            today_cache[cache_key] = result
-                            _save_today_cache(today_cache)
+                    if bank["bank_name"].lower() in crawl_state.get("removed", set()):
+                        crawl_state["log"].append(
+                            f"  (removed mid-crawl — discarding result for {bank['bank_name']})")
+                    else:
+                        crawl_state["results"].append(result)
+                        if result.get("status") in ("Found","Partial","Not public"):
+                            async with cache_lock:
+                                today_cache[cache_key] = result
+                                _save_today_cache(today_cache)
                 except Exception as e:
                     crawl_state["log"].append(f"  x Error: {e}")
-                    crawl_state["results"].append({
+                    if bank["bank_name"].lower() not in crawl_state.get("removed", set()):
+                        crawl_state["results"].append({
                         **bank,
                         "checking_apy": None, "savings_apy": None, "cd_apy": None,
                         "cd_term": None, "money_market_apy": None, "min_balance": None,
@@ -2854,7 +2893,7 @@ async def run_crawler(banks):
                         "prev_cr_total_deposits_m": None, "cr_prev_period": "",
                         "delta_savings_apy": None, "delta_checking_apy": None,
                         "delta_cd_apy": None, "delta_cost_of_deposits": None,
-                    })
+                        })
                 finally:
                     completed[0] += 1
                     await page.close()
@@ -3044,6 +3083,39 @@ def build_supabase_rows(results, run_id, run_date):
     return rows
 
 
+async def fetch_last_known_good(bank_name, http_session):
+    """
+    Last-resort fallback for a bank that came back completely empty today.
+    Looks up this bank's most recent PAST result in Supabase that actually
+    had at least one rate, and returns it — clearly labeled as historical,
+    never presented as fresh. Any failure here (network, schema, auth) is
+    swallowed and logged; it must never break or slow down the crawl.
+    """
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK and http_session):
+        return None
+    try:
+        url = (f"{SUPABASE_URL}/rest/v1/raw_rate_radar"
+               f"?bank_name=eq.{quote(bank_name)}"
+               f"&or=(checking_apy.not.is.null,savings_apy.not.is.null,"
+               f"cd_apy.not.is.null,money_market_apy.not.is.null)"
+               f"&order=run_date.desc,crawled_at.desc"
+               f"&limit=1")
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Accept-Profile": "raw",
+        }
+        async with http_session.get(url, headers=headers,
+                                    timeout=aiohttp.ClientTimeout(total=8)) as resp:
+            if resp.status != 200:
+                return None
+            rows = await resp.json()
+            return rows[0] if rows else None
+    except Exception as e:
+        crawl_state["log"].append(f"    [History] lookup failed for {bank_name}: {e}")
+        return None
+
+
 async def push_to_supabase(results, run_id, run_date):
     """Upsert this run into raw.raw_rate_radar via PostgREST. Logs the outcome."""
     if not (SUPABASE_URL and SUPABASE_KEY):
@@ -3156,6 +3228,7 @@ def remove_bank():
                             if b.get("bank_name","").lower() != name.lower()]
     crawl_state["results"] = [r for r in crawl_state.get("results", [])
                               if r.get("bank_name","").lower() != name.lower()]
+    crawl_state.setdefault("removed", set()).add(name.lower())
     removed = before - len(crawl_state["banks"])
     if removed:
         crawl_state["log"].append(f"− Removed: {name}")
@@ -3224,6 +3297,29 @@ def manual_save():
         crawl_state["log"].append(f"Manual save failed: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/current-state")
+def current_state():
+    """Read-only peek at whatever's already loaded server-side, without
+    changing anything. Used on page load so a reload or a re-clicked
+    autoload link can't silently discard an in-progress session (deletions,
+    manual edits, a trimmed queue) that only exists in server memory."""
+    return jsonify({
+        "banks":   crawl_state.get("banks", []),
+        "results": crawl_state.get("results", []),
+        "running": crawl_state.get("running", False),
+    })
+
+@app.route("/reset", methods=["POST"])
+def reset_state():
+    """Explicit server-side clear — 'Change File' calling this makes the
+    reset real instead of just cosmetic on the frontend."""
+    if crawl_state.get("running"):
+        return jsonify({"error": "Can't reset while a crawl is running"}), 400
+    crawl_state["banks"]   = []
+    crawl_state["results"] = []
+    crawl_state["log"].append("— Session reset —")
+    return jsonify({"ok": True})
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -3322,7 +3418,8 @@ def start():
                       else request.form.get("force_refresh") in ("true", "1", "on"))
     crawl_state.update({"running": True, "results": [], "log": [], "done": False,
                         "ai_calls": 0, "crawl_mode": mode, "force_refresh": force_refresh,
-                        "preflight_total": 0, "preflight_done": 0, "phase": "starting"})
+                        "preflight_total": 0, "preflight_done": 0, "phase": "starting",
+                        "removed": set()})
     crawl_state["log"].append(f"Mode: {mode.upper()}" + (" · AI Vision ON" if ANTHROPIC_OK else " · No API key"))
     start_crawl_thread(crawl_state["banks"])
     return jsonify({"ok": True, "mode": mode})
@@ -3720,10 +3817,28 @@ checkCRStatus();
 // Auto-load a CSV passed in via ?autoload=<base64 CSV>&bank=<name> — lets the
 // Hub open Rate Radar pre-populated instead of the user downloading then
 // re-uploading a file by hand. Same-origin fetch to /upload, no CORS needed.
-function tryAutoload() {
-  const params = new URLSearchParams(window.location.search);
-  const b64 = params.get('autoload');
-  if (!b64) return;
+function showResumedState(state) {
+  document.getElementById('crawl-section').style.display = 'block';
+  if (state.results && state.results.length > 0) {
+    allResults = state.results;
+    renderTable();
+    document.getElementById('save-btn').disabled = false;
+    var anyDone = !state.running;
+    document.getElementById('export-btn').disabled = !anyDone;
+    document.getElementById('prompt-btn').disabled = !anyDone;
+    if (anyDone) document.getElementById('start-btn').textContent = '\u25B6 Re-crawl';
+    if (crPeriod && state.results.some(function(r){ return r.RSSDID && r.RSSDID !== ''; })) {
+      document.getElementById('view-toggle').style.display = 'flex';
+    }
+  } else if (state.banks && state.banks.length > 0) {
+    populateQueued(state.banks);
+  }
+  document.getElementById('upload-msg').textContent =
+    (state.results.length || state.banks.length) + ' banks resumed from your current session';
+  document.getElementById('upload-msg').style.display = 'block';
+}
+
+function doAutoload(b64, bankParam) {
   let csvText;
   try {
     csvText = decodeURIComponent(escape(atob(decodeURIComponent(b64))));
@@ -3733,7 +3848,7 @@ function tryAutoload() {
   }
   const blob = new Blob([csvText], {type: 'text/csv'});
   const fd = new FormData();
-  fd.append('csv', blob, (params.get('bank') || 'bank') + '.csv');
+  fd.append('csv', blob, (bankParam || 'bank') + '.csv');
   fetch('/upload', {method:'POST', body:fd})
     .then(r => r.json())
     .then(data => {
@@ -3745,13 +3860,45 @@ function tryAutoload() {
       if (crPeriod && data.banks.some(b => b.RSSDID && b.RSSDID !== '')) {
         document.getElementById('view-toggle').style.display = 'flex';
       }
-      // Strip the (potentially long) autoload param from the visible URL
-      const clean = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, clean);
     })
     .catch(e => alert('Autoload failed: ' + e));
 }
-tryAutoload();
+
+function resumeOrAutoload() {
+  const params = new URLSearchParams(window.location.search);
+  const b64 = params.get('autoload');
+  const bankParam = params.get('bank');
+  // Always strip the (potentially very long) autoload param from the visible
+  // URL up front, regardless of what we decide to do with it.
+  const clean = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, document.title, clean);
+
+  fetch('/current-state').then(r => r.json()).then(state => {
+    const hasExisting = (state.banks && state.banks.length > 0) ||
+                        (state.results && state.results.length > 0);
+    if (!b64) {
+      // Plain page load/reload, no incoming autoload — just resume whatever
+      // is already sitting server-side, if anything. Never destructive.
+      if (hasExisting) showResumedState(state);
+      return;
+    }
+    if (hasExisting) {
+      const count = state.results.length || state.banks.length;
+      const proceed = confirm(
+        'You already have ' + count + ' bank(s) loaded in this session ' +
+        '(from a previous upload, edits, or deletions). Loading from the ' +
+        'Hub now will replace that list. Continue and replace it?'
+      );
+      if (!proceed) { showResumedState(state); return; }
+    }
+    doAutoload(b64, bankParam);
+  }).catch(function(){
+    // If the state check itself fails, fall back to the old direct-autoload
+    // behavior rather than silently doing nothing.
+    if (b64) doAutoload(b64, bankParam);
+  });
+}
+resumeOrAutoload();
 
 function doUpload() {
   const input = document.getElementById('csv-input');
@@ -4149,6 +4296,7 @@ function resetAll() {
   document.getElementById('prog-fill').style.width        = '0';
   document.getElementById('prog-label').textContent       = '';
   setView('scraped');
+  fetch('/reset', {method:'POST'}).catch(function(){});
 }
 </script>
 </body>

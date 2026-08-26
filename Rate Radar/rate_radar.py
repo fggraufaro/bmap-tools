@@ -901,10 +901,14 @@ async def validate_banks_preflight(banks):
 
 # ── v3: Preflight search for clean rate hits ─────────────────────────────────
 
-async def preflight_search(bank_name, bank_url, session):
+async def preflight_search(bank_name, bank_url, session, focus=None):
     """
     Use Anthropic API with web_search tool to find current rates without
     spinning up a browser. Runs concurrently before the browser crawl.
+
+    focus: optional list of missing product names (e.g. ["savings","checking"])
+    to narrow the query on a retry instead of repeating the identical broad
+    search that already came up empty once.
 
     Returns partial rate dict if snippets contain clear APY data, else None.
     Also returns a confidence tag and source note.
@@ -913,12 +917,27 @@ async def preflight_search(bank_name, bank_url, session):
         return None
 
     domain = extract_domain(bank_url) if bank_url else ""
-    query  = f'"{bank_name}" savings CD checking APY rates 2026'
+    FOCUS_TERMS = {
+        "checking":     "checking account interest rate APY",
+        "savings":      "savings account interest rate APY",
+        "cd":           "CD certificate of deposit rate APY",
+        "money_market": "money market account rate APY",
+    }
+    if focus:
+        term_str = " ".join(FOCUS_TERMS.get(f, f) for f in focus)
+        query = f'"{bank_name}" {term_str} 2026'
+    else:
+        query = f'"{bank_name}" savings CD checking APY rates 2026'
     if domain:
         query += f' site:{domain}'
 
+    focus_note = (f"\nThis is a targeted retry — the broad search already ran and missed "
+                  f"{', '.join(focus)}. Focus specifically on finding {', '.join(focus)} "
+                  f"for this bank; try phrasing/pages a general search might have skipped."
+                  if focus else "")
+
     prompt = f"""Search for current deposit rates for {bank_name}.
-Query: {query}
+Query: {query}{focus_note}
 
 From the search results, extract deposit rates. Return ONLY valid JSON:
 {{
@@ -1820,8 +1839,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                 crawl_state["log"].append(f"    [SE-rescue] error: {e}")
 
     # ── Final DepositAccounts.com fallback ──────────────────────────────────
-    count = sum(1 for k in ["checking", "savings", "cd"] if best[k] is not None)
-    if count < 3:
+    count = sum(1 for k in ["checking", "savings", "cd", "money_market"] if best[k] is not None)
+    if count < 4:
         da = (await fetch_da_fast(bank["bank_name"], http_session)
               if http_session and AIOHTTP_OK
               else await scrape_deposit_accounts(page, bank["bank_name"]))
@@ -1835,9 +1854,9 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
 
     # ── AI Vision fallback for empty/partial results ────────────────────────
     # Also trigger if the only CD result is low-confidence "best found"
-    count = sum(1 for k in ["checking", "savings", "cd"] if best[k] is not None)
+    count = sum(1 for k in ["checking", "savings", "cd", "money_market"] if best[k] is not None)
     best_found_only = (count == 1 and best.get("cd_term") == "best found")
-    if (count < 3 or best_found_only) and ANTHROPIC_OK and bank.get("bank_url",""):
+    if (count < 4 or best_found_only) and ANTHROPIC_OK and bank.get("bank_url",""):
         # If cd came from "best found" low-confidence path, clear it before AI confirms
         if best_found_only:
             best["cd"] = None
@@ -2767,12 +2786,18 @@ async def run_crawler(banks):
                     core_count = sum(1 for k in ["checking_apy","savings_apy","cd_apy"]
                                      if result.get(k))
                     if core_count <= 1 and ANTHROPIC_OK and bank.get("bank_url",""):
+                        missing = [name for name, rk in
+                                   [("checking","checking_apy"),("savings","savings_apy"),
+                                    ("cd","cd_apy"),("money_market","money_market_apy")]
+                                   if not result.get(rk)]
                         async with final_search_sem:   # cap concurrency for TPM
                             crawl_state["log"].append(
-                                f"    [Search-retry] {core_count}/3 after crawl — one more search pass...")
+                                f"    [Search-retry] {core_count}/3 after crawl — targeted "
+                                f"retry on {', '.join(missing)}...")
                             try:
                                 retry = await preflight_search(
-                                    bank["bank_name"], bank.get("bank_url",""), None)
+                                    bank["bank_name"], bank.get("bank_url",""), None,
+                                    focus=missing)
                             except Exception as e:
                                 retry = None
                                 crawl_state["log"].append(f"    [Search-retry] error: {e}")
@@ -3699,6 +3724,19 @@ function setView(v) {
   renderTable();
 }
 
+function verifyLink(sourceUrl) {
+  if (!sourceUrl) return '';
+  var linkStyle = 'font-size:10px;color:var(--teal);text-decoration:none';
+  if (/^https?:\/\//i.test(sourceUrl)) {
+    return ' <a href="' + sourceUrl + '" target="_blank" style="' + linkStyle + '" title="Verify source">\u2197 verify</a>';
+  }
+  // Search-based results carry a text description, not a real URL — route to
+  // a Google search instead of rendering a link that would 404.
+  var text = sourceUrl.replace(/^\[Search\]\s*/, '');
+  var q = encodeURIComponent(text);
+  return ' <a href="https://www.google.com/search?q=' + q + '" target="_blank" style="' + linkStyle + '" title="Search for this source">\u2197 verify (search)</a>';
+}
+
 function rateCell(val, sub) {
   if (val === null || val === undefined || val === '') return '<span class="dash">-</span>';
   var n = parseFloat(val);
@@ -3772,7 +3810,7 @@ function renderTable() {
       '<td>' + rateCell(r.cd_apy, r.cd_term) + '</td>' +
       '<td><span style="font-size:12px">' + (r.min_balance || '<span class="dash">-</span>') + '</span></td>' +
       '<td>' + badge(r.status, r.note) + '</td>' +
-      '<td><div class="note-cell">' + (r.note||'') + (r.source_url ? ' <a href="' + r.source_url + '" target="_blank" style="font-size:10px;color:var(--teal);text-decoration:none" title="Verify source">↗ verify</a>' : '') + '</div></td></tr>'
+      '<td><div class="note-cell">' + (r.note||'') + verifyLink(r.source_url) + '</div></td></tr>'
     ).join('');
   } else {
     var hasPrev = crPrevPeriod && rows.some(r => r.prev_cr_savings_apy !== null && r.prev_cr_savings_apy !== undefined);

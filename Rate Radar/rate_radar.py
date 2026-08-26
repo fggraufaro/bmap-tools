@@ -230,6 +230,10 @@ RATE_PATHS = [
     "/accounts/savings", "/accounts/checking", "/accounts/cds",
     "/products/savings", "/products/checking", "/products/cds",
     "/services/rates", "/services/deposits",
+    # Kasasa platform (very common community-bank site builder) —
+    # its default rates page is /tools/rates.html
+    "/tools/rates.html", "/tools/rates", "/rates.html",
+    "/personal/rates.html", "/personal-banking/rates.html",
 ]
 
 BANK_EXTRA_URLS = {
@@ -1791,6 +1795,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         "/rates", "/personal/rates", "/personal-banking/rates",
         "/current-rates", "/deposit-rates", "/interest-rates",
         "/personal/deposit-rates", "/rate-sheet", "/banking/rates",
+        "/tools/rates.html",
     ]
     for path in PRIORITY_PATHS:
         await visit(base + path)
@@ -2719,8 +2724,10 @@ async def run_crawler(banks):
                     return
 
                 # Merge preflight result — if high-confidence and 3/3, skip browser entirely
+                # (but "Force refresh" means a real page check, not just a
+                # cache bypass — never let it skip the browser via this path)
                 pre = preflight_results.get(bank["bank_name"])
-                if pre and pre.get("_confidence") == "high":
+                if pre and pre.get("_confidence") == "high" and not force_refresh:
                     pre_count = sum(1 for k in ["checking","savings","cd"] if pre.get(k))
                     if pre_count == 3:
                         crawl_state["log"].append(
@@ -4046,17 +4053,19 @@ function setView(v) {
   renderTable();
 }
 
-function verifyLink(sourceUrl) {
+function verifyLink(sourceUrl, bankName) {
   if (!sourceUrl) return '';
   var linkStyle = 'font-size:10px;color:var(--teal);text-decoration:none';
   if (/^https?:\/\//i.test(sourceUrl)) {
     return ' <a href="' + sourceUrl + '" target="_blank" style="' + linkStyle + '" title="Verify source">\u2197 verify</a>';
   }
-  // Search-based results carry a text description, not a real URL — route to
-  // a Google search instead of rendering a link that would 404.
-  var text = sourceUrl.replace(/^\[Search\]\s*/, '');
-  var q = encodeURIComponent(text);
-  return ' <a href="https://www.google.com/search?q=' + q + '" target="_blank" style="' + linkStyle + '" title="Search for this source">\u2197 verify (search)</a>';
+  // Search-based results carry a text citation, not a real URL — and that
+  // citation text can be messy (multiple search attempts concatenated,
+  // fragments from different sources). Rather than trust it as a search
+  // query, build a clean one from the bank name — reliably useful every
+  // time instead of only when the citation happens to already be tidy.
+  var q = encodeURIComponent('"' + bankName + '" current deposit rates checking savings CD');
+  return ' <a href="https://www.google.com/search?q=' + q + '" target="_blank" style="' + linkStyle + '" title="Search for this bank\\'s current rates">\u2197 verify (search)</a>';
 }
 
 function rateCell(val, sub) {
@@ -4172,7 +4181,7 @@ function renderTable() {
       '<td>' + editCell(r.bank_name, 'cd_apy', r.cd_apy) + (r.cd_term && r.cd_term !== 'best found' ? '<br><small style="color:var(--muted)">' + r.cd_term + '</small>' : '') + '</td>' +
       '<td>' + editCell(r.bank_name, 'min_balance', r.min_balance, true) + '</td>' +
       '<td>' + badge(r.status, r.note) + (r._edited ? ' <span style="font-size:10px;color:var(--amber,#d99b23)">edited</span>' : '') + '</td>' +
-      '<td><div class="note-cell">' + (r.note||'') + verifyLink(r.source_url) + '</div></td></tr>'
+      '<td><div class="note-cell">' + (r.note||'') + verifyLink(r.source_url, r.bank_name) + '</div></td></tr>'
     ).join('');
   } else {
     var hasPrev = crPrevPeriod && rows.some(r => r.prev_cr_savings_apy !== null && r.prev_cr_savings_apy !== undefined);

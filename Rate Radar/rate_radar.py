@@ -3144,6 +3144,24 @@ def search_banks():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/remove-bank", methods=["POST"])
+def remove_bank():
+    """Remove one bank from the current queue (and any existing crawl result) by name."""
+    body = request.get_json(force=True, silent=True) or {}
+    name = (body.get("bank_name") or "").strip()
+    if not name:
+        return jsonify({"error": "bank_name required"}), 400
+    before = len(crawl_state.get("banks", []))
+    crawl_state["banks"] = [b for b in crawl_state.get("banks", [])
+                            if b.get("bank_name","").lower() != name.lower()]
+    crawl_state["results"] = [r for r in crawl_state.get("results", [])
+                              if r.get("bank_name","").lower() != name.lower()]
+    removed = before - len(crawl_state["banks"])
+    if removed:
+        crawl_state["log"].append(f"− Removed: {name}")
+    return jsonify({"banks": crawl_state["banks"], "removed": bool(removed)})
+
+
 @app.route("/add-bank", methods=["POST"])
 def add_bank():
     """Append one manually-picked bank to the current queue without re-uploading a CSV."""
@@ -3910,6 +3928,16 @@ function editCell(bankName, field, val, isText) {
     'style="width:' + (isText ? '70px' : '58px') + ';font-size:12px;padding:3px 5px;border:1px solid #d5dbe3;border-radius:4px;font-family:Inter,system-ui,sans-serif">';
 }
 
+function removeBank(bankName) {
+  fetch('/remove-bank', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({bank_name: bankName})
+  }).then(r => r.json()).then(function(){
+    allResults = allResults.filter(function(r){ return r.bank_name !== bankName; });
+    renderTable();
+    document.getElementById('save-btn').disabled = allResults.length === 0;
+  }).catch(function(e){ alert('Remove failed: ' + e); });
+}
+
 function onRateEdit(input) {
   var bankName = input.getAttribute('data-bank');
   var field    = input.getAttribute('data-field');
@@ -3982,8 +4010,11 @@ function renderTable() {
   }
   if (currentView === 'scraped') {
     document.getElementById('tbody-scraped').innerHTML = rows.map(r =>
-      '<tr><td><div class="bank-name">' + r.bank_name + '</div>' +
-      '<div class="bank-url"><a href="' + (r.bank_url||'') + '" target="_blank">' + (r.bank_url||'') + '</a></div></td>' +
+      '<tr><td><div style="display:flex;align-items:flex-start;gap:6px">' +
+      '<span onclick="removeBank(\'' + r.bank_name.replace(/'/g,"\\'") + '\')" title="Remove from list" ' +
+      'style="cursor:pointer;color:#b23;font-size:14px;line-height:1.4;flex-shrink:0">✕</span>' +
+      '<div><div class="bank-name">' + r.bank_name + '</div>' +
+      '<div class="bank-url"><a href="' + (r.bank_url||'') + '" target="_blank">' + (r.bank_url||'') + '</a></div></div></div></td>' +
       '<td>' + editCell(r.bank_name, 'checking_apy', r.checking_apy) + '</td>' +
       '<td>' + editCell(r.bank_name, 'savings_apy', r.savings_apy) + '</td>' +
       '<td>' + editCell(r.bank_name, 'money_market_apy', r.money_market_apy) + '</td>' +

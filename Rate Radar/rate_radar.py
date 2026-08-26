@@ -1456,6 +1456,55 @@ def extract_rates(text):
 
 # ── AI Vision fallback ────────────────────────────────────────────────────────
 
+async def capture_carousel_screenshots(page, max_slides=5):
+    """
+    A single screenshot only captures whichever carousel slide happens to be
+    showing at that instant — a CD promo sitting on slide 3 of a rotating
+    hero banner is invisible to a one-shot capture. This detects common
+    carousel/slider indicator patterns (Slick, Swiper, Bootstrap, Owl, and
+    generic dot/pagination UIs), clicks through each slide, and returns one
+    screenshot per slide. Falls back to a single normal screenshot if no
+    carousel is detected or anything goes wrong — never worse than before.
+    """
+    CAROUSEL_SELECTORS = [
+        ".slick-dots li button", ".slick-dots li",
+        ".swiper-pagination-bullet",
+        ".carousel-indicators [data-bs-slide-to]", ".carousel-indicators li",
+        ".owl-dots .owl-dot",
+        "[class*='carousel'] [class*='dot']",
+        "[class*='slider'] [class*='dot']",
+        "[class*='banner'] [class*='dot']",
+        "[class*='pagination'] button",
+        "[role='tablist'][class*='carousel'] [role='tab']",
+    ]
+    try:
+        dots = None
+        for sel in CAROUSEL_SELECTORS:
+            candidates = page.locator(sel)
+            count = await candidates.count()
+            if 2 <= count <= 8:   # sane range — avoids false positives on unrelated repeated UI
+                dots = candidates
+                break
+        if not dots:
+            return [await page.screenshot(full_page=True, type="png")]
+
+        count = await dots.count()
+        shots = []
+        for i in range(min(count, max_slides)):
+            try:
+                await dots.nth(i).click(timeout=2000)
+                await page.wait_for_timeout(600)   # let the slide transition finish
+            except Exception:
+                pass   # if a click fails, still grab whatever's showing
+            shots.append(await page.screenshot(full_page=True, type="png"))
+        return shots if shots else [await page.screenshot(full_page=True, type="png")]
+    except Exception:
+        try:
+            return [await page.screenshot(full_page=True, type="png")]
+        except Exception:
+            return []
+
+
 async def ai_vision_extract(page, url, bank_name):
     """
     Screenshot the current page and send to Claude Haiku for rate extraction.
@@ -1465,12 +1514,27 @@ async def ai_vision_extract(page, url, bank_name):
     if not ANTHROPIC_OK:
         return None
     try:
-        # Take full-page screenshot
-        screenshot_bytes = await page.screenshot(full_page=True, type="png")
-        img_b64 = base64.standard_b64encode(screenshot_bytes).decode("utf-8")
+        # Multiple slides if this page has a rotating carousel/banner —
+        # a single screenshot would miss a promo rate on any slide other
+        # than whichever one happened to be showing.
+        screenshots = await capture_carousel_screenshots(page)
+        if not screenshots:
+            return None
+        if len(screenshots) > 1:
+            crawl_state["log"].append(
+                f"    [AI] carousel detected — captured {len(screenshots)} slides")
+        img_blocks = [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png",
+                                          "data": base64.standard_b64encode(shot).decode("utf-8")}}
+            for shot in screenshots
+        ]
 
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        prompt = f"""You are analyzing a bank rates page for {bank_name}.
+        slide_note = (f"\nThese are {len(screenshots)} images captured from a rotating "
+                      f"promotional banner/carousel on this page (one per slide) — "
+                      f"check ALL of them for rate information, not just the first."
+                      if len(screenshots) > 1 else "")
+        prompt = f"""You are analyzing a bank rates page for {bank_name}.{slide_note}
 Extract the STANDARD deposit rates. Return ONLY JSON, no explanation:
 {{
   "checking": <standard checking APY% float or null>,
@@ -1493,17 +1557,7 @@ Critical rules:
             max_tokens=300,
             messages=[{
                 "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": img_b64
-                        }
-                    },
-                    {"type": "text", "text": prompt}
-                ]
+                "content": img_blocks + [{"type": "text", "text": prompt}]
             }]
         )
 

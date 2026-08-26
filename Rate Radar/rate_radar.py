@@ -3929,7 +3929,8 @@ function editCell(bankName, field, val, isText) {
     'style="width:' + (isText ? '70px' : '58px') + ';font-size:12px;padding:3px 5px;border:1px solid #d5dbe3;border-radius:4px;font-family:Inter,system-ui,sans-serif">';
 }
 
-function removeBank(bankName) {
+function removeBank(el) {
+  var bankName = el.getAttribute('data-bank');
   fetch('/remove-bank', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({bank_name: bankName})
   }).then(r => r.json()).then(function(){
@@ -4012,7 +4013,7 @@ function renderTable() {
   if (currentView === 'scraped') {
     document.getElementById('tbody-scraped').innerHTML = rows.map(r =>
       '<tr><td><div style="display:flex;align-items:flex-start;gap:6px">' +
-      '<span onclick="removeBank(\'' + r.bank_name.replace(/'/g,"\\'") + '\')" title="Remove from list" ' +
+      '<span onclick="removeBank(this)" data-bank="' + r.bank_name.replace(/"/g,'&quot;') + '" title="Remove from list" ' +
       'style="cursor:pointer;color:#b23;font-size:14px;line-height:1.4;flex-shrink:0">✕</span>' +
       '<div><div class="bank-name">' + r.bank_name + '</div>' +
       '<div class="bank-url"><a href="' + (r.bank_url||'') + '" target="_blank">' + (r.bank_url||'') + '</a></div></div></div></td>' +

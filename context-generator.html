@@ -18,10 +18,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .logo-img{height:40px;width:auto;border-radius:0}
 .live-badge{background:rgba(2,167,194,.15);border:1px solid rgba(2,167,194,.3);color:var(--teal);font-size:10px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:3px 9px;border-radius:12px}
-.radar-btn{display:inline-flex;align-items:center;gap:6px;background:var(--teal);color:#fff;font-size:10px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:.04em;padding:4px 10px;border-radius:12px;text-decoration:none;transition:opacity .18s;text-transform:uppercase}
-.radar-btn:hover{opacity:.85}
-.radar-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:radarPulse 1.8s infinite}
-@keyframes radarPulse{0%,100%{opacity:1}50%{opacity:.3}}
 .wrap{max-width:860px;margin:0 auto;padding:18px 16px}
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
 .card-pad{padding:18px 20px}
@@ -484,7 +480,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
-    <a href="https://bmap-tools-production.up.railway.app" target="_blank" class="radar-btn" title="Open Rate Radar"><span class="radar-dot"></span>Rate Radar →</a>
     <div class="live-badge">LIVE · Supabase</div>
   </div>
 </div>
@@ -869,14 +864,14 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── CUSTOMER-FACING MODE ─────────────────────────────────────────
-// Rate Radar link is now shown live in the Hub too, per Francisco --
-// everything CUSTOMER_FACING_MODE used to gate (Prospecting, Market
-// Discovery, this link) is now visible. Flag left in place in case
-// something needs gating again later; currently gates nothing.
+// The Rate Radar header link this used to gate has been removed from
+// the header entirely (per Francisco), so this flag currently has
+// nothing to do. Left in place, empty, in case something needs gating
+// again later -- add the element lookup + hide logic back inside the
+// if-block when that happens.
 const CUSTOMER_FACING_MODE = false;
 if (CUSTOMER_FACING_MODE) {
-  const radarLink = document.querySelector('.radar-btn');
-  if (radarLink) radarLink.classList.add('dn');
+  // nothing gated right now
 }
 // ── TILES OFF FOR NOW ──────────────────────────────────────────
 // Branch Text Brief (w4) and MediaPredict ROI Calculator (w7) deactivated

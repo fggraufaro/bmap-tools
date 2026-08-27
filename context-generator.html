@@ -828,6 +828,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="mp-verdict" id="mpVerdict"></div>
     </div>
   </div>
+  <button class="gen-btn dn" id="gb" onclick="generate()" style="width:100%;margin-bottom:12px">Generate Context →</button>
   <div class="loading" id="ld"><span class="spin"></span>Pulling data from BMAP...</div>
   <div class="out-card dn" id="oc">
     <div class="out-hdr"><div class="out-t" id="ot">CONTEXT OUTPUT</div><button class="copy-btn" id="cb" onclick="copyOut()">Copy to clipboard</button></div>
@@ -868,20 +869,13 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── CUSTOMER-FACING MODE ─────────────────────────────────────────
-// Hides the tools a customer has no reason to ever see as separate
-// products: the Prospecting tab (Verlocity's own sales-targeting scores
-// across every bank in the database), Market Discovery (ZIP-level
-// prospecting, same category), and the header link straight into the
-// separate Rate Radar tool. All six workflow tiles stay visible --
-// per Francisco, the tile set itself should show in full; it's these
-// three standalone tools/links that stay gated. Flip to false for
-// internal working sessions; nothing here is deleted, only hidden.
+// Prospecting and Market Discovery are now shown live in customer demos
+// (per Francisco, for the Trustmark session) -- only the Rate Radar
+// header link stays gated, since that's a separate internal tool with
+// no customer-facing purpose. Flip CUSTOMER_FACING_MODE to false to
+// also stop hiding that link for fully internal working sessions.
 const CUSTOMER_FACING_MODE = true;
 if (CUSTOMER_FACING_MODE) {
-  ['tabPro', 'tabRadius'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('dn');
-  });
   const radarLink = document.querySelector('.radar-btn');
   if (radarLink) radarLink.classList.add('dn');
 }

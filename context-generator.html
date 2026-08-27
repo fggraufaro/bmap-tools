@@ -22,16 +22,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .radar-btn:hover{opacity:.85}
 .radar-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:radarPulse 1.8s infinite}
 @keyframes radarPulse{0%,100%{opacity:1}50%{opacity:.3}}
-.wrap{max-width:1180px;margin:0 auto;padding:18px 16px}
-.dash-layout{display:flex;gap:20px;align-items:flex-start}
-.dash-main{flex:1;min-width:0}
-.dash-rail{width:280px;flex-shrink:0;position:sticky;top:16px}
-@media (max-width:900px){
-  .dash-layout{flex-direction:column}
-  .dash-rail{width:100%;position:static}
-  .wf-grid{flex-direction:row;flex-wrap:wrap}
-  .wf-grid .wf{flex:1 1 260px}
-}
+.wrap{max-width:860px;margin:0 auto;padding:18px 16px}
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
 .card-pad{padding:18px 20px}
 .label{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
@@ -106,7 +97,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .target-box{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px}
 .target-name{font-size:13px;font-weight:700;color:var(--red)}
 .target-meta{font-size:10px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--muted);margin-top:3px;line-height:1.5}
-.wf-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.wf-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
 .wf{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .18s;position:relative}
 .wf::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:10px 0 0 10px;background:var(--border);transition:background .18s}
 .wf:hover,.wf.on{border-color:var(--teal)}
@@ -518,8 +509,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
   </div>
 
-  <div class="dash-layout">
-  <div class="dash-main">
   <div class="card dn" id="bp">
   <div class="bank-hdr">
     <div class="bank-hdr-name" id="bn">—</div>
@@ -627,6 +616,15 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     <div id="zi">—</div><div id="za">—</div><div id="zd">—</div><div id="zj">—</div>
   </div>
 </div>
+
+  <div class="wf-grid dn" id="wg">
+    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Pick any branch, export the real one-branch Assessment-depth preview DOCX</div><span class="wf-tag">BRANCH PREVIEW</span></div>
+    <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Audience Generator</div><div class="wf-d">Auto-suggests audience segments from BMAP data — ready for the media team</div><span class="wf-tag">AUDIENCE · NEW</span></div>
+    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
+    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Text Brief</div><div class="wf-d">One-branch summary formatted for internal use — not a client-facing document</div><span class="wf-tag">TEXT CONTEXT</span></div>
+    <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Competitor Rate Export</div><div class="wf-d">Top 20 competitors by vulnerability score, exported as a ready-to-use CSV</div><span class="wf-tag">RATE EXPORT</span></div>
+    <div class="wf" id="w7" onclick="selWf(7)"><div class="wf-n">06</div><div class="wf-t">MediaPredict ROI Calculator</div><div class="wf-d">Predictive deposit-growth funnel — budget, acquisition cost, and projected value before a dollar is spent</div><span class="wf-tag">MEDIAPREDICT · NEW</span></div>
+  </div>
 
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch</div>
@@ -854,19 +852,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
     <button class="copy-btn" style="background:var(--teal);color:#fff;width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:9px;margin-bottom:12px" onclick="copyBrief()">Copy full brief to clipboard</button>
   </div>
-  </div>
-
-  <div class="dash-rail">
-  <div class="wf-grid dn" id="wg">
-    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Pick any branch, export the real one-branch Assessment-depth preview DOCX</div><span class="wf-tag">BRANCH PREVIEW</span></div>
-    <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Audience Generator</div><div class="wf-d">Auto-suggests audience segments from BMAP data — ready for the media team</div><span class="wf-tag">AUDIENCE · NEW</span></div>
-    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
-    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Text Brief</div><div class="wf-d">One-branch summary formatted for internal use — not a client-facing document</div><span class="wf-tag">TEXT CONTEXT</span></div>
-    <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Competitor Rate Export</div><div class="wf-d">Top 20 competitors by vulnerability score, exported as a ready-to-use CSV</div><span class="wf-tag">RATE EXPORT</span></div>
-    <div class="wf" id="w7" onclick="selWf(7)"><div class="wf-n">06</div><div class="wf-t">MediaPredict ROI Calculator</div><div class="wf-d">Predictive deposit-growth funnel — budget, acquisition cost, and projected value before a dollar is spent</div><span class="wf-tag">MEDIAPREDICT · NEW</span></div>
-  </div>
-  </div>
-  </div>
 </div>
 
 <script>
@@ -883,27 +868,17 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── CUSTOMER-FACING MODE ─────────────────────────────────────────
-// Hides everything in the Hub that's genuinely internal-only -- not just
-// worded informally, but tools a customer has no reason to ever see: the
-// Prospecting tab (Verlocity's own sales-targeting scores across every
-// bank in the database), Market Discovery (ZIP-level prospecting, same
-// category), the header link straight into the separate Rate Radar tool,
-// and three workflow tiles whose actual output is internal working
-// material for Verlocity's own team (Audience Generator, Branch Text
-// Brief, Competitor Rate Export) rather than anything meant to be shown
-// to or left with a client. What stays visible: the bank dashboard
-// (health score, branch matrix, priority list, top cities), Branch Deep
-// Dive (the real one-branch DOCX), Financial Analysis, and the
-// MediaPredict ROI Calculator -- the tiles actually meant for the room.
-// Flip to false for internal working sessions where the full toolset is
-// useful again; nothing here is deleted, only hidden.
+// Hides the tools a customer has no reason to ever see as separate
+// products: the Prospecting tab (Verlocity's own sales-targeting scores
+// across every bank in the database), Market Discovery (ZIP-level
+// prospecting, same category), and the header link straight into the
+// separate Rate Radar tool. All six workflow tiles stay visible --
+// per Francisco, the tile set itself should show in full; it's these
+// three standalone tools/links that stay gated. Flip to false for
+// internal working sessions; nothing here is deleted, only hidden.
 const CUSTOMER_FACING_MODE = true;
 if (CUSTOMER_FACING_MODE) {
   ['tabPro', 'tabRadius'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('dn');
-  });
-  ['w2', 'w4', 'w5'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('dn');
   });

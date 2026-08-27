@@ -879,6 +879,15 @@ if (CUSTOMER_FACING_MODE) {
   const radarLink = document.querySelector('.radar-btn');
   if (radarLink) radarLink.classList.add('dn');
 }
+// ── TILES OFF FOR NOW ──────────────────────────────────────────
+// Branch Text Brief (w4) and MediaPredict ROI Calculator (w7) deactivated
+// per Francisco -- Branch Text Brief wasn't earning its place, MediaPredict
+// paused for now. Independent of CUSTOMER_FACING_MODE and WEBINAR_MODE
+// above; remove ids from this array to bring a tile back.
+['w4', 'w7'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('dn');
+});
 // ── ACCESS CONTROL ─────────────────────────────────────────────
 // Password check now happens server-side on Railway — the browser
 // never holds anything that would let someone forge a session without

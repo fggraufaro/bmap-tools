@@ -869,12 +869,11 @@ if (WEBINAR_MODE) {
   if (w1) w1.classList.add('dn');
 }
 // ── CUSTOMER-FACING MODE ─────────────────────────────────────────
-// Prospecting and Market Discovery are now shown live in customer demos
-// (per Francisco, for the Trustmark session) -- only the Rate Radar
-// header link stays gated, since that's a separate internal tool with
-// no customer-facing purpose. Flip CUSTOMER_FACING_MODE to false to
-// also stop hiding that link for fully internal working sessions.
-const CUSTOMER_FACING_MODE = true;
+// Rate Radar link is now shown live in the Hub too, per Francisco --
+// everything CUSTOMER_FACING_MODE used to gate (Prospecting, Market
+// Discovery, this link) is now visible. Flag left in place in case
+// something needs gating again later; currently gates nothing.
+const CUSTOMER_FACING_MODE = false;
 if (CUSTOMER_FACING_MODE) {
   const radarLink = document.querySelector('.radar-btn');
   if (radarLink) radarLink.classList.add('dn');

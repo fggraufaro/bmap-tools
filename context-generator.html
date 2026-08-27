@@ -22,7 +22,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .radar-btn:hover{opacity:.85}
 .radar-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:radarPulse 1.8s infinite}
 @keyframes radarPulse{0%,100%{opacity:1}50%{opacity:.3}}
-.wrap{max-width:860px;margin:0 auto;padding:18px 16px}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px}
+.dash-layout{display:flex;gap:20px;align-items:flex-start}
+.dash-main{flex:1;min-width:0}
+.dash-rail{width:280px;flex-shrink:0;position:sticky;top:16px}
+@media (max-width:900px){
+  .dash-layout{flex-direction:column}
+  .dash-rail{width:100%;position:static}
+  .wf-grid{flex-direction:row;flex-wrap:wrap}
+  .wf-grid .wf{flex:1 1 260px}
+}
 .card{background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
 .card-pad{padding:18px 20px}
 .label{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
@@ -97,7 +106,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .target-box{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px}
 .target-name{font-size:13px;font-weight:700;color:var(--red)}
 .target-meta{font-size:10px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--muted);margin-top:3px;line-height:1.5}
-.wf-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.wf-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
 .wf{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .18s;position:relative}
 .wf::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:10px 0 0 10px;background:var(--border);transition:background .18s}
 .wf:hover,.wf.on{border-color:var(--teal)}
@@ -502,13 +511,15 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     <div class="label">Search institution</div>
     <div class="search-row">
       <div class="inp-wrap">
-        <input class="inp" id="si" type="text" placeholder="Start typing — e.g. Carver, Hancock, First National..." autocomplete="off">
+        <input class="inp" id="si" type="text" placeholder="Start typing a bank name..." autocomplete="off">
         <div class="dd" id="dd"></div>
       </div>
       <button class="btn" id="sb" onclick="doSearch(document.getElementById('si').value)">Search</button>
     </div>
   </div>
 
+  <div class="dash-layout">
+  <div class="dash-main">
   <div class="card dn" id="bp">
   <div class="bank-hdr">
     <div class="bank-hdr-name" id="bn">—</div>
@@ -545,7 +556,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     <div class="health-stats">
       <div class="hs-item"><div class="hs-val" id="bankYoy" style="color:var(--red)">—</div><div class="hs-lbl">Bank YoY</div></div>
       <div class="hs-vs">vs</div>
-      <div class="hs-item"><div class="hs-val" id="peerYoy" style="color:var(--muted)">—</div><div class="hs-peer-lbl">MA peer avg ⓘ<div class="hs-tooltip">Average YoY deposit growth across all Massachusetts community banks under $10B assets (FDIC Summary of Deposits). Scores and zones are benchmarked against this peer set only.</div></div></div>
+      <div class="hs-item"><div class="hs-val" id="peerYoy" style="color:var(--muted)">—</div><div class="hs-peer-lbl">Local peer avg ⓘ<div class="hs-tooltip">Average YoY deposit growth across this network's named nearby competitor branches (FDIC Summary of Deposits). Scores and zones are benchmarked against this local peer set.</div></div></div>
       <div class="hs-item"><div class="hs-val" id="yoyGap" style="color:var(--red)">—</div><div class="hs-lbl">Gap to peers</div></div>
     </div>
     <div class="health-risk">
@@ -617,15 +628,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
   </div>
 </div>
 
-  <div class="wf-grid dn" id="wg">
-    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Pick any branch, export the real one-branch Assessment-depth preview DOCX</div><span class="wf-tag">BRANCH PREVIEW</span></div>
-    <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Audience Generator</div><div class="wf-d">Auto-suggests Resonate segments from BMAP data — rAI prompts ready for Pete</div><span class="wf-tag">RESONATE · NEW</span></div>
-    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
-    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Text Brief</div><div class="wf-d">One-branch text context blob — ready to paste into an AI tool, not a document</div><span class="wf-tag">TEXT CONTEXT</span></div>
-    <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Rate Radar CSV</div><div class="wf-d">Top 20 competitors by vulnerability score — ready to drop into Rate Radar</div><span class="wf-tag">RATE RADAR</span></div>
-    <div class="wf" id="w7" onclick="selWf(7)"><div class="wf-n">06</div><div class="wf-t">MediaPredict ROI Calculator</div><div class="wf-d">Predictive deposit-growth funnel — budget, CAC, and value-to-CAC before a dollar is spent</div><span class="wf-tag">MEDIAPREDICT · NEW</span></div>
-  </div>
-
   <div class="card card-pad dn" id="bsel">
     <div class="label">Select branch</div>
     <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -654,7 +656,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="ag-sec-body">
         <div class="ag-input-grid">
           <div class="ag-field"><label>Audience type</label><select id="agAudType" onchange="agCompute()"><option value="both">Consumer + SMB</option><option value="consumer">Consumer only</option><option value="smb">SMB only</option></select></div>
-          <div class="ag-field"><label>Max audiences for Pete</label><select id="agMaxAud"><option value="2">2 audiences</option><option value="3" selected>3 audiences</option><option value="4">4 audiences</option></select></div>
+          <div class="ag-field"><label>Max audiences to generate</label><select id="agMaxAud"><option value="2">2 audiences</option><option value="3" selected>3 audiences</option><option value="4">4 audiences</option></select></div>
           <div class="ag-field"><label>Zone focus</label><select id="agZoneFocus" onchange="agCompute()"><option value="both" selected>Invest + Analyze</option><option value="invest">Invest only</option></select></div>
           <div class="ag-field"><label>CRM suppression list</label><select id="agCrm"><option value="no">Not yet uploaded</option><option value="yes">Bank CRM provided</option></select></div>
         </div>
@@ -696,7 +698,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div style="background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
         <div><div style="color:#fff;font-size:15px;font-weight:700" id="rrTitle">—</div><div style="color:rgba(255,255,255,.4);font-size:10px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums" id="rrMeta">—</div></div>
         <div style="display:flex;gap:8px">
-          <button onclick="openInRateRadar()" style="background:var(--navy);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em">🚀 Open in Rate Radar</button>
+          <button onclick="openInRateRadar()" style="background:var(--navy);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em">🚀 Export to Rate Tool</button>
           <button onclick="downloadRRcsv()" style="background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:11px;font-weight:800;cursor:pointer;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em">⬇ Download CSV</button>
         </div>
       </div>
@@ -715,7 +717,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <tbody id="rrTbody"></tbody>
         </table>
       </div>
-      <div style="padding:10px 14px;background:#F0FAFB;border-top:1px solid var(--border);font-size:10px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--muted)">CSV format: bank_name, bank_url, branch_address — ready to upload directly to Rate Radar · branch_address carries the highest-vulnerability target branch (ZIP unlocks gated rate pages) · Missing URLs can be filled manually</div>
+      <div style="padding:10px 14px;background:#F0FAFB;border-top:1px solid var(--border);font-size:10px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--muted)">CSV format: bank_name, bank_url, branch_address — ready to upload directly to the rate-tracking tool · branch_address carries the highest-vulnerability target branch (ZIP unlocks gated rate pages) · Missing URLs can be filled manually</div>
     </div>
   </div>
 
@@ -738,7 +740,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="loading" id="briefLd" style="margin-top:8px"><span class="spin"></span><span id="briefMsg">Building board brief...</span></div>
     </div>
     <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--amber)">
-      <div class="label" style="margin-bottom:6px">BMAP Assessment DOCX — Full Network, $10K Deliverable</div>
+      <div class="label" style="margin-bottom:6px">BMAP Assessment DOCX — Full Network Deliverable</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:14px">
         Full-network branch scoring (every branch, not a top-N teaser), competitive overview, 7-metric financial benchmarking, and a named next-step recommendation. Word doc — the paid Assessment deliverable, not the free outreach Snapshot.
       </div>
@@ -752,8 +754,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       </div>
       <div style="background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:10px;color:var(--muted);margin-bottom:12px;line-height:1.8">
         <strong>CSV format:</strong><br>
-        bank_123,Country Bank for Savings<br>
-        bank_456,Carver Federal Savings<br>
+        bank_123,Example Community Bank<br>
+        bank_456,Example Savings Bank<br>
         bank_789
       </div>
       <label style="display:block;margin-bottom:8px">
@@ -785,9 +787,9 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <div class="mp-field"><label>Avg funded balance</label><input type="number" id="mpAvgBalance" value="8500" oninput="mpCalc()"><div class="mp-hint">Per new funded account</div></div>
           <div class="mp-field"><label>12mo value per account</label><input type="number" id="mpValuePerAcct" value="350" oninput="mpCalc()"><div class="mp-hint">Contribution value, not just deposit</div></div>
           <div class="mp-field"><label>Branch capacity</label><input type="number" id="mpCapacity" value="300" oninput="mpCalc()"><div class="mp-hint">Net-new accounts branch can service</div></div>
-          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="27382" oninput="mpCalc()"><div class="mp-hint">BMAP adult population (18+) for branch ZIP, from Census age brackets — swap for Analytics 360 audience once wired in</div></div>
+          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="27382" oninput="mpCalc()"><div class="mp-hint">BMAP adult population (18+) for branch ZIP, from Census age brackets — swap for a refined audience count once available</div></div>
         </div>
-        <div class="mp-hint" style="margin-top:14px">These are pre-loaded with the Hancock Whitney / Daphne Branch benchmark case — edit anything and the forecast recalculates live. Conversion rates and channel mix live under "Assumptions &amp; Benchmarks" — set those once and leave them unless you're deliberately tuning the model.</div>
+        <div class="mp-hint" style="margin-top:14px">These are pre-loaded with an example benchmark case — edit anything and the forecast recalculates live. Conversion rates and channel mix live under "Assumptions &amp; Benchmarks" — set those once and leave them unless you're deliberately tuning the model.</div>
       </div>
 
       <div class="card-pad mp-tabpanel dn" id="mpTabSetup">
@@ -852,6 +854,19 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     </div>
     <button class="copy-btn" style="background:var(--teal);color:#fff;width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:9px;margin-bottom:12px" onclick="copyBrief()">Copy full brief to clipboard</button>
   </div>
+  </div>
+
+  <div class="dash-rail">
+  <div class="wf-grid dn" id="wg">
+    <div class="wf" id="w1" onclick="selWf(1)"><div class="wf-n">01</div><div class="wf-t">Branch Deep Dive</div><div class="wf-d">Pick any branch, export the real one-branch Assessment-depth preview DOCX</div><span class="wf-tag">BRANCH PREVIEW</span></div>
+    <div class="wf" id="w2" onclick="selWf(2)"><div class="wf-n">02</div><div class="wf-t">Audience Generator</div><div class="wf-d">Auto-suggests audience segments from BMAP data — ready for the media team</div><span class="wf-tag">AUDIENCE · NEW</span></div>
+    <div class="wf" id="w3" onclick="selWf(3)"><div class="wf-n">03</div><div class="wf-t">Financial Analysis</div><div class="wf-d">Financial metrics, pressure points, and competitive intelligence — ready for the room</div><span class="wf-tag">FINANCIAL BRIEF</span></div>
+    <div class="wf" id="w4" onclick="selWf(4)"><div class="wf-n">04</div><div class="wf-t">Branch Text Brief</div><div class="wf-d">One-branch summary formatted for internal use — not a client-facing document</div><span class="wf-tag">TEXT CONTEXT</span></div>
+    <div class="wf" id="w5" onclick="selWf(5)"><div class="wf-n">05</div><div class="wf-t">Competitor Rate Export</div><div class="wf-d">Top 20 competitors by vulnerability score, exported as a ready-to-use CSV</div><span class="wf-tag">RATE EXPORT</span></div>
+    <div class="wf" id="w7" onclick="selWf(7)"><div class="wf-n">06</div><div class="wf-t">MediaPredict ROI Calculator</div><div class="wf-d">Predictive deposit-growth funnel — budget, acquisition cost, and projected value before a dollar is spent</div><span class="wf-tag">MEDIAPREDICT · NEW</span></div>
+  </div>
+  </div>
+  </div>
 </div>
 
 <script>
@@ -866,6 +881,34 @@ if (WEBINAR_MODE) {
   if (tabPro) tabPro.classList.add('dn');
   const w1 = document.getElementById('w1');
   if (w1) w1.classList.add('dn');
+}
+// ── CUSTOMER-FACING MODE ─────────────────────────────────────────
+// Hides everything in the Hub that's genuinely internal-only -- not just
+// worded informally, but tools a customer has no reason to ever see: the
+// Prospecting tab (Verlocity's own sales-targeting scores across every
+// bank in the database), Market Discovery (ZIP-level prospecting, same
+// category), the header link straight into the separate Rate Radar tool,
+// and three workflow tiles whose actual output is internal working
+// material for Verlocity's own team (Audience Generator, Branch Text
+// Brief, Competitor Rate Export) rather than anything meant to be shown
+// to or left with a client. What stays visible: the bank dashboard
+// (health score, branch matrix, priority list, top cities), Branch Deep
+// Dive (the real one-branch DOCX), Financial Analysis, and the
+// MediaPredict ROI Calculator -- the tiles actually meant for the room.
+// Flip to false for internal working sessions where the full toolset is
+// useful again; nothing here is deleted, only hidden.
+const CUSTOMER_FACING_MODE = true;
+if (CUSTOMER_FACING_MODE) {
+  ['tabPro', 'tabRadius'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('dn');
+  });
+  ['w2', 'w4', 'w5'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('dn');
+  });
+  const radarLink = document.querySelector('.radar-btn');
+  if (radarLink) radarLink.classList.add('dn');
 }
 // ── ACCESS CONTROL ─────────────────────────────────────────────
 // Password check now happens server-side on Railway — the browser
@@ -1027,7 +1070,7 @@ async function loadBank(ik){
   const gap = avgBankYoy - avgPeerYoy;
   const justifyDep = rows.filter(r=>r.opportunity_zone==='Justify').reduce((a,r)=>a+(+r.latest_dep||0),0);
   const verdict = avgScore >= 75 ? 'Top performer' : avgScore >= 50 ? 'Above average' : avgScore >= 25 ? 'Below average' : 'Needs attention';
-  const pctLabel = avgScore >= 75 ? 'Top 25% of MA peers' : avgScore >= 50 ? '50th–75th percentile' : avgScore >= 25 ? 'Bottom 25–50th percentile' : 'Bottom 25% of MA peers';
+  const pctLabel = avgScore >= 75 ? 'Top 25% of local peers' : avgScore >= 50 ? '50th–75th percentile' : avgScore >= 25 ? 'Bottom 25–50th percentile' : 'Bottom 25% of local peers';
   const scoreColor = avgScore >= 50 ? '#27500A' : avgScore >= 25 ? '#854D0E' : '#A32D2D';
   const gapColor = gap >= 0 ? '#27500A' : '#A32D2D';
   g('healthScore').textContent = avgScore.toFixed(1);
@@ -2381,7 +2424,7 @@ async function generate(){
     const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}
     const[cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);
     const b=bf?.[0]||{};const fn=fin?.[0]||{};
-    txt=`VERLOCITY INTELLIGENCE HUB — BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive ($9K Deliverable)\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%`;
+    txt=`VERLOCITY INTELLIGENCE HUB — BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%`;
   }
   g('ld').classList.remove('on');
   try{g('gb').disabled=false;}catch(e){}

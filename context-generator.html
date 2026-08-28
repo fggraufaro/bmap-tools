@@ -442,6 +442,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .br-sig-l{color:var(--muted)}
 .br-sig-v{font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums}
 </style>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -602,6 +604,19 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
   <div class="dash-targets">
     <div class="sec-t" style="margin-bottom:8px">Top competitor targets</div>
     <div class="targets-grid" id="targetsGrid"></div>
+  </div>
+
+  <div class="dash-footprint-map" id="footprintMapSection" style="padding:14px 18px;border-top:1px solid var(--border)">
+    <div class="dash-cities-head">
+      <div class="sec-t">Network Footprint</div>
+      <div style="font-size:10px;color:var(--muted)">Your branches · top 3 cities · top 3 competitors</div>
+    </div>
+    <div id="footprintMap" style="width:100%;height:420px;border-radius:8px;overflow:hidden;background:#f5f5f2"></div>
+    <div style="display:flex;gap:16px;margin-top:10px;font-size:10px;color:var(--muted);flex-wrap:wrap">
+      <div><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#185FA5;margin-right:5px"></span>Your branches</div>
+      <div><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#CDD61A;border:1.5px solid #7a8000;margin-right:5px"></span>Top 3 cities</div>
+      <div><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#A32D2D;margin-right:5px"></span>Top 3 competitors</div>
+    </div>
   </div>
 
   <div style="display:none">
@@ -1023,11 +1038,127 @@ g('si').addEventListener('keydown',e=>{
 });
 g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
+// ── NETWORK FOOTPRINT MAP ──────────────────────────────────────────
+// Interactive Mapbox GL map (unlike the static competitor-radius PNG
+// baked into the Word docs) -- the Hub is a live web page, so this can
+// actually pan/zoom/click, which a document embed never could. Plots
+// the bank's own branches, highlights the top 3 opportunity cities
+// (already computed for the text cards above), and pulls each of the
+// top 3 competitor institutions' OWN branch locations network-wide
+// (not scoped to any single branch's radius -- the whole footprint).
+//
+// TWO PREREQUISITES, both outside what this code alone can satisfy:
+// 1. MAPBOX_PUBLIC_TOKEN below needs a real Mapbox PUBLIC token (pk.*,
+//    never the sk.* secret used server-side for the Word doc maps --
+//    this one is genuinely visible to anyone via page source, so it
+//    must be domain-restricted in the Mapbox account dashboard under
+//    Settings > URL restrictions).
+// 2. The 'branches_master_v2' table needs to be added to the Railway
+//    proxy's server-side allowlist (secure_proxy.py) -- every other
+//    table the Hub reads goes through that allowlist and this one
+//    isn't used anywhere else yet, so it's very likely not on it.
+//    Without that, the competitor-branch fetch below will silently
+//    return nothing (same 401/empty-array handling as every other
+//    api() call) and the map will still render, just without the red
+//    competitor markers.
+const MAPBOX_PUBLIC_TOKEN = 'pk.eyJ1IjoiZmdncmF1OTQiLCJhIjoiY210ZDRpNG8xMHIzMDJ4c2FsaXd0OGk3cyJ9.jA2PE0ehy0oLk9LUFnWNBQ';
+
+let footprintMapInstance = null;
+
+async function renderFootprintMap(ik, branches, cityRanks, targets) {
+  const container = document.getElementById('footprintMap');
+  if (!container) return;
+
+  if (!MAPBOX_PUBLIC_TOKEN || MAPBOX_PUBLIC_TOKEN.startsWith('PASTE_')) {
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:11px;text-align:center;padding:20px;font-family:Inter,system-ui,sans-serif">Interactive map needs a Mapbox public token — set MAPBOX_PUBLIC_TOKEN in the code (a pk.* token, domain-restricted, never the server-side secret).</div>';
+    return;
+  }
+
+  const validBranches = (branches || []).filter(b => b.sims_latitude && b.sims_longitude);
+  if (!validBranches.length) {
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:11px;font-family:Inter,system-ui,sans-serif">No branch coordinates available for this bank.</div>';
+    return;
+  }
+
+  // Top 3 competitor institutions' own branches, network-wide -- same
+  // proxy pattern as every other data call in the Hub, not a raw
+  // Supabase call with an exposed key.
+  const competitorNames = (targets || []).slice(0, 3).map(t => t.target_institution).filter(Boolean);
+  let competitorBranches = [];
+  if (competitorNames.length) {
+    const orClause = competitorNames.map(n => `bank_name.eq.${encodeURIComponent(n)}`).join(',');
+    competitorBranches = await api('branches_master_v2', `or=(${orClause})&select=branch_id,bank_name,branch_name,city,state,lat,lon,depsum_branch&limit=500`);
+    if (!Array.isArray(competitorBranches)) competitorBranches = [];
+  }
+
+  if (footprintMapInstance) {
+    footprintMapInstance.remove();
+    footprintMapInstance = null;
+  }
+  container.innerHTML = '';
+  mapboxgl.accessToken = MAPBOX_PUBLIC_TOKEN;
+
+  const map = new mapboxgl.Map({
+    container: 'footprintMap',
+    style: 'mapbox://styles/mapbox/light-v11',
+    center: [validBranches[0].sims_longitude, validBranches[0].sims_latitude],
+    zoom: 6,
+  });
+  footprintMapInstance = map;
+
+  map.on('load', () => {
+    const bounds = new mapboxgl.LngLatBounds();
+    const topCityKeys = new Set((cityRanks || []).slice(0, 3).map(c => `${c.city}|${c.state}`));
+
+    validBranches.forEach(b => {
+      const lng = +b.sims_longitude, lat = +b.sims_latitude;
+      const isTopCity = topCityKeys.has(`${b.citybr}|${b.stalpbr}`);
+      const el = document.createElement('div');
+      el.style.width = isTopCity ? '12px' : '7px';
+      el.style.height = isTopCity ? '12px' : '7px';
+      el.style.borderRadius = '50%';
+      el.style.background = isTopCity ? '#CDD61A' : '#185FA5';
+      el.style.border = isTopCity ? '2px solid #7a8000' : '1px solid white';
+      el.style.cursor = 'pointer';
+      new mapboxgl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(
+          `<div style="font-size:11px;font-family:Inter,system-ui,sans-serif"><b>${b.namebr}</b><br>${b.citybr}, ${b.stalpbr}<br>$${(_sf(b.latest_dep)/1e6).toFixed(1)}M · ${b.opportunity_zone}</div>`
+        ))
+        .addTo(map);
+      bounds.extend([lng, lat]);
+    });
+
+    competitorBranches.forEach(c => {
+      if (!c.lat || !c.lon) return;
+      const el = document.createElement('div');
+      el.style.width = '8px';
+      el.style.height = '8px';
+      el.style.borderRadius = '50%';
+      el.style.background = '#A32D2D';
+      el.style.border = '1px solid white';
+      el.style.cursor = 'pointer';
+      new mapboxgl.Marker({ element: el })
+        .setLngLat([+c.lon, +c.lat])
+        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(
+          `<div style="font-size:11px;font-family:Inter,system-ui,sans-serif"><b>${c.bank_name}</b><br>${c.branch_name}<br>${c.city}, ${c.state} · $${(_sf(c.depsum_branch)/1e6).toFixed(1)}M</div>`
+        ))
+        .addTo(map);
+      bounds.extend([+c.lon, +c.lat]);
+    });
+
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 40, maxZoom: 10 });
+    }
+  });
+}
+function _sf(v) { const n = +v; return isNaN(n) ? 0 : n; }
+
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
-    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,adult_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,adult_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index,sims_latitude,sims_longitude&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`)
   ]);
   allBr=br||[];bankData={rows,allBr,tgt:tgt||[],ik};
@@ -1458,6 +1589,9 @@ async function loadBank(ik){
   } else {
     g('targetsGrid').innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px">Run network targets for this institution</div>';
   }
+
+  // ── NETWORK FOOTPRINT MAP ────────────────────────────────────────────────
+  renderFootprintMap(ik, br, cityRanks, tgts);
 
   set('ss',avg('opportunity_score').toFixed(1));
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);

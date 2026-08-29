@@ -295,6 +295,8 @@ async function renderPersonaLayer(branchSet){
       const topo=await resp.json();
       const key=Object.keys(topo.objects)[0];
       topoData=topojson.feature(topo,topo.objects[key]);
+      // Mapshaper's simplification can collapse tiny/degenerate zips to null geometry — drop them.
+      topoData.features = topoData.features.filter(f=>f.geometry);
     }catch(e){
       console.error('zip_boundaries.topojson failed to load:',e);
       g('countPersona').textContent='load failed';
@@ -351,7 +353,9 @@ async function renderPersonaLayer(branchSet){
 
 function centroidOf(feature){
   // Cheap centroid from outer ring bbox midpoint — fine for bbox filtering, not for display.
+  if(!feature.geometry) return [NaN,NaN];
   let coords = feature.geometry.type==='Polygon' ? feature.geometry.coordinates[0] : feature.geometry.coordinates[0][0];
+  if(!coords || !coords.length) return [NaN,NaN];
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
   coords.forEach(([x,y])=>{if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;});
   return [(minX+maxX)/2,(minY+maxY)/2];

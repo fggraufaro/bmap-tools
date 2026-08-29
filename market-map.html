@@ -72,6 +72,22 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 </head>
 <body>
 
+<div id="authGate" style="display:flex;position:fixed;inset:0;background:#083D5F;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <div class="logo-dot"></div>
+    <div style="color:#fff;font-size:16px;font-weight:700;letter-spacing:.02em">BMAP MARKET MAP</div>
+  </div>
+  <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center">
+    <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:'Inter',system-ui,sans-serif;margin-bottom:14px;letter-spacing:.05em">ENTER ACCESS CODE</div>
+    <input id="tokenInput" type="password" placeholder="••••••••••••"
+      style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-family:'Inter',system-ui,sans-serif;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px"
+      onkeydown="if(event.key==='Enter')checkAccess()">
+    <div id="authErr" style="display:none;color:#02A7C2;font-size:11px;margin-bottom:10px">Incorrect code — try again</div>
+    <button onclick="checkAccess()" style="width:100%;background:#02A7C2;color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">Access →</button>
+  </div>
+</div>
+
+<div id="appWrap" style="display:none">
 <div class="header">
   <div class="logo">
     <span class="logo-dot"></span>
@@ -139,12 +155,61 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div class="card-body" id="zipCardBody"></div>
   </div>
 </div>
+</div><!-- /appWrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
-const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
-const KEY='sb_publishable_xJ3XZDouUDGaCKRxIBIjxQ_emL2EPh5';
+const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+
+function bootApp(){
+  initMap();
+  const params=new URLSearchParams(window.location.search);
+  const deepIk=params.get('inst_key');
+  if(deepIk){
+    api('dim_institutions',`inst_key=eq.${deepIk}&select=institution_name&limit=1`).then(r=>{
+      if(r[0]) g('bankSearch').value=r[0].institution_name;
+      loadBank(deepIk);
+    });
+  }
+}
+
+(function(){
+  const stored = sessionStorage.getItem('hub_token');
+  if(stored){
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('appWrap').style.display  = 'block';
+    bootApp();
+  }
+})();
+
+async function checkAccess(){
+  const input = document.getElementById('tokenInput').value.trim();
+  const btn = document.querySelector('#authGate button');
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch(`${HUB_API}/auth/login`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({password: input})
+    });
+    if(!r.ok){
+      document.getElementById('authErr').style.display = 'block';
+      document.getElementById('tokenInput').value = '';
+      document.getElementById('tokenInput').focus();
+      if(btn) btn.disabled = false;
+      return;
+    }
+    const data = await r.json();
+    sessionStorage.setItem('hub_token', data.token);
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('appWrap').style.display  = 'block';
+    bootApp();
+  }catch(e){
+    document.getElementById('authErr').style.display = 'block';
+    if(btn) btn.disabled = false;
+  }
+}
 
 const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
 const PERSONA_COLOR={
@@ -159,15 +224,15 @@ let topoData=null, branches=[], competitors=[], selInstKey=null, ddIdx=-1, ddIte
 
 function g(id){return document.getElementById(id);}
 
-const TABLE_SCHEMA={dim_institutions:'ref',branch_opportunity_base:'analytics',branch_target_competitors:'analytics'};
-// public schema (e.g. vw_zip_persona) needs no Accept-Profile header — PostgREST default.
-
 async function api(table,params){
   try{
-    const headers={apikey:KEY,Authorization:'Bearer '+KEY};
-    const schema=TABLE_SCHEMA[table];
-    if(schema) headers['Accept-Profile']=schema;
-    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
+    const token = sessionStorage.getItem('hub_token');
+    const r=await fetch(`${HUB_API}/api/${table}?${params}`,{headers:{'Authorization':'Bearer '+token}});
+    if(r.status===401){
+      sessionStorage.removeItem('hub_token');
+      location.reload();
+      return [];
+    }
     if(!r.ok){console.error(table,r.status,await r.text());return [];}
     return r.json();
   }catch(e){console.error(e);return [];}
@@ -371,17 +436,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.search-wrap')) closeDd();
 });
 
-initMap();
 
-// Deep-link support: ?inst_key=bank_463735
-const params=new URLSearchParams(window.location.search);
-const deepIk=params.get('inst_key');
-if(deepIk){
-  api('dim_institutions',`inst_key=eq.${deepIk}&select=institution_name&limit=1`).then(r=>{
-    if(r[0]) g('bankSearch').value=r[0].institution_name;
-    loadBank(deepIk);
-  });
-}
 </script>
 </body>
 </html>

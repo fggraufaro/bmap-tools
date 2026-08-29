@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BMAP Market Map</title>
+<link rel="icon" type="image/png" href="https://fggraufaro.github.io/bmap-tools/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1a2332;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;--blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;--gray:#F5F5F2;--border:#E0DED8;--text:#1a2332;--muted:#777;--white:#fff;--defend:#854F0B}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:var(--text);font-size:14px;overflow:hidden}
+
+.header{background:var(--navy);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1200}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
+.logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.hdr-right{display:flex;align-items:center;gap:10px}
+
+.search-wrap{position:relative;width:280px}
+.inp{width:100%;border:1.5px solid transparent;border-radius:7px;padding:8px 12px;font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);outline:none;background:#fff}
+.dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--navy);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:1300;overflow:hidden;display:none;max-height:320px;overflow-y:auto}
+.dd.open{display:block}
+.dd-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+.dd-item:last-child{border-bottom:none}
+.dd-item:hover{background:#FFFBF2}
+.dd-name{font-size:13px;font-weight:600;color:var(--text)}
+.dd-meta{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:2px}
+.dd-msg{padding:12px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+
+.body{position:relative;height:calc(100vh - 60px)}
+#map{position:absolute;inset:0;background:#e8ebee}
+
+.panel{position:absolute;top:14px;left:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);width:220px;font-size:12.5px}
+.panel-hd{padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.layer-row{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer}
+.layer-row:last-child{border-bottom:none}
+.layer-row input{cursor:pointer}
+.layer-row .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.layer-row .lbl{flex:1;font-weight:600}
+.layer-row .count{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)}
+
+.legend{position:absolute;bottom:14px;left:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:10px 14px;font-size:11px;max-width:220px;display:none}
+.legend.on{display:block}
+.legend-title{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.legend-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+
+.card{position:absolute;top:14px;right:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:280px;display:none;overflow:hidden}
+.card.on{display:block}
+.card-hd{background:var(--navy);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.card-hd-t{color:#fff;font-size:14px;font-weight:700}
+.card-x{color:rgba(255,255,255,.6);cursor:pointer;font-size:16px;line-height:1}
+.card-body{padding:14px 16px}
+.card-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.card-row:last-child{border-bottom:none}
+.card-row .k{color:var(--muted)}
+.card-row .v{font-weight:700;font-family:'IBM Plex Mono',monospace}
+
+.empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;text-align:center;pointer-events:none}
+.empty-state b{color:var(--navy);font-size:16px}
+
+.zone-Invest{background:var(--green)}.zone-Analyze{background:var(--blue)}.zone-Defend{background:var(--defend)}.zone-Justify{background:var(--red)}
+.leaflet-popup-content-wrapper{border-radius:8px;font-family:'Inter',system-ui,sans-serif}
+.pop-t{font-weight:700;font-size:13px;margin-bottom:4px}
+.pop-r{font-size:11.5px;color:var(--muted);margin-top:2px}
+.pop-r b{color:var(--text);font-family:'IBM Plex Mono',monospace}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <span class="logo-dot"></span>
+    <div>
+      <div class="logo-text">BMAP MARKET MAP</div>
+      <div class="logo-sub">Branches · Competitors · Persona — Verlocity Intelligence Hub</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="search-wrap">
+      <input class="inp" id="bankSearch" placeholder="Search bank or credit union..." autocomplete="off">
+      <div class="dd" id="dd"></div>
+    </div>
+  </div>
+</div>
+
+<div class="body">
+  <div id="map"></div>
+
+  <div class="empty-state" id="emptyState">
+    <b>No bank selected</b>
+    <span>Search for a bank above, or open this map<br>from a Branch Deep Dive link.</span>
+  </div>
+
+  <div class="panel" id="layerPanel" style="display:none">
+    <div class="panel-hd">Map Layers</div>
+    <div class="layer-row" id="rowBranches">
+      <input type="checkbox" id="toggleBranches" checked>
+      <span class="dot zone-Invest"></span>
+      <span class="lbl">Branches &amp; Zones</span>
+      <span class="count" id="countBranches">—</span>
+    </div>
+    <div class="layer-row" id="rowCompetitors">
+      <input type="checkbox" id="toggleCompetitors">
+      <span class="dot" style="background:var(--red)"></span>
+      <span class="lbl">Competitors</span>
+      <span class="count" id="countCompetitors">—</span>
+    </div>
+    <div class="layer-row" id="rowPersona">
+      <input type="checkbox" id="togglePersona">
+      <span class="dot" style="background:#6366F1"></span>
+      <span class="lbl">Persona / Zip</span>
+      <span class="count" id="countPersona">—</span>
+    </div>
+  </div>
+
+  <div class="legend" id="legendZones">
+    <div class="legend-title">Opportunity Zone</div>
+    <div class="legend-item"><span class="legend-sw" style="background:var(--green)"></span>Invest</div>
+    <div class="legend-item"><span class="legend-sw" style="background:var(--blue)"></span>Analyze</div>
+    <div class="legend-item"><span class="legend-sw" style="background:var(--defend)"></span>Defend</div>
+    <div class="legend-item"><span class="legend-sw" style="background:var(--red)"></span>Justify</div>
+  </div>
+
+  <div class="legend" id="legendPersona">
+    <div class="legend-title">Zip Persona</div>
+    <div id="legendPersonaItems"></div>
+  </div>
+
+  <div class="card" id="zipCard">
+    <div class="card-hd">
+      <span class="card-hd-t" id="zipCardTitle">Zip —</span>
+      <span class="card-x" onclick="closeCard()">✕</span>
+    </div>
+    <div class="card-body" id="zipCardBody"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
+
+const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
+const PERSONA_COLOR={
+  'Healthcare Hubs':'#0EA5A0','Knowledge Communities':'#6366F1','Makers & Trades':'#D97706',
+  'Service Backbone':'#64748B','Urban Professionals':'#DB2777','Growing Families':'#16A34A',
+  'Retired & Secure':'#7C3AED','Blue Collar Core':'#B45309','Tourism & Hospitality':'#0891B2',
+  'Mixed Area':'#9CA3AF'
+};
+
+let map, branchLayer, competitorLayer, personaLayer;
+let topoData=null, branches=[], competitors=[], selInstKey=null, ddIdx=-1, ddItems=[];
+
+function g(id){return document.getElementById(id);}
+
+async function api(table,params){
+  try{
+    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+    if(!r.ok){console.error(table,r.status,await r.text());return [];}
+    return r.json();
+  }catch(e){console.error(e);return [];}
+}
+
+function vulnColor(v){
+  v=Math.max(0,Math.min(100,v||0));
+  const t=v/100;
+  const c1=[245,166,35], c2=[163,45,45];
+  const rgb=c1.map((c,i)=>Math.round(c+(c2[i]-c)*t));
+  return `rgb(${rgb.join(',')})`;
+}
+
+function initMap(){
+  map=L.map('map',{zoomControl:true}).setView([37.8,-96],4);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19
+  }).addTo(map);
+  branchLayer=L.layerGroup().addTo(map);
+  competitorLayer=L.layerGroup();
+  personaLayer=L.layerGroup();
+
+  g('toggleBranches').addEventListener('change',e=>{
+    if(e.target.checked){branchLayer.addTo(map);g('legendZones').classList.add('on');}
+    else{map.removeLayer(branchLayer);g('legendZones').classList.remove('on');}
+  });
+  g('toggleCompetitors').addEventListener('change',e=>{
+    if(e.target.checked) competitorLayer.addTo(map); else map.removeLayer(competitorLayer);
+  });
+  g('togglePersona').addEventListener('change',async e=>{
+    if(e.target.checked){
+      if(personaLayer.getLayers().length===0) await renderPersonaLayer();
+      personaLayer.addTo(map);g('legendPersona').classList.add('on');
+    } else {map.removeLayer(personaLayer);g('legendPersona').classList.remove('on');}
+  });
+  g('legendZones').classList.add('on');
+
+  // Persona legend items
+  const lp=g('legendPersonaItems');
+  Object.entries(PERSONA_COLOR).forEach(([name,color])=>{
+    const row=document.createElement('div');
+    row.className='legend-item';
+    row.innerHTML=`<span class="legend-sw" style="background:${color}"></span>${name}`;
+    lp.appendChild(row);
+  });
+}
+
+function closeCard(){g('zipCard').classList.remove('on');}
+
+async function renderPersonaLayer(){
+  if(!branches.length) return;
+  if(!topoData){
+    const resp=await fetch('./zip_boundaries.topojson');
+    const topo=await resp.json();
+    const key=Object.keys(topo.objects)[0];
+    topoData=topojson.feature(topo,topo.objects[key]);
+  }
+  const lats=branches.map(b=>b.sims_latitude).filter(Boolean);
+  const lons=branches.map(b=>b.sims_longitude).filter(Boolean);
+  const pad=0.6; // ~40mi buffer around footprint
+  const minLat=Math.min(...lats)-pad, maxLat=Math.max(...lats)+pad;
+  const minLon=Math.min(...lons)-pad, maxLon=Math.max(...lons)+pad;
+
+  const inBox=topoData.features.filter(f=>{
+    const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
+    return c[1]>=minLat && c[1]<=maxLat && c[0]>=minLon && c[0]<=maxLon;
+  });
+  const zips=inBox.map(f=>f.properties.ZCTA5CE10).filter(Boolean);
+  g('countPersona').textContent=zips.length;
+  if(!zips.length) return;
+
+  // Batch persona lookups (PostgREST 'in' filter, chunked to stay under URL limits)
+  const personaMap={};
+  for(let i=0;i<zips.length;i+=400){
+    const chunk=zips.slice(i,i+400);
+    const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona,occupation_group,income,zip_age`);
+    rows.forEach(r=>personaMap[r.zip]=r);
+  }
+
+  personaLayer.clearLayers();
+  L.geoJSON({type:'FeatureCollection',features:inBox},{
+    style:f=>{
+      const p=personaMap[f.properties.ZCTA5CE10];
+      const color=p?PERSONA_COLOR[p.persona]:'#D8DCE1';
+      return {color:'#fff',weight:0.5,fillColor:color,fillOpacity:p?0.55:0.15};
+    },
+    onEachFeature:(f,layer)=>{
+      layer.on('click',()=>{
+        const zip=f.properties.ZCTA5CE10;
+        const p=personaMap[zip];
+        g('zipCardTitle').textContent=`Zip ${zip}`;
+        g('zipCardBody').innerHTML = p ? `
+          <div class="card-row"><span class="k">Persona</span><span class="v">${p.persona}</span></div>
+          <div class="card-row"><span class="k">Dominant Occupation</span><span class="v">${p.occupation_group||'—'}</span></div>
+          <div class="card-row"><span class="k">Median Income</span><span class="v">${p.income?'$'+Number(p.income).toLocaleString():'—'}</span></div>
+          <div class="card-row"><span class="k">Majority Age Band</span><span class="v">${p.zip_age||'—'}</span></div>
+        ` : `<div class="card-row"><span class="k">No persona data</span><span class="v">—</span></div>`;
+        g('zipCard').classList.add('on');
+      });
+    }
+  }).addTo(personaLayer);
+}
+
+function centroidOf(feature){
+  // Cheap centroid from outer ring bbox midpoint — fine for bbox filtering, not for display.
+  let coords = feature.geometry.type==='Polygon' ? feature.geometry.coordinates[0] : feature.geometry.coordinates[0][0];
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  coords.forEach(([x,y])=>{if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;});
+  return [(minX+maxX)/2,(minY+maxY)/2];
+}
+
+async function loadBank(ik){
+  selInstKey=ik;
+  g('emptyState').style.display='none';
+  g('layerPanel').style.display='block';
+  branchLayer.clearLayers();competitorLayer.clearLayers();personaLayer.clearLayers();
+  g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
+  topoData=null;
+
+  branches = await api('branch_opportunity_base',
+    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,latest_dep,yoy_deposits&limit=2000`);
+  branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
+  g('countBranches').textContent=branches.length;
+
+  branches.forEach(b=>{
+    const color=ZONE_COLOR[b.opportunity_zone]||'#999';
+    const m=L.circleMarker([b.sims_latitude,b.sims_longitude],{
+      radius:7,color:'#fff',weight:1.5,fillColor:color,fillOpacity:0.9
+    });
+    m.bindPopup(`
+      <div class="pop-t">${b.namebr}</div>
+      <div class="pop-r">${b.citybr}, ${b.stalpbr} ${b.zipbr||''}</div>
+      <div class="pop-r">Zone: <b>${b.opportunity_zone||'—'}</b> · Score: <b>${(+b.opportunity_score||0).toFixed(1)}</b></div>
+      <div class="pop-r">Deposits: <b>$${((+b.latest_dep||0)/1e6).toFixed(1)}M</b> · YoY: <b>${((+b.yoy_deposits||0)*100).toFixed(1)}%</b></div>
+    `);
+    m.addTo(branchLayer);
+  });
+
+  if(branches.length){
+    map.fitBounds(branches.map(b=>[b.sims_latitude,b.sims_longitude]),{padding:[60,60]});
+  }
+
+  const compRaw = await api('branch_target_competitors',
+    `my_inst_key=eq.${ik}&select=target_uninumbr,target_namefull,target_dep_m,target_yoy_pct,vuln_score,target_dist_mi,target_zone,target_rank&order=vuln_score.desc&limit=1000`);
+  const targetIds=[...new Set(compRaw.map(c=>c.target_uninumbr).filter(Boolean))];
+  let coordMap={};
+  for(let i=0;i<targetIds.length;i+=400){
+    const chunk=targetIds.slice(i,i+400);
+    const rows=await api('branch_opportunity_base',`uninumbr=in.(${chunk.join(',')})&select=uninumbr,sims_latitude,sims_longitude`);
+    rows.forEach(r=>coordMap[r.uninumbr]={lat:r.sims_latitude,lon:r.sims_longitude});
+  }
+  competitors = compRaw.filter(c=>coordMap[c.target_uninumbr]?.lat);
+  g('countCompetitors').textContent=competitors.length;
+
+  competitors.forEach(c=>{
+    const coord=coordMap[c.target_uninumbr];
+    const color=vulnColor(c.vuln_score);
+    const m=L.circleMarker([coord.lat,coord.lon],{
+      radius:6,color:'#fff',weight:1,fillColor:color,fillOpacity:0.85
+    });
+    m.bindPopup(`
+      <div class="pop-t">${c.target_namefull}</div>
+      <div class="pop-r">Vulnerability: <b>${c.vuln_score||'—'}</b> · Distance: <b>${c.target_dist_mi||'—'} mi</b></div>
+      <div class="pop-r">Deposits: <b>$${c.target_dep_m||'—'}M</b> · YoY: <b>${c.target_yoy_pct||'—'}%</b></div>
+      <div class="pop-r">Zone: <b>${c.target_zone||'—'}</b></div>
+    `);
+    m.addTo(competitorLayer);
+  });
+}
+
+async function doSearch(q){
+  if(!q||q.length<2){closeDd();return;}
+  const dd=g('dd');
+  dd.innerHTML='<div class="dd-msg">Searching...</div>';
+  dd.classList.add('open');
+  const rows=await api('dim_institutions',`institution_name=ilike.*${encodeURIComponent(q)}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=15`);
+  ddItems=rows;ddIdx=-1;
+  if(!rows.length){dd.innerHTML='<div class="dd-msg">No matches</div>';return;}
+  dd.innerHTML=rows.map((r,i)=>`
+    <div class="dd-item" data-i="${i}">
+      <div class="dd-name">${r.institution_name}</div>
+      <div class="dd-meta">${r.institution_type||''} · ${r.city_hq||''}, ${r.state_hq||''}</div>
+    </div>`).join('');
+  dd.querySelectorAll('.dd-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=ddItems[+el.dataset.i];
+      g('bankSearch').value=r.institution_name;
+      closeDd();
+      loadBank(r.inst_key);
+    });
+  });
+}
+function closeDd(){g('dd').classList.remove('open');}
+
+let searchTimer=null;
+g('bankSearch').addEventListener('input',e=>{
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>doSearch(e.target.value),250);
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-wrap')) closeDd();
+});
+
+initMap();
+
+// Deep-link support: ?inst_key=bank_463735
+const params=new URLSearchParams(window.location.search);
+const deepIk=params.get('inst_key');
+if(deepIk){
+  api('dim_institutions',`inst_key=eq.${deepIk}&select=institution_name&limit=1`).then(r=>{
+    if(r[0]) g('bankSearch').value=r[0].institution_name;
+    loadBank(deepIk);
+  });
+}
+</script>
+</body>
+</html>

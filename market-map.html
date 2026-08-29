@@ -97,6 +97,8 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     </div>
   </div>
   <div class="hdr-right">
+    <select class="inp" id="stateFilter" style="display:none;width:110px;cursor:pointer"><option value="">All States</option></select>
+    <select class="inp" id="cityFilter" style="display:none;width:150px;cursor:pointer"><option value="">All Cities</option></select>
     <div class="search-wrap">
       <input class="inp" id="bankSearch" placeholder="Search bank or credit union..." autocomplete="off">
       <div class="dd" id="dd"></div>
@@ -162,6 +164,17 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 <script>
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 
+let map, branchLayer, competitorLayer, personaLayer;
+let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
+let stateVal='', cityVal='';
+const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
+const PERSONA_COLOR={
+  'Healthcare Hubs':'#0EA5A0','Knowledge Communities':'#6366F1','Makers & Trades':'#D97706',
+  'Service Backbone':'#64748B','Urban Professionals':'#DB2777','Growing Families':'#16A34A',
+  'Retired & Secure':'#7C3AED','Blue Collar Core':'#B45309','Tourism & Hospitality':'#0891B2',
+  'Mixed Area':'#9CA3AF'
+};
+
 function bootApp(){
   initMap();
   const params=new URLSearchParams(window.location.search);
@@ -211,17 +224,6 @@ async function checkAccess(){
   }
 }
 
-const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
-const PERSONA_COLOR={
-  'Healthcare Hubs':'#0EA5A0','Knowledge Communities':'#6366F1','Makers & Trades':'#D97706',
-  'Service Backbone':'#64748B','Urban Professionals':'#DB2777','Growing Families':'#16A34A',
-  'Retired & Secure':'#7C3AED','Blue Collar Core':'#B45309','Tourism & Hospitality':'#0891B2',
-  'Mixed Area':'#9CA3AF'
-};
-
-let map, branchLayer, competitorLayer, personaLayer;
-let topoData=null, branches=[], competitors=[], selInstKey=null, ddIdx=-1, ddItems=[];
-
 function g(id){return document.getElementById(id);}
 
 async function api(table,params){
@@ -264,7 +266,7 @@ function initMap(){
   });
   g('togglePersona').addEventListener('change',async e=>{
     if(e.target.checked){
-      if(personaLayer.getLayers().length===0) await renderPersonaLayer();
+      await renderPersonaLayer(getFilteredBranches());
       personaLayer.addTo(map);g('legendPersona').classList.add('on');
     } else {map.removeLayer(personaLayer);g('legendPersona').classList.remove('on');}
   });
@@ -282,16 +284,26 @@ function initMap(){
 
 function closeCard(){g('zipCard').classList.remove('on');}
 
-async function renderPersonaLayer(){
-  if(!branches.length) return;
+async function renderPersonaLayer(branchSet){
+  branchSet = branchSet || getFilteredBranches();
+  if(!branchSet.length) return;
+  g('countPersona').textContent='loading…';
   if(!topoData){
-    const resp=await fetch('./zip_boundaries.topojson');
-    const topo=await resp.json();
-    const key=Object.keys(topo.objects)[0];
-    topoData=topojson.feature(topo,topo.objects[key]);
+    try{
+      const resp=await fetch('./zip_boundaries.topojson');
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const topo=await resp.json();
+      const key=Object.keys(topo.objects)[0];
+      topoData=topojson.feature(topo,topo.objects[key]);
+    }catch(e){
+      console.error('zip_boundaries.topojson failed to load:',e);
+      g('countPersona').textContent='load failed';
+      alert('Could not load zip_boundaries.topojson — check it\'s uploaded to the same folder as this page on GitHub Pages (see console for details).');
+      return;
+    }
   }
-  const lats=branches.map(b=>b.sims_latitude).filter(Boolean);
-  const lons=branches.map(b=>b.sims_longitude).filter(Boolean);
+  const lats=branchSet.map(b=>b.sims_latitude).filter(Boolean);
+  const lons=branchSet.map(b=>b.sims_longitude).filter(Boolean);
   const pad=0.6; // ~40mi buffer around footprint
   const minLat=Math.min(...lats)-pad, maxLat=Math.max(...lats)+pad;
   const minLon=Math.min(...lons)-pad, maxLon=Math.max(...lons)+pad;
@@ -317,7 +329,8 @@ async function renderPersonaLayer(){
     style:f=>{
       const p=personaMap[f.properties.ZCTA5CE10];
       const color=p?PERSONA_COLOR[p.persona]:'#D8DCE1';
-      return {color:'#fff',weight:0.5,fillColor:color,fillOpacity:p?0.55:0.15};
+      // Visible boundary line regardless of persona match — this is the zip outline layer.
+      return {color:'#334155',weight:0.9,opacity:0.55,fillColor:color,fillOpacity:p?0.5:0.08};
     },
     onEachFeature:(f,layer)=>{
       layer.on('click',()=>{
@@ -344,20 +357,16 @@ function centroidOf(feature){
   return [(minX+maxX)/2,(minY+maxY)/2];
 }
 
-async function loadBank(ik){
-  selInstKey=ik;
-  g('emptyState').style.display='none';
-  g('layerPanel').style.display='block';
-  branchLayer.clearLayers();competitorLayer.clearLayers();personaLayer.clearLayers();
-  g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
-  topoData=null;
+function getFilteredBranches(){
+  return branches.filter(b=>
+    (!stateVal || b.stalpbr===stateVal) &&
+    (!cityVal || b.citybr===cityVal)
+  );
+}
 
-  branches = await api('branch_opportunity_base',
-    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,latest_dep,yoy_deposits&limit=2000`);
-  branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
-  g('countBranches').textContent=branches.length;
-
-  branches.forEach(b=>{
+function drawBranches(list){
+  branchLayer.clearLayers();
+  list.forEach(b=>{
     const color=ZONE_COLOR[b.opportunity_zone]||'#999';
     const m=L.circleMarker([b.sims_latitude,b.sims_longitude],{
       radius:7,color:'#fff',weight:1.5,fillColor:color,fillOpacity:0.9
@@ -370,25 +379,14 @@ async function loadBank(ik){
     `);
     m.addTo(branchLayer);
   });
+  g('countBranches').textContent=list.length;
+}
 
-  if(branches.length){
-    map.fitBounds(branches.map(b=>[b.sims_latitude,b.sims_longitude]),{padding:[60,60]});
-  }
-
-  const compRaw = await api('branch_target_competitors',
-    `my_inst_key=eq.${ik}&select=target_uninumbr,target_namefull,target_dep_m,target_yoy_pct,vuln_score,target_dist_mi,target_zone,target_rank&order=vuln_score.desc&limit=1000`);
-  const targetIds=[...new Set(compRaw.map(c=>c.target_uninumbr).filter(Boolean))];
-  let coordMap={};
-  for(let i=0;i<targetIds.length;i+=400){
-    const chunk=targetIds.slice(i,i+400);
-    const rows=await api('branch_opportunity_base',`uninumbr=in.(${chunk.join(',')})&select=uninumbr,sims_latitude,sims_longitude`);
-    rows.forEach(r=>coordMap[r.uninumbr]={lat:r.sims_latitude,lon:r.sims_longitude});
-  }
-  competitors = compRaw.filter(c=>coordMap[c.target_uninumbr]?.lat);
-  g('countCompetitors').textContent=competitors.length;
-
-  competitors.forEach(c=>{
+function drawCompetitors(list){
+  competitorLayer.clearLayers();
+  list.forEach(c=>{
     const coord=coordMap[c.target_uninumbr];
+    if(!coord?.lat) return;
     const color=vulnColor(c.vuln_score);
     const m=L.circleMarker([coord.lat,coord.lon],{
       radius:6,color:'#fff',weight:1,fillColor:color,fillOpacity:0.85
@@ -401,6 +399,82 @@ async function loadBank(ik){
     `);
     m.addTo(competitorLayer);
   });
+  g('countCompetitors').textContent=list.length;
+}
+
+function populateFilters(){
+  const states=[...new Set(branches.map(b=>b.stalpbr).filter(Boolean))].sort();
+  const sf=g('stateFilter');
+  sf.innerHTML='<option value="">All States</option>'+states.map(s=>`<option value="${s}">${s}</option>`).join('');
+  sf.style.display='block';
+  populateCityFilter();
+  g('cityFilter').style.display='block';
+}
+
+function populateCityFilter(){
+  const pool = stateVal ? branches.filter(b=>b.stalpbr===stateVal) : branches;
+  const cities=[...new Set(pool.map(b=>b.citybr).filter(Boolean))].sort();
+  const cf=g('cityFilter');
+  const keep = cities.includes(cityVal) ? cityVal : '';
+  cf.innerHTML='<option value="">All Cities</option>'+cities.map(c=>`<option value="${c}">${c}</option>`).join('');
+  cf.value=keep;
+  cityVal=keep;
+}
+
+async function applyFilters(){
+  const filteredBranches=getFilteredBranches();
+  const ids=new Set(filteredBranches.map(b=>b.uninumbr));
+  const filteredCompetitors=competitors.filter(c=>ids.has(c.my_branch_id));
+  drawBranches(filteredBranches);
+  drawCompetitors(filteredCompetitors);
+  if(filteredBranches.length){
+    map.fitBounds(filteredBranches.map(b=>[b.sims_latitude,b.sims_longitude]),{padding:[60,60]});
+  }
+  if(g('togglePersona').checked){
+    await renderPersonaLayer(filteredBranches);
+  }
+}
+
+g('stateFilter').addEventListener('change',e=>{
+  stateVal=e.target.value;
+  populateCityFilter();
+  applyFilters();
+});
+g('cityFilter').addEventListener('change',e=>{
+  cityVal=e.target.value;
+  applyFilters();
+});
+
+async function loadBank(ik){
+  selInstKey=ik;
+  g('emptyState').style.display='none';
+  g('layerPanel').style.display='block';
+  branchLayer.clearLayers();competitorLayer.clearLayers();personaLayer.clearLayers();
+  g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
+  topoData=null;
+  stateVal='';cityVal='';
+
+  branches = await api('branch_opportunity_base',
+    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,latest_dep,yoy_deposits&limit=2000`);
+  branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
+  populateFilters();
+  drawBranches(branches);
+
+  if(branches.length){
+    map.fitBounds(branches.map(b=>[b.sims_latitude,b.sims_longitude]),{padding:[60,60]});
+  }
+
+  const compRaw = await api('branch_target_competitors',
+    `my_inst_key=eq.${ik}&select=my_branch_id,target_uninumbr,target_namefull,target_dep_m,target_yoy_pct,vuln_score,target_dist_mi,target_zone,target_rank&order=vuln_score.desc&limit=1000`);
+  const targetIds=[...new Set(compRaw.map(c=>c.target_uninumbr).filter(Boolean))];
+  coordMap={};
+  for(let i=0;i<targetIds.length;i+=400){
+    const chunk=targetIds.slice(i,i+400);
+    const rows=await api('branch_opportunity_base',`uninumbr=in.(${chunk.join(',')})&select=uninumbr,sims_latitude,sims_longitude`);
+    rows.forEach(r=>coordMap[r.uninumbr]={lat:r.sims_latitude,lon:r.sims_longitude});
+  }
+  competitors = compRaw.filter(c=>coordMap[c.target_uninumbr]?.lat);
+  drawCompetitors(competitors);
 }
 
 async function doSearch(q){

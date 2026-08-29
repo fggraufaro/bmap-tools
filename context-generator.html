@@ -164,6 +164,17 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 <script>
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 
+let map, branchLayer, competitorLayer, personaLayer;
+let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
+let stateVal='', cityVal='';
+const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
+const PERSONA_COLOR={
+  'Healthcare Hubs':'#0EA5A0','Knowledge Communities':'#6366F1','Makers & Trades':'#D97706',
+  'Service Backbone':'#64748B','Urban Professionals':'#DB2777','Growing Families':'#16A34A',
+  'Retired & Secure':'#7C3AED','Blue Collar Core':'#B45309','Tourism & Hospitality':'#0891B2',
+  'Mixed Area':'#9CA3AF'
+};
+
 function bootApp(){
   initMap();
   const params=new URLSearchParams(window.location.search);
@@ -212,18 +223,6 @@ async function checkAccess(){
     if(btn) btn.disabled = false;
   }
 }
-
-const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
-const PERSONA_COLOR={
-  'Healthcare Hubs':'#0EA5A0','Knowledge Communities':'#6366F1','Makers & Trades':'#D97706',
-  'Service Backbone':'#64748B','Urban Professionals':'#DB2777','Growing Families':'#16A34A',
-  'Retired & Secure':'#7C3AED','Blue Collar Core':'#B45309','Tourism & Hospitality':'#0891B2',
-  'Mixed Area':'#9CA3AF'
-};
-
-let map, branchLayer, competitorLayer, personaLayer;
-let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
-let stateVal='', cityVal='';
 
 function g(id){return document.getElementById(id);}
 

@@ -304,15 +304,18 @@ async function renderPersonaLayer(branchSet){
       return;
     }
   }
-  const lats=branchSet.map(b=>b.sims_latitude).filter(Boolean);
-  const lons=branchSet.map(b=>b.sims_longitude).filter(Boolean);
-  const pad=0.6; // ~40mi buffer around footprint
-  const minLat=Math.min(...lats)-pad, maxLat=Math.max(...lats)+pad;
-  const minLon=Math.min(...lons)-pad, maxLon=Math.max(...lons)+pad;
+  const RADIUS_DEG = 0.12; // ~8mi around each individual branch — zips near real locations, not one big regional box
+  const branchBoxes = branchSet
+    .filter(b=>b.sims_latitude && b.sims_longitude)
+    .map(b=>({
+      minLat:b.sims_latitude-RADIUS_DEG, maxLat:b.sims_latitude+RADIUS_DEG,
+      minLon:b.sims_longitude-RADIUS_DEG, maxLon:b.sims_longitude+RADIUS_DEG
+    }));
 
   const inBox=topoData.features.filter(f=>{
     const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
-    return c[1]>=minLat && c[1]<=maxLat && c[0]>=minLon && c[0]<=maxLon;
+    if(Number.isNaN(c[1])) return false;
+    return branchBoxes.some(bx=>c[1]>=bx.minLat && c[1]<=bx.maxLat && c[0]>=bx.minLon && c[0]<=bx.maxLon);
   });
   const zips=inBox.map(f=>f.properties.ZCTA5CE10).filter(Boolean);
   g('countPersona').textContent=zips.length;

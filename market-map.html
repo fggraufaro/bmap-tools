@@ -159,9 +159,15 @@ let topoData=null, branches=[], competitors=[], selInstKey=null, ddIdx=-1, ddIte
 
 function g(id){return document.getElementById(id);}
 
+const TABLE_SCHEMA={dim_institutions:'ref',branch_opportunity_base:'analytics',branch_target_competitors:'analytics'};
+// public schema (e.g. vw_zip_persona) needs no Accept-Profile header — PostgREST default.
+
 async function api(table,params){
   try{
-    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+    const headers={apikey:KEY,Authorization:'Bearer '+KEY};
+    const schema=TABLE_SCHEMA[table];
+    if(schema) headers['Accept-Profile']=schema;
+    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
     if(!r.ok){console.error(table,r.status,await r.text());return [];}
     return r.json();
   }catch(e){console.error(e);return [];}

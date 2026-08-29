@@ -144,7 +144,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 const SUPA='https://tuiiywphoynbmkxpoyps.supabase.co';
-const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
+const KEY='sb_publishable_xJ3XZDouUDGaCKRxIBIjxQ_emL2EPh5';
 
 const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
 const PERSONA_COLOR={
@@ -159,15 +159,9 @@ let topoData=null, branches=[], competitors=[], selInstKey=null, ddIdx=-1, ddIte
 
 function g(id){return document.getElementById(id);}
 
-const TABLE_SCHEMA={dim_institutions:'ref',branch_opportunity_base:'analytics',branch_target_competitors:'analytics'};
-// public schema (e.g. vw_zip_persona) needs no Accept-Profile header — PostgREST default.
-
 async function api(table,params){
   try{
-    const headers={apikey:KEY,Authorization:'Bearer '+KEY};
-    const schema=TABLE_SCHEMA[table];
-    if(schema) headers['Accept-Profile']=schema;
-    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers});
+    const r=await fetch(`${SUPA}/rest/v1/${table}?${params}`,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
     if(!r.ok){console.error(table,r.status,await r.text());return [];}
     return r.json();
   }catch(e){console.error(e);return [];}

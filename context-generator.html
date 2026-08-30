@@ -1384,17 +1384,22 @@ async function loadBank(ik){
     // play type can't outrank a smaller branch with a strong one.
     const cityRanks = Object.values(cityMap).map(c=>{
       let score=0, topPriorityN=0, nextN=0, oppN=0;
+      const zoneCounts={};
       c.branches.forEach(b=>{
         const tier = PLAY_WEIGHT[b.campaign];
         if(tier===10) topPriorityN++; else if(tier===6) nextN++; else if(tier===4) oppN++;
         const playW = tier||1;
         const sizeNorm = (+b.deposit_size_norm||0)/100;
         score += playW*sizeNorm*vulnFactor(b);
+        if(b.opportunity_zone) zoneCounts[b.opportunity_zone]=(zoneCounts[b.opportunity_zone]||0)+1;
       });
       const yoys = c.branches.map(b=>b.avg_comp_yoy).filter(v=>v!==null&&v!==undefined&&v!=='').map(Number);
       const avgCompYoy = yoys.length ? yoys.reduce((a,v)=>a+v,0)/yoys.length : null;
+      const totalDep = c.branches.reduce((a,b)=>a+(+b.latest_dep||0),0);
       const topBranch = [...c.branches].sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0))[0];
-      return {...c, _score:score, topPriorityN, nextN, oppN, avgCompYoy,
+      const zoneOrder=['Invest','Analyze','Defend','Justify'];
+      const zoneMix = zoneOrder.filter(z=>zoneCounts[z]).map(z=>`${zoneCounts[z]} ${z}`).join(' · ');
+      return {...c, _score:score, topPriorityN, nextN, oppN, avgCompYoy, totalDep, zoneMix,
         topQ:(topBranch.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4',
         topZone:topBranch.opportunity_zone||'', topPlay:topBranch.campaign||'—'};
     }).sort((a,b)=>b._score-a._score).slice(0,3);
@@ -1406,12 +1411,15 @@ async function loadBank(ik){
         c.nextN?`${c.nextN} Next`:'',
         c.oppN?`${c.oppN} Opportunity`:''
       ].filter(Boolean).join(' · ') || `${c.topZone} · ${c.topQ} — ${c.topPlay}`;
-      const compLine = (c.avgCompYoy!==null && c.avgCompYoy < -0.03)
-        ? `Competitors here averaging ${(c.avgCompYoy*100).toFixed(1)}% YoY`
-        : '';
+      const depLine = `$${(c.totalDep/1e6).toFixed(0)}M total deposits`;
+      let compLine = '';
+      if(c.avgCompYoy!==null){
+        if(c.avgCompYoy < -0.03) compLine = `Competitors here averaging ${(c.avgCompYoy*100).toFixed(1)}% YoY — weak, easier to displace`;
+        else if(c.avgCompYoy > 0.10) compLine = `Competitors here averaging +${(c.avgCompYoy*100).toFixed(1)}% YoY — strong, harder to displace`;
+      }
       return `<div class="city-card" style="border-color:${tbg}">
         <div class="city-name">${c.city}, ${c.state}</div>
-        <div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''}${compLine?'<br>'+compLine:''}</div>
+        <div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · ${depLine}${c.zoneMix?'<br>'+c.zoneMix:''}${compLine?'<br>'+compLine:''}</div>
         <span class="city-tag" style="background:${tbg};color:${tfg}">${playMix}</span>
       </div>`;
     }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No branches in view</div>';

@@ -400,9 +400,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .tgt-v-lbl{font-size:9px;color:var(--red)}
 
 /* ── TILE MATRIX ──────────────────────────────────────────────────────────── */
-.dash-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;border-bottom:1px solid var(--border)}
+/* Breaks .dash-grid out of the 860px .wrap without touching HTML nesting —
+   safer than restructuring div boundaries in a file this size. */
+.dash-grid{
+  display:grid;grid-template-columns:1.05fr 0.75fr 1fr;gap:0;border-bottom:1px solid var(--border);
+  width:94vw;max-width:1500px;position:relative;left:50%;transform:translateX(-50%);
+}
 .dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column}
-.dash-priority-card{padding:14px 18px;max-height:560px;overflow-y:auto}
+.dash-priority-card{padding:14px 18px;max-height:560px;overflow-y:auto;border-right:1px solid var(--border)}
+.dash-map-card{padding:14px 18px;display:flex;flex-direction:column}
+.dash-map-frame{width:100%;height:520px;border:none;border-radius:8px;margin-top:8px;background:var(--gray)}
 .matrix-2x2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:5px;height:460px;margin-top:8px}
 .mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;overflow:hidden}
 .mq-q2{background:#EAF3DE}.mq-q2 .mq-qlbl{color:#27500A}.mq-q2 .mq-play{color:#27500A}.mq-q2 .mq-tile{background:rgba(255,255,255,.55)}.mq-q2 .mq-tile:hover,.mq-q2 .mq-tile.sel{background:#fff;outline:1.5px solid #27500A}
@@ -588,6 +595,11 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
         <div id="priorityList" style="margin-top:8px"></div>
       </div>
       <div id="brDetailView" style="display:none"></div>
+    </div>
+
+    <div class="dash-map-card">
+      <div class="sec-t">Market map</div>
+      <iframe class="dash-map-frame" id="dashMapFrame" src="about:blank" loading="lazy" title="Branches, competitors, and zip persona map"></iframe>
     </div>
   </div>
 
@@ -1023,6 +1035,14 @@ g('si').addEventListener('keydown',e=>{
 });
 g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
+function syncMapFrame(ik,metro){
+  const frame=document.getElementById('dashMapFrame');
+  if(!frame||!ik) return;
+  let src=`https://fggraufaro.github.io/bmap-tools/market-map.html?inst_key=${encodeURIComponent(ik)}`;
+  if(metro) src+=`&metro=${encodeURIComponent(metro)}`;
+  frame.src=src;
+}
+
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
@@ -1328,6 +1348,7 @@ async function loadBank(ik){
 
   renderMatrix('');
   renderPriority(allBr);
+  syncMapFrame(ik,'');
 
   mSel.onchange=()=>{
     clearBrDetail();
@@ -1335,6 +1356,7 @@ async function loadBank(ik){
     const brs=m?allBr.filter(b=>b.metro===m):allBr;
     renderMatrix(m);
     renderPriority(brs);
+    syncMapFrame(ik,m);
   };
 
   // ── URGENT STATUS LABELS (not raw play names) ────────────────────────────

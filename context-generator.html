@@ -556,6 +556,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="metro-row">
         <div class="sec-t">Branch matrix</div>
         <div style="display:flex;align-items:center;gap:8px">
+          <select class="metro-sel" id="stateSelect"><option value="">All states</option></select>
           <select class="metro-sel" id="metroSelect"><option value="">All markets</option></select>
           <span style="font-size:10px;color:var(--muted)" id="matrixMore"></span>
         </div>
@@ -929,7 +930,7 @@ async function checkAccess(){
   }
 }
 
-let selBank=null,selWfN=null,bankData=null,allBr=[],timer=null,ddItems=[],ddIdx=-1;
+let selBank=null,selWfN=null,bankData=null,allBr=[],allComp=[],timer=null,ddItems=[],ddIdx=-1;
 window.selBank = null; window.bankData = null;
 
 // ── SHARED AI FETCH HELPER ─────────────────────────────────────
@@ -1027,12 +1028,19 @@ g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
-  const [rows,br,tgt]=await Promise.all([
+  const [rows,br,tgt,compRaw]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
     api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,adult_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index&order=opportunity_score.desc`),
-    api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`)
+    api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`),
+    // Same source as the Rate Radar export (branch_target_competitors — a
+    // curated top-3-per-branch shortlist, not a full competitor census; it
+    // undercounts vs. the live geospatial radius lookup used in Branch Deep
+    // Dive). Used here only for state-filterable "Top Competitor Targets",
+    // where the alternative (running branches_within_radius for every
+    // branch) isn't practical to do live for a whole network on page load.
+    api('branch_target_competitors',`my_inst_key=eq.${ik}&select=my_branch_id,target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone,target_uninumbr,target_roa&order=vuln_score.desc&limit=5000`)
   ]);
-  allBr=br||[];bankData={rows,allBr,tgt:tgt||[],ik};
+  allBr=br||[];allComp=compRaw||[];bankData={rows,allBr,tgt:tgt||[],ik};
   if(!rows||!rows.length){set('bn','No branch data found');return;}
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
@@ -1220,10 +1228,9 @@ async function loadBank(ik){
     return tile;
   };
 
-  const renderMatrix = (filterMetro) => {
-    const brs = filterMetro ? allBr.filter(b=>b.metro===filterMetro) : allBr;
-    g('matrixMore').textContent = filterMetro
-      ? brs.length+' branches · '+filterMetro
+  const renderMatrix = (brs, scopeLabel) => {
+    g('matrixMore').textContent = scopeLabel
+      ? brs.length+' branches · '+scopeLabel
       : allBr.length+' branches total';
 
     ['Q1','Q2','Q3','Q4'].forEach(q => {
@@ -1326,91 +1333,140 @@ async function loadBank(ik){
     g('priorityList').innerHTML=h;
   };
 
-  // Populate metro dropdown and render
-  const metros=[...new Set(allBr.map(b=>b.metro).filter(Boolean))].sort();
-  const mSel=g('metroSelect');
-  if(mSel.dataset.bank!==ik){
-    mSel.innerHTML='<option value="">All markets</option>';
-    metros.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;mSel.appendChild(o);});
-    mSel.dataset.bank=ik;mSel.value='';
+  // Populate state + metro dropdowns (cascading) and render
+  const sSel=g('stateSelect'), mSel=g('metroSelect');
+  const populateMetroOptions = (stateFilter) => {
+    const pool = stateFilter ? allBr.filter(b=>b.stalpbr===stateFilter) : allBr;
+    const metros=[...new Set(pool.map(b=>b.metro).filter(Boolean))].sort();
+    const keep = metros.includes(mSel.value) ? mSel.value : '';
+    mSel.innerHTML='<option value="">All markets</option>'+metros.map(m=>`<option value="${m}">${m}</option>`).join('');
+    mSel.value=keep;
+  };
+  if(sSel.dataset.bank!==ik){
+    const states=[...new Set(allBr.map(b=>b.stalpbr).filter(Boolean))].sort();
+    sSel.innerHTML='<option value="">All states</option>'+states.map(s=>`<option value="${s}">${s}</option>`).join('');
+    sSel.dataset.bank=ik;sSel.value='';mSel.value='';
+    populateMetroOptions('');
   }
 
-  renderMatrix('');
-  renderPriority(allBr);
-
-  mSel.onchange=()=>{
-    clearBrDetail();
-    const m=mSel.value;
-    const brs=m?allBr.filter(b=>b.metro===m):allBr;
-    renderMatrix(m);
-    renderPriority(brs);
-  };
-  // ── TOP CITIES ─────────────────────────────────────────────────────────────
-  const cityMap = {};
-  allBr.forEach(b=>{
-    const key = `${b.citybr}, ${b.stalpbr}`;
-    if(!cityMap[key]) cityMap[key]={city:b.citybr,state:b.stalpbr,branches:[],topScore:0,topQ:'',topZone:'',topPlay:'',incYoy:0,popYoy:0};
-    const m = cityMap[key];
-    m.branches.push(b);
-    if((+b.opportunity_score||0) > m.topScore){
-      m.topScore = +b.opportunity_score||0;
-      m.topQ = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4';
-      m.topZone = b.opportunity_zone||'';
-      m.topPlay = b.campaign||'—';
-      m.incYoy = ((+b.household_income||0));
-      m.popYoy = ((+b.yoy_pop_growth||0)*100);
-    }
-  });
-  // "Highest chance to capture deposits" = play type (can we win here) ×
-  // deposit size (how much is the win worth) × competitor vulnerability
-  // (how likely is the win). Multiplicative, not additive — a huge branch
-  // with a bad play type shouldn't outrank a smaller branch with a great
-  // one; play type gates how much size and vulnerability get to count.
   const PLAY_WEIGHT = {
     'Aggressive Acquisition':10,'Urgent Competitive Push':10,
     'Market Domination':6,'Grow Share':6,
     'Growth Opportunity':4,'Niche Opportunity':4
   };
+  // Vulnerability ranked relative to the FULL bank network (not the current
+  // filter) so "vulnerable" keeps a stable, consistent meaning as someone
+  // narrows by state/city — otherwise the same competitor could flip from
+  // "vulnerable" to "not vulnerable" just from changing the filter.
+  const knownYoy = allBr.map(b=>b.avg_comp_yoy).filter(v=>v!==null&&v!==undefined&&v!=='').map(Number).sort((a,b)=>a-b);
   const vulnFactor = b => {
-    const v = b.avg_comp_yoy;
-    if(v===null||v===undefined||v==='') return 0.5; // unknown — neutral, not max or zero
-    return Math.max(0, Math.min(1, (0-(+v)) / 0.15));
+    const v=b.avg_comp_yoy;
+    if(v===null||v===undefined||v===''||!knownYoy.length) return 0.5;
+    const rank=knownYoy.filter(x=>x<=+v).length;
+    return 1-(rank/knownYoy.length);
   };
-
-  const cityRanks = Object.values(cityMap).map(c=>{
-    let score = 0;
-    c.branches.forEach(b=>{
-      const playW = PLAY_WEIGHT[b.campaign] || 1; // residual plays still count a little, don't vanish
-      const sizeNorm = (+b.deposit_size_norm || 0) / 100;
-      score += playW * sizeNorm * vulnFactor(b);
-    });
-    score += (c.topScore * 0.01);
-    return {...c, _score:score};
-  }).sort((a,b)=>b._score-a._score).slice(0,3);
 
   const qTagStyle = {
     'Q2':['#EAF3DE','#27500A'],'Q1':['#E6F1FB','#185FA5'],
     'Q3':['#FEF9C3','#854D0E'],'Q4':['#FCEBEB','#A32D2D']
   };
-  g('citiesGrid').innerHTML = cityRanks.map(c=>{
-    const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
-    const inc = c.incYoy > 0 ? `Avg income $${(c.incYoy/1000).toFixed(0)}K` : '';
-    const pop = c.popYoy !== 0 ? `Pop ${c.popYoy>=0?'+':''}${c.popYoy.toFixed(1)}% YoY` : '';
-    return `<div class="city-card" style="border-color:${tbg}"><div class="city-name">${c.city}, ${c.state}</div><div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''} · Score ${c.topScore.toFixed(1)}<br>${[inc,pop].filter(Boolean).join(' · ')||'&nbsp;'}</div><span class="city-tag" style="background:${tbg};color:${tfg}">${c.topZone} · ${c.topQ} — ${c.topPlay}</span></div>`;
-  }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No Invest/Analyze markets found</div>';
 
-  // ── COMPETITOR TARGETS (from network_top_targets) ─────────────────────────
-  const tgts = tgt||[];
-  if(tgts.length){
-    g('targetsGrid').innerHTML = tgts.slice(0,3).map(t=>{
-      const vy = (+t.avg_yoy_pct).toFixed(1);
-      const vColor = t.avg_vuln_score >= 300 ? '#A32D2D' : t.avg_vuln_score >= 200 ? '#854D0E' : '#374151';
-      const vLabel = t.avg_vuln_score >= 300 ? 'Critical' : t.avg_vuln_score >= 200 ? 'High' : 'Elevated';
-      return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.target_institution}</div><div class="tgt-sub">${t.branches_in_radius} branch${t.branches_in_radius!==1?'es':''} exposed · ${vy>=0?'+':''}${vy}% YoY · ROA ${t.target_roa||0}%</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.avg_vuln_score)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;
-    }).join('');
-  } else {
-    g('targetsGrid').innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px">Run network targets for this institution</div>';
-  }
+  const renderCities = (brs) => {
+    const cityMap = {};
+    brs.forEach(b=>{
+      const key = `${b.citybr}, ${b.stalpbr}`;
+      if(!cityMap[key]) cityMap[key]={city:b.citybr,state:b.stalpbr,branches:[]};
+      cityMap[key].branches.push(b);
+    });
+    // "Highest chance to capture deposits" = play type (can we win here) ×
+    // deposit size (how much is the win worth) × competitor vulnerability
+    // (how likely is the win) — multiplicative so a big branch with a poor
+    // play type can't outrank a smaller branch with a strong one.
+    const cityRanks = Object.values(cityMap).map(c=>{
+      let score=0, topPriorityN=0, nextN=0, oppN=0;
+      c.branches.forEach(b=>{
+        const tier = PLAY_WEIGHT[b.campaign];
+        if(tier===10) topPriorityN++; else if(tier===6) nextN++; else if(tier===4) oppN++;
+        const playW = tier||1;
+        const sizeNorm = (+b.deposit_size_norm||0)/100;
+        score += playW*sizeNorm*vulnFactor(b);
+      });
+      const yoys = c.branches.map(b=>b.avg_comp_yoy).filter(v=>v!==null&&v!==undefined&&v!=='').map(Number);
+      const avgCompYoy = yoys.length ? yoys.reduce((a,v)=>a+v,0)/yoys.length : null;
+      const topBranch = [...c.branches].sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0))[0];
+      return {...c, _score:score, topPriorityN, nextN, oppN, avgCompYoy,
+        topQ:(topBranch.matrix_quadrant||'').match(/^Q\d/)?.[0]||'Q4',
+        topZone:topBranch.opportunity_zone||'', topPlay:topBranch.campaign||'—'};
+    }).sort((a,b)=>b._score-a._score).slice(0,3);
+
+    g('citiesGrid').innerHTML = cityRanks.map(c=>{
+      const [tbg,tfg] = qTagStyle[c.topQ]||['#f3f4f6','#6b7280'];
+      const playMix = [
+        c.topPriorityN?`${c.topPriorityN} Top Priority`:'',
+        c.nextN?`${c.nextN} Next`:'',
+        c.oppN?`${c.oppN} Opportunity`:''
+      ].filter(Boolean).join(' · ') || `${c.topZone} · ${c.topQ} — ${c.topPlay}`;
+      const compLine = (c.avgCompYoy!==null && c.avgCompYoy < -0.03)
+        ? `Competitors here averaging ${(c.avgCompYoy*100).toFixed(1)}% YoY`
+        : '';
+      return `<div class="city-card" style="border-color:${tbg}">
+        <div class="city-name">${c.city}, ${c.state}</div>
+        <div class="city-meta">${c.branches.length} branch${c.branches.length!==1?'es':''}${compLine?'<br>'+compLine:''}</div>
+        <span class="city-tag" style="background:${tbg};color:${tfg}">${playMix}</span>
+      </div>`;
+    }).join('') || '<div style="font-size:11px;color:var(--muted);padding:4px">No branches in view</div>';
+  };
+
+  const renderTargets = (brs) => {
+    const ids = new Set(brs.map(b=>b.uninumbr));
+    const rows = allComp.filter(c=>ids.has(c.my_branch_id));
+    const grouped = {};
+    rows.forEach(r=>{
+      const k=r.target_inst_key; if(!k) return;
+      if(!grouped[k]) grouped[k]={name:r.target_namefull||'—',branches:new Set(),vuln:[],yoy:[],roa:[]};
+      const g2=grouped[k];
+      g2.branches.add(r.my_branch_id);
+      if(r.vuln_score!=null) g2.vuln.push(+r.vuln_score);
+      if(r.target_yoy_pct!=null) g2.yoy.push(+r.target_yoy_pct);
+      if(r.target_roa!=null) g2.roa.push(+r.target_roa);
+    });
+    const avgArr=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+    const sorted = Object.values(grouped)
+      .map(g2=>({name:g2.name, branches:g2.branches.size, vuln:avgArr(g2.vuln), yoy:avgArr(g2.yoy), roa:avgArr(g2.roa)}))
+      .filter(t=>t.vuln!=null)
+      .sort((a,b)=>b.vuln-a.vuln)
+      .slice(0,3);
+
+    if(sorted.length){
+      g('targetsGrid').innerHTML = sorted.map(t=>{
+        const vy=t.yoy!=null?t.yoy.toFixed(1):'—';
+        const vColor = t.vuln>=300?'#A32D2D':t.vuln>=200?'#854D0E':'#374151';
+        const vLabel = t.vuln>=300?'Critical':t.vuln>=200?'High':'Elevated';
+        return `<div class="tgt-card"><div style="flex:1"><div class="tgt-name">${t.name}</div><div class="tgt-sub">${t.branches} branch${t.branches!==1?'es':''} exposed · ${t.yoy!=null&&t.yoy>=0?'+':''}${vy}% YoY · ROA ${t.roa!=null?t.roa.toFixed(2):'—'}%</div></div><div class="tgt-vuln"><div class="tgt-v-num" style="color:${vColor}">${Math.round(t.vuln)}</div><div class="tgt-v-lbl" style="color:${vColor}">${vLabel}</div></div></div>`;
+      }).join('');
+    } else {
+      g('targetsGrid').innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px">No competitor data for this filter</div>';
+    }
+  };
+
+  const applyFilters = () => {
+    clearBrDetail();
+    const stateV=sSel.value, metroV=mSel.value;
+    const brs = allBr.filter(b=>
+      (!stateV || b.stalpbr===stateV) &&
+      (!metroV || b.metro===metroV)
+    );
+    const scopeLabel = [stateV,metroV].filter(Boolean).join(' · ');
+    renderMatrix(brs, scopeLabel);
+    renderPriority(brs);
+    renderCities(brs);
+    renderTargets(brs);
+  };
+
+  sSel.onchange = () => { populateMetroOptions(sSel.value); applyFilters(); };
+  mSel.onchange = applyFilters;
+
+  applyFilters();
 
   set('ss',avg('opportunity_score').toFixed(1));
   set('sy',`${(avg('yoy_deposits')*100).toFixed(1)}% vs ${(avg('avg_comp_yoy')*100).toFixed(1)}%`);

@@ -1361,13 +1361,28 @@ async function loadBank(ik){
       m.popYoy = ((+b.yoy_pop_growth||0)*100);
     }
   });
+  // "Highest chance to capture deposits" = play type (can we win here) ×
+  // deposit size (how much is the win worth) × competitor vulnerability
+  // (how likely is the win). Multiplicative, not additive — a huge branch
+  // with a bad play type shouldn't outrank a smaller branch with a great
+  // one; play type gates how much size and vulnerability get to count.
+  const PLAY_WEIGHT = {
+    'Aggressive Acquisition':10,'Urgent Competitive Push':10,
+    'Market Domination':6,'Grow Share':6,
+    'Growth Opportunity':4,'Niche Opportunity':4
+  };
+  const vulnFactor = b => {
+    const v = b.avg_comp_yoy;
+    if(v===null||v===undefined||v==='') return 0.5; // unknown — neutral, not max or zero
+    return Math.max(0, Math.min(1, (0-(+v)) / 0.15));
+  };
+
   const cityRanks = Object.values(cityMap).map(c=>{
     let score = 0;
     c.branches.forEach(b=>{
-      if(b.opportunity_zone==='Invest') score+=5;
-      if(b.opportunity_zone==='Analyze') score+=3;
-      if(b.opportunity_zone==='Defend') score+=1;
-      if((b.matrix_quadrant||'').startsWith('Q1')||(b.matrix_quadrant||'').startsWith('Q2')) score+=2;
+      const playW = PLAY_WEIGHT[b.campaign] || 1; // residual plays still count a little, don't vanish
+      const sizeNorm = (+b.deposit_size_norm || 0) / 100;
+      score += playW * sizeNorm * vulnFactor(b);
     });
     score += (c.topScore * 0.01);
     return {...c, _score:score};

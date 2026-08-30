@@ -382,6 +382,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .pri-yoy{font-size:10px}
 .pri-urgent{border-color:#F09595;background:#FCEBEB}
 .pri-invest{border-color:#C0DD97;background:#EAF3DE}
+.pri-top{border-color:#F0C674;background:#FFF3E0}
+.pri-opp{border-color:#A8C8E8;background:#E6F1FB}
 .pri-group{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:#fafaf8;margin-bottom:4px}
 .dash-cities{padding:14px 18px;border-bottom:1px solid var(--border);background:#fafaf8}
 .dash-cities-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
@@ -400,16 +402,9 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .tgt-v-lbl{font-size:9px;color:var(--red)}
 
 /* ── TILE MATRIX ──────────────────────────────────────────────────────────── */
-/* Breaks .dash-grid out of the 860px .wrap without touching HTML nesting —
-   safer than restructuring div boundaries in a file this size. */
-.dash-grid{
-  display:grid;grid-template-columns:1.05fr 0.75fr 1fr;gap:0;border-bottom:1px solid var(--border);
-  width:94vw;max-width:1500px;position:relative;left:50%;transform:translateX(-50%);
-}
+.dash-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;border-bottom:1px solid var(--border)}
 .dash-matrix-card{padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column}
-.dash-priority-card{padding:14px 18px;max-height:560px;overflow-y:auto;border-right:1px solid var(--border)}
-.dash-map-card{padding:14px 18px;display:flex;flex-direction:column}
-.dash-map-frame{width:100%;height:520px;border:none;border-radius:8px;margin-top:8px;background:var(--gray)}
+.dash-priority-card{padding:14px 18px;max-height:560px;overflow-y:auto}
 .matrix-2x2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:5px;height:460px;margin-top:8px}
 .mq{border-radius:8px;padding:10px;display:flex;flex-direction:column;overflow:hidden}
 .mq-q2{background:#EAF3DE}.mq-q2 .mq-qlbl{color:#27500A}.mq-q2 .mq-play{color:#27500A}.mq-q2 .mq-tile{background:rgba(255,255,255,.55)}.mq-q2 .mq-tile:hover,.mq-q2 .mq-tile.sel{background:#fff;outline:1.5px solid #27500A}
@@ -595,11 +590,6 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
         <div id="priorityList" style="margin-top:8px"></div>
       </div>
       <div id="brDetailView" style="display:none"></div>
-    </div>
-
-    <div class="dash-map-card">
-      <div class="sec-t">Market map</div>
-      <iframe class="dash-map-frame" id="dashMapFrame" src="about:blank" loading="lazy" title="Branches, competitors, and zip persona map"></iframe>
     </div>
   </div>
 
@@ -1035,14 +1025,6 @@ g('si').addEventListener('keydown',e=>{
 });
 g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
-function syncMapFrame(ik,metro){
-  const frame=document.getElementById('dashMapFrame');
-  if(!frame||!ik) return;
-  let src=`https://fggraufaro.github.io/bmap-tools/market-map.html?inst_key=${encodeURIComponent(ik)}`;
-  if(metro) src+=`&metro=${encodeURIComponent(metro)}`;
-  frame.src=src;
-}
-
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
   const [rows,br,tgt]=await Promise.all([
@@ -1279,62 +1261,69 @@ async function loadBank(ik){
     });
   };
 
+  // Deposit-acquisition priority — three sections, each mapped to specific
+  // plays from the 16-play matrix, ranked by acquisition strength. Nothing
+  // defensive or closure-framed (Efficiency Review, Exit Strategy, Asset
+  // Optimization, Performance Improvement, Rationalize, Maintain, Steady
+  // State, Targeted Defense, Competitive Defense) appears here — this panel
+  // is the growth story, not the full branch list.
+  const TOP_PRIORITY_PLAYS = new Set(['Aggressive Acquisition','Urgent Competitive Push']);
+  const NEXT_PLAYS         = new Set(['Market Domination','Grow Share']);
+  const OPPORTUNITY_PLAYS  = new Set(['Growth Opportunity','Niche Opportunity']);
+
   const renderPriority = (brs) => {
     const byDep=(a,b)=>(+b.latest_dep||0)-(+a.latest_dep||0);
     const byScr=(a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0);
-    const urgent=[
-      ...brs.filter(b=>b.opportunity_zone==='Justify'&&((+b.yoy_deposits<0)||(+b.latest_dep/1e6>100))).sort(byDep),
-      ...brs.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDep)
-    ].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,4);
 
-    const urgentIds=new Set(urgent.map(b=>b.uninumbr));
-    const invest=brs.filter(b=>!urgentIds.has(b.uninumbr)&&
-      (b.opportunity_zone==='Invest'||(b.opportunity_zone==='Analyze'&&['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&+b.yoy_deposits>=0))
-      &&+b.latest_dep/1e6>=5).sort(byScr).slice(0,3);
+    const top = brs.filter(b=>TOP_PRIORITY_PLAYS.has(b.campaign)).sort(byDep).slice(0,4);
+    const next = brs.filter(b=>NEXT_PLAYS.has(b.campaign)).sort(byScr).slice(0,3);
+    const opp = brs.filter(b=>OPPORTUNITY_PLAYS.has(b.campaign)).sort(byScr).slice(0,3);
 
-    const usedIds=new Set([...urgent,...invest].map(b=>b.uninumbr));
-    const watch=brs.filter(b=>!usedIds.has(b.uninumbr)).sort(byScr).slice(0,3);
-
-    const ul=b=>{
-      const y=(+b.yoy_deposits||0)*100,rg=y-(+b.avg_comp_yoy||0)*100;
-      if(y<-5&&+b.latest_dep/1e6>100)return'⚠ Critical — major deposit decline';
-      if(y<0&&rg<-10)return'Losing deposits to competitors';
-      if(y<0)return'Deposits declining';
-      if(rg<-10)return'Losing market share';
-      if((b.matrix_quadrant||'').startsWith('Q1')&&y<0)return'Underperforming attractive market';
-      return'Needs attention';
+    const row = (b,cls,dotColor,tipLabel) => {
+      const y=((+b.yoy_deposits||0)*100).toFixed(1), d=((+b.latest_dep||0)/1e6).toFixed(0);
+      const cYoy=((+b.avg_comp_yoy||0)*100).toFixed(1);
+      const gap=(((+b.yoy_deposits||0)*100)-((+b.avg_comp_yoy||0)*100)).toFixed(1);
+      const q=(b.matrix_quadrant||'').match(/Q\d/)?.[0]||'—';
+      const play=b.campaign||'—';
+      return `<div class="pri-row ${cls}"><div class="pri-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:${dotColor}">${+y>=0?'+':''}${y}% YoY</div></div><div class="pri-tip"><b>${tipLabel}</b>Deposits: ${+y>=0?'+':''}${y}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap>=0?'+':''}${gap}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
     };
 
     let h='';
-    if(urgent.length){
-      h+='<div class="pri-slbl" style="color:#A32D2D;margin-top:0">Urgent — act now</div>';
-      urgent.forEach(b=>{
-        const y=((+b.yoy_deposits||0)*100).toFixed(1),d=((+b.latest_dep||0)/1e6).toFixed(0);
-        const q=(b.matrix_quadrant||'').match(/Q\d/)?.[0]||'—';
-        h+=`<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${ul(b)} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:#A32D2D">${+y>=0?'+':''}${y}% YoY</div></div></div>`;
-      });
+    if(top.length){
+      h+='<div class="pri-slbl" style="color:#B8860B;margin-top:0">Top priority</div>';
+      top.forEach(b=>{ h+=row(b,'pri-top','#B8860B','Top priority'); });
     }
-    if(invest.length){
-      h+='<div class="pri-slbl" style="color:#27500A">Invest — campaign ready</div>';
-      invest.forEach(b=>{
-        const y=((+b.yoy_deposits||0)*100).toFixed(1),d=((+b.latest_dep||0)/1e6).toFixed(0);
-        const q=(b.matrix_quadrant||'').match(/Q\d/)?.[0]||'—';
-        h+=`<div class="pri-row pri-invest"><div class="pri-dot" style="background:#27500A"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${b.campaign||'—'} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:#27500A">${+y>=0?'+':''}${y}% YoY</div></div></div>`;
-      });
+    if(next.length){
+      h+='<div class="pri-slbl" style="color:#27500A">Next</div>';
+      next.forEach(b=>{ h+=row(b,'pri-invest','#27500A','Strong performer'); });
     }
-    if(watch.length){
-      h+='<div class="pri-slbl">Watch</div>';
-      if(watch.length>=3&&new Set(watch.map(b=>b.opportunity_zone)).size===1){
-        const deps=watch.reduce((a,b)=>a+(+b.latest_dep||0),0);
-        h+=`<div class="pri-group"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${watch.map(b=>b.namebr.split(' ')[0]).join(' · ')}</div><div class="pri-sub">${watch[0].campaign||'—'} · ${watch[0].opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${(deps/1e6).toFixed(0)}M</div></div></div>`;
+    if(opp.length){
+      h+='<div class="pri-slbl" style="color:#185FA5">Opportunity</div>';
+      opp.forEach(b=>{ h+=row(b,'pri-opp','#185FA5','Worth exploring'); });
+    }
+
+    if(!top.length && !next.length && !opp.length){
+      const zones={};
+      brs.forEach(b=>{zones[b.opportunity_zone]=(zones[b.opportunity_zone]||0)+1});
+      const zoneLine=Object.entries(zones).sort((a,b)=>b[1]-a[1]).map(([z,c])=>`${c} ${z}`).join(' · ')||'no branches in view';
+      const scoped = mSel.value && brs.length<allBr.length;
+      const networkHasAcq = allBr.some(b=>TOP_PRIORITY_PLAYS.has(b.campaign)||NEXT_PLAYS.has(b.campaign)||OPPORTUNITY_PLAYS.has(b.campaign));
+      const deepDiveLink = `<a href="#" onclick="selWf(1);return false;" style="color:var(--blue);font-weight:600">Run a Branch Deep Dive →</a>`;
+
+      if(scoped && networkHasAcq){
+        h+=`<div style="padding:12px 14px;background:#fafaf8;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);line-height:1.65">
+          <b>Why it's empty:</b> no Top Priority, Next, or Opportunity branches in ${mSel.value}. Branch mix here: ${zoneLine}.<br>
+          <b>Next step:</b> <a href="#" onclick="mSel.value='';mSel.dispatchEvent(new Event('change'));return false;" style="color:var(--blue);font-weight:600">view network-wide opportunities →</a> or ${deepDiveLink.toLowerCase()}
+        </div>`;
       } else {
-        watch.forEach(b=>{
-          const y=((+b.yoy_deposits||0)*100).toFixed(1),d=((+b.latest_dep||0)/1e6).toFixed(0);
-          h+=`<div class="pri-row"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${b.campaign||'—'} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:var(--muted)">${+y>=0?'+':''}${y}% YoY</div></div></div>`;
-        });
+        h+=`<div style="padding:12px 14px;background:#fafaf8;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);line-height:1.65">
+          <b>Why it's empty:</b> no branches${mSel.value?` in ${mSel.value}`:''} currently show a Top Priority, Next, or Opportunity signal. Branch mix: ${zoneLine}. This portfolio is weighted toward retention and defense right now, not expansion.<br>
+          <b>Next step:</b> ${deepDiveLink} on individual branches to confirm before ruling out an opportunity.
+        </div>`;
       }
     }
-    g('priorityList').innerHTML=h||'<div style="font-size:11px;color:var(--muted);padding:8px">No branches found</div>';
+
+    g('priorityList').innerHTML=h;
   };
 
   // Populate metro dropdown and render
@@ -1348,7 +1337,6 @@ async function loadBank(ik){
 
   renderMatrix('');
   renderPriority(allBr);
-  syncMapFrame(ik,'');
 
   mSel.onchange=()=>{
     clearBrDetail();
@@ -1356,79 +1344,7 @@ async function loadBank(ik){
     const brs=m?allBr.filter(b=>b.metro===m):allBr;
     renderMatrix(m);
     renderPriority(brs);
-    syncMapFrame(ik,m);
   };
-
-  // ── URGENT STATUS LABELS (not raw play names) ────────────────────────────
-  const urgentLabel = b => {
-    const yoyPct = (+b.yoy_deposits||0)*100;
-    const relGap = yoyPct - (+b.avg_comp_yoy||0)*100;
-    if(yoyPct < -5 && (+b.latest_dep/1e6 > 100)) return '⚠ Critical — major deposit decline';
-    if(yoyPct < 0 && relGap < -10) return 'Losing deposits to competitors';
-    if(yoyPct < 0) return 'Deposits declining';
-    if(relGap < -10) return 'Losing market share';
-    if((b.matrix_quadrant||'').startsWith('Q1') && yoyPct < 0) return 'Underperforming attractive market';
-    return 'Needs attention';
-  };
-  // ── PRIORITY LIST ─────────────────────────────────────────────────────────
-  const byDep   = (a,b) => (+b.latest_dep||0)      - (+a.latest_dep||0);
-  const byScore = (a,b) => (+b.opportunity_score||0) - (+a.opportunity_score||0);
-  const investBr  = allBr.filter(b=>b.opportunity_zone==='Invest');
-  const analyzeBr = allBr.filter(b=>b.opportunity_zone==='Analyze');
-  const priRows = [];
-  // Urgent: Justify with declining deposits OR Justify with >$100M
-  const urgent = allBr.filter(b=>b.opportunity_zone==='Justify'&&((+b.yoy_deposits<0)||(+b.latest_dep/1e6>100))).sort(byDep);
-  // Also Q1 Analyze branches declining
-  const urgentAnalyze = allBr.filter(b=>b.opportunity_zone==='Analyze'&&(b.matrix_quadrant||'').startsWith('Q1')&&(+b.yoy_deposits<0)).sort(byDep);
-  const urgentAll = [...urgent, ...urgentAnalyze].filter((v,i,a)=>a.findIndex(x=>x.uninumbr===v.uninumbr)===i).slice(0,4);
-  // Invest: top Invest + top Analyze Q2/Q1 non-declining
-  const investReady = [...investBr, ...analyzeBr.filter(b=>['Q1','Q2'].some(q=>(b.matrix_quadrant||'').startsWith(q))&&(+b.yoy_deposits>=0))].filter(b=>(+b.latest_dep/1e6)>=5).sort(byScore).slice(0,3);
-  // Watch: everything else (not in urgent or invest)
-  const usedIds = new Set([...urgentAll,...investReady].map(b=>b.uninumbr));
-  const watchBr = allBr.filter(b=>!usedIds.has(b.uninumbr)).sort(byScore).slice(0,3);
-
-  let priHTML = '';
-  if(urgentAll.length){
-    priHTML += `<div class="pri-slbl" style="color:#A32D2D">Urgent — act now</div>`;
-    urgentAll.forEach(b=>{
-      const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-      const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-      const cYoy = ((+b.avg_comp_yoy||0)*100).toFixed(1);
-      const gap2 = ((+b.yoy_deposits||0)*100 - (+b.avg_comp_yoy||0)*100).toFixed(1);
-      const play = b.campaign||'—';
-      const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-      priHTML += `<div class="pri-row pri-urgent"><div class="pri-dot" style="background:#A32D2D"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${urgentLabel(b)} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#A32D2D">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Why urgent</b>Deposits: ${+yoy>=0?'+':''}${yoy}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap2>=0?'+':''}${gap2}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
-    });
-  }
-  if(investReady.length){
-    priHTML += `<div class="pri-slbl" style="color:#27500A">Invest — campaign ready</div>`;
-    investReady.forEach(b=>{
-      const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-      const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-      const play = b.campaign||'—';
-      const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-      priHTML += `<div class="pri-row pri-invest"><div class="pri-dot" style="background:#27500A"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:#27500A">${+yoy>=0?'+':''}${yoy}% YoY</div></div><div class="pri-tip"><b>Best acquisition opportunity</b>Score: ${(+b.opportunity_score).toFixed(1)}<br>Play: ${play}</div></div>`;
-    });
-  }
-  if(watchBr.length){
-    priHTML += `<div class="pri-slbl">Watch</div>`;
-    // Group if ≥3 in same zone/play
-    if(watchBr.length >= 3 && new Set(watchBr.map(b=>b.opportunity_zone)).size === 1){
-      const deps = watchBr.reduce((a,b)=>a+(+b.latest_dep||0),0);
-      const plays = [...new Set(watchBr.map(b=>b.campaign||'—'))].join(' · ');
-      priHTML += `<div class="pri-group"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${watchBr.map(b=>b.namebr.split(' ')[0]).join(' · ')}</div><div class="pri-sub">${plays} · ${watchBr[0].opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${(deps/1e6).toFixed(0)}M</div></div></div>`;
-    } else {
-      watchBr.forEach(b=>{
-        const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
-        const dep = ((+b.latest_dep||0)/1e6).toFixed(0);
-        const play = b.campaign||'—';
-        const q = (b.matrix_quadrant||'').match(/^Q\d/)?.[0]||'—';
-        priHTML += `<div class="pri-row"><div class="pri-dot" style="background:#888"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${dep}M</div><div class="pri-yoy" style="color:var(--muted)">${+yoy>=0?'+':''}${yoy}% YoY</div></div></div>`;
-      });
-    }
-  }
-  g('priorityList').innerHTML = priHTML;
-
   // ── TOP CITIES ─────────────────────────────────────────────────────────────
   const cityMap = {};
   allBr.forEach(b=>{

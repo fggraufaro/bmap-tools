@@ -63,6 +63,18 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;text-align:center;pointer-events:none}
 .empty-state b{color:var(--navy);font-size:16px}
 
+.story-btn{width:100%;background:var(--amber);color:var(--navy);border:none;border-radius:7px;padding:11px;font-weight:800;font-size:12.5px;cursor:pointer;transition:opacity .2s}
+.story-btn:hover{opacity:.88}
+.story-overlay{position:fixed;inset:0;background:rgba(26,35,50,.55);z-index:2000;display:none;align-items:center;justify-content:center}
+.story-overlay.on{display:flex}
+.story-modal{background:#fff;border-radius:12px;width:580px;max-width:92vw;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.story-hd{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px}
+.story-body{padding:20px;overflow-y:auto;white-space:pre-wrap;font-size:13px;line-height:1.65;color:var(--text);flex:1}
+.story-ft{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
+.btn-copy{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s}
+.btn-copy:hover{opacity:.85}
+.btn-copy.ok{background:var(--green)}
+
 .zone-Invest{background:var(--green)}.zone-Analyze{background:var(--blue)}.zone-Defend{background:var(--defend)}.zone-Justify{background:var(--red)}
 .leaflet-popup-content-wrapper{border-radius:8px;font-family:'Inter',system-ui,sans-serif}
 .pop-t{font-weight:700;font-size:13px;margin-bottom:4px}
@@ -134,6 +146,9 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       <span class="lbl">Persona / Zip</span>
       <span class="count" id="countPersona">—</span>
     </div>
+    <div style="padding:10px 12px">
+      <button class="story-btn" id="storyBtn">📊 Generate Market Story</button>
+    </div>
   </div>
 
   <div class="legend" id="legendZones">
@@ -156,6 +171,19 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     </div>
     <div class="card-body" id="zipCardBody"></div>
   </div>
+
+  <div class="story-overlay" id="storyOverlay">
+    <div class="story-modal">
+      <div class="story-hd">
+        <span>Where &amp; How to Win Deposits</span>
+        <span class="card-x" onclick="closeStory()">✕</span>
+      </div>
+      <div class="story-body" id="storyBody">Generating…</div>
+      <div class="story-ft">
+        <button class="btn-copy" onclick="copyStory()">Copy to clipboard</button>
+      </div>
+    </div>
+  </div>
 </div>
 </div><!-- /appWrap -->
 
@@ -163,6 +191,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 
 let map, branchLayer, competitorLayer, personaLayer;
 let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
@@ -179,10 +208,23 @@ function bootApp(){
   initMap();
   const params=new URLSearchParams(window.location.search);
   const deepIk=params.get('inst_key');
+  const deepMetro=params.get('metro'); // "City, ST" — matches the Hub's metroSelect filter format
   if(deepIk){
     api('dim_institutions',`inst_key=eq.${deepIk}&select=institution_name&limit=1`).then(r=>{
       if(r[0]) g('bankSearch').value=r[0].institution_name;
-      loadBank(deepIk);
+      loadBank(deepIk).then(()=>{
+        if(deepMetro){
+          const parts=deepMetro.split(',').map(s=>s.trim());
+          const city=parts[0], state=parts[1];
+          if(state && [...g('stateFilter').options].some(o=>o.value===state)){
+            g('stateFilter').value=state; stateVal=state; populateCityFilter();
+          }
+          if(city && [...g('cityFilter').options].some(o=>o.value===city)){
+            g('cityFilter').value=city; cityVal=city;
+          }
+          applyFilters();
+        }
+      });
     });
   }
 }
@@ -272,6 +314,8 @@ function initMap(){
   });
   g('legendZones').classList.add('on');
 
+  g('storyBtn').addEventListener('click',generateMarketStory);
+
   // Persona legend items
   const lp=g('legendPersonaItems');
   Object.entries(PERSONA_COLOR).forEach(([name,color])=>{
@@ -283,6 +327,82 @@ function initMap(){
 }
 
 function closeCard(){g('zipCard').classList.remove('on');}
+
+function closeStory(){g('storyOverlay').classList.remove('on');}
+
+function copyStory(){
+  navigator.clipboard.writeText(g('storyBody').textContent).then(()=>{
+    const btn=document.querySelector('.btn-copy');
+    const orig=btn.textContent;
+    btn.textContent='✓ Copied';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent=orig;btn.classList.remove('ok');},1800);
+  });
+}
+
+async function callAI(system,userMsg,max_tokens=1400){
+  const resp=await fetch(AI_PROXY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens,system,messages:[{role:'user',content:userMsg}]})
+  });
+  const data=await resp.json();
+  if(data.error) throw new Error(data.error.message);
+  return data.content?.find(b=>b.type==='text')?.text||'';
+}
+
+async function generateMarketStory(){
+  const filtered=getFilteredBranches();
+  if(!filtered.length){alert('No branches in the current view.');return;}
+
+  g('storyOverlay').classList.add('on');
+  g('storyBody').textContent='Gathering branch, persona, and competitor data…';
+
+  // Persona per branch's own zip — direct and reliable, independent of whether the Persona layer is toggled on.
+  const zips=[...new Set(filtered.map(b=>b.zipbr).filter(Boolean))];
+  let personaMap={};
+  if(zips.length){
+    for(let i=0;i<zips.length;i+=400){
+      const chunk=zips.slice(i,i+400);
+      const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona,occupation_group,income,zip_age`);
+      rows.forEach(r=>personaMap[r.zip]=r);
+    }
+  }
+
+  const ids=new Set(filtered.map(b=>b.uninumbr));
+  const compByBranch={};
+  competitors.filter(c=>ids.has(c.my_branch_id)).forEach(c=>{
+    (compByBranch[c.my_branch_id]=compByBranch[c.my_branch_id]||[]).push(c);
+  });
+
+  const sorted=[...filtered].sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0));
+  const lines=sorted.slice(0,40).map(b=>{
+    const p=personaMap[b.zipbr];
+    const topComp=(compByBranch[b.uninumbr]||[]).sort((x,y)=>(+y.vuln_score||0)-(+x.vuln_score||0))[0];
+    return [
+      `${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}`,
+      `  Zone: ${b.opportunity_zone||'—'} | Score: ${(+b.opportunity_score||0).toFixed(1)} | Deposits: $${((+b.latest_dep||0)/1e6).toFixed(1)}M | YoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}%`,
+      `  Persona: ${p?p.persona:'—'} | Income: ${p&&p.income?'$'+Number(p.income).toLocaleString():'—'} | Age band: ${p?p.zip_age:'—'}`,
+      topComp?`  Nearest vulnerable competitor: ${topComp.target_namefull} | Vuln: ${topComp.vuln_score||'—'} | ${topComp.target_dist_mi||'—'} mi`:'  No competitor data'
+    ].join('\n');
+  }).join('\n\n');
+
+  const system=`You are a deposit-growth strategist writing for Verlocity's Market Map. You are given branch-level opportunity zone, zip persona, and competitor vulnerability data for one bank's network. Write a concise "Where and How to Win Deposits" narrative:
+
+1. Rank the top 5-8 priority branches or zip clusters for a deposit growth campaign.
+2. For each, explain WHY in one or two sentences by connecting the opportunity zone, the local zip persona, and any nearby vulnerable competitor — not just restating the numbers.
+3. Recommend the specific deposit product or messaging angle that fits that persona (examples: high-yield savings or CD laddering for Retired & Secure; CD laddering or first-home savings for Growing Families; digital-first checking or cash management for Urban Professionals or Knowledge Communities; small-business checking for Makers & Trades or Blue Collar Core).
+
+Confident boardroom tone. No methodology section. No follow-up questions. Do not restate the raw data — synthesize it into an argument.`;
+
+  const userMsg=`BRANCH DATA (top opportunity-scored branches in current view, ${filtered.length} branches total):\n\n${lines}`;
+
+  try{
+    const text=await callAI(system,userMsg,1400);
+    g('storyBody').textContent=text;
+  }catch(e){
+    g('storyBody').textContent='Failed to generate story: '+e.message;
+  }
+}
 
 async function renderPersonaLayer(branchSet){
   branchSet = branchSet || getFilteredBranches();

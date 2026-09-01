@@ -50,7 +50,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .legend-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
 
 .card{position:absolute;top:14px;right:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:280px;display:none;overflow:hidden}
-.radius-card{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:480px;max-width:94vw;max-height:60vh;display:none;overflow:hidden;display:flex;flex-direction:column}
+.radius-card{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:480px;max-width:94vw;max-height:60vh;display:none;overflow:hidden;flex-direction:column}
 .radius-card.on{display:flex}
 .radius-card #radiusCardBody{overflow-y:auto}
 .radius-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -522,13 +522,32 @@ async function analyzeRadius(branch){
   for(let i=0;i<compUninumbrs.length;i+=400){
     const chunk=compUninumbrs.slice(i,i+400);
     const rows=await api('branch_opportunity_base',
-      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits`);
+      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits,sims_latitude,sims_longitude`);
     (Array.isArray(rows)?rows:[]).forEach(r=>branchInfoMap[r.uninumbr]=r);
   }
 
   const enriched=compLinks
     .map(c=>({...c, info:branchInfoMap[c.competitor_branch_uninumbr]}))
-    .filter(c=>c.info);
+    .filter(c=>c.info && c.info.sims_latitude && c.info.sims_longitude);
+
+  // Plot every competitor branch in range, not just the old top-3 set the
+  // main Competitors layer shows — this is the same full list in the card
+  // below, so the map and the table should always agree.
+  if(enriched.length){
+    const rScale=depositRadiusScale(enriched.map(c=>c.info.latest_dep),4,20);
+    enriched.forEach(c=>{
+      const marker=L.marker([c.info.sims_latitude,c.info.sims_longitude],{
+        icon:diamondIcon(rScale(c.info.latest_dep)*2,'#A32D2D')
+      });
+      marker.bindPopup(`
+        <div class="pop-t">${c.info.namefull}</div>
+        <div class="pop-r">Deposits: <b>$${((+c.info.latest_dep||0)/1e6).toFixed(1)}M</b> · YoY: <b>${((+c.info.yoy_deposits||0)*100).toFixed(1)}%</b></div>
+        <div class="pop-r">Zone: <b>${c.info.opportunity_zone||'—'}</b> · Score: <b>${(+c.info.opportunity_score||0).toFixed(1)}</b></div>
+        <div class="pop-r">Distance: <b>${(+c.distance_miles).toFixed(1)} mi</b></div>
+      `);
+      marker.addTo(radiusLayer);
+    });
+  }
 
   // My own deposits in radius — this bank's OTHER branches near this one,
   // computed client-side since branch_competitors_10mi_v2 only tracks
@@ -559,7 +578,8 @@ async function analyzeRadius(branch){
     };
     compGroups[key].deposits+=(+c.info.latest_dep||0);
     compGroups[key].branches+=1;
-    compGroups[key].minDist=Math.min(compGroups[key].minDist,+c.distance_miles||Infinity);
+    const dm=Number(c.distance_miles);
+    compGroups[key].minDist=Math.min(compGroups[key].minDist, Number.isFinite(dm)?dm:Infinity);
     if(c.info.yoy_deposits!=null) compGroups[key].yoyVals.push(+c.info.yoy_deposits);
   });
   let competitors=Object.values(compGroups).sort((a,b)=>b.deposits-a.deposits);

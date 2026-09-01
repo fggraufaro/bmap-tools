@@ -137,7 +137,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     </div>
     <div class="layer-row" id="rowCompetitors">
       <input type="checkbox" id="toggleCompetitors">
-      <span class="dot" style="background:var(--red)"></span>
+      <span class="dot" style="background:var(--red);border-radius:2px;transform:rotate(45deg)"></span>
       <span class="lbl">Competitors</span>
       <span class="count" id="countCompetitors">—</span>
     </div>
@@ -336,6 +336,18 @@ function vulnColor(v){
   const c1=[245,166,35], c2=[163,45,45];
   const rgb=c1.map((c,i)=>Math.round(c+(c2[i]-c)*t));
   return `rgb(${rgb.join(',')})`;
+}
+
+// Competitors render as diamonds (branches stay circles) so the two layers never
+// read as the same kind of dot when both are visible together.
+function diamondIcon(size,color){
+  const s=Math.max(6,size);
+  return L.divIcon({
+    className:'',
+    iconSize:[s,s],
+    iconAnchor:[s/2,s/2],
+    html:`<div style="width:${s}px;height:${s}px;background:${color};border:1.5px solid #fff;transform:rotate(45deg);box-shadow:0 1px 3px rgba(0,0,0,.35);border-radius:2px"></div>`
+  });
 }
 
 // Deposit-size radius scale — sqrt interpolation so marker AREA (not radius) tracks
@@ -592,7 +604,11 @@ function getFilteredBranches(){
 
 function drawBranches(list){
   branchLayer.clearLayers();
-  const rScale=depositRadiusScale(list.map(b=>b.latest_dep),5,24);
+  // Sparse views (e.g. filtered down to one city) get a bigger floor size —
+  // nothing to get crowded by, and a tiny dot next to a huge one reads as invisible.
+  const minR = list.length<=6 ? 11 : 5;
+  const maxR = list.length<=6 ? 30 : 24;
+  const rScale=depositRadiusScale(list.map(b=>b.latest_dep),minR,maxR);
   let priorityCount=0;
   list.forEach(b=>{
     const tier = priorityTierOf(b.campaign);
@@ -623,14 +639,14 @@ function drawBranches(list){
 
 function drawCompetitors(list){
   competitorLayer.clearLayers();
-  const rScale=depositRadiusScale(list.map(c=>c.target_dep_m),4,20);
+  const minR = list.length<=6 ? 9 : 4;
+  const maxR = list.length<=6 ? 22 : 20;
+  const rScale=depositRadiusScale(list.map(c=>c.target_dep_m),minR,maxR);
   list.forEach(c=>{
     const coord=coordMap[c.target_uninumbr];
     if(!coord?.lat) return;
     const color=vulnColor(c.vuln_score);
-    const m=L.circleMarker([coord.lat,coord.lon],{
-      radius:rScale(c.target_dep_m),color:'#fff',weight:1,fillColor:color,fillOpacity:0.85
-    });
+    const m=L.marker([coord.lat,coord.lon],{icon:diamondIcon(rScale(c.target_dep_m)*2,color)});
     m.bindPopup(`
       <div class="pop-t">${c.target_namefull}</div>
       <div class="pop-r">Vulnerability: <b>${c.vuln_score||'—'}</b> · Distance: <b>${c.target_dist_mi||'—'} mi</b></div>

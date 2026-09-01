@@ -50,8 +50,9 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .legend-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
 
 .card{position:absolute;top:14px;right:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:280px;display:none;overflow:hidden}
-.radius-card{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:400px;max-width:92vw;display:none;overflow:hidden}
-.radius-card.on{display:block}
+.radius-card{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:480px;max-width:94vw;max-height:60vh;display:none;overflow:hidden;display:flex;flex-direction:column}
+.radius-card.on{display:flex}
+.radius-card #radiusCardBody{overflow-y:auto}
 .radius-table{width:100%;border-collapse:collapse;font-size:12px}
 .radius-table th{text-align:left;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
 .radius-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace}
@@ -346,6 +347,27 @@ async function api(table,params){
   }catch(e){console.error(e);return [];}
 }
 
+// The proxy's RPC route is POST /api/rpc/<fn_name> with a JSON body of the
+// function's args (see secure_proxy.py) — distinct from api()'s GET+querystring
+// pattern used for plain table reads.
+async function apiRpc(fnName,args){
+  try{
+    const token = sessionStorage.getItem('hub_token');
+    const r=await fetch(`${HUB_API}/api/rpc/${fnName}`,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(args)
+    });
+    if(r.status===401){
+      sessionStorage.removeItem('hub_token');
+      location.reload();
+      return [];
+    }
+    if(!r.ok){console.error(fnName,r.status,await r.text());return [];}
+    return r.json();
+  }catch(e){console.error(e);return [];}
+}
+
 function vulnColor(v){
   v=Math.max(0,Math.min(100,v||0));
   const t=v/100;
@@ -453,6 +475,17 @@ function bankIdFromInstKey(ik){
 
 const RADIUS_MILES=[1,3,10];
 
+
+// Haversine distance in miles — used to find this bank's OWN nearby branches
+// (branch_competitors_10mi_v2 only lists competitor branches relative to a
+// given my_branch_id, not the selected bank's own sibling branches nearby).
+function haversineMiles(lat1,lon1,lat2,lon2){
+  const R=3958.8, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
 async function analyzeRadius(branch){
   const lat=branch.sims_latitude, lon=branch.sims_longitude;
   if(!lat || !lon) return;
@@ -469,30 +502,67 @@ async function analyzeRadius(branch){
   g('radiusCardBody').innerHTML='Loading market data…';
   g('radiusCard').classList.add('on');
 
-  const myBankId=bankIdFromInstKey(selInstKey);
-  let rows;
-  try{
-    rows=await api('rpc/branches_within_radius',
-      `p_lat=${lat}&p_lon=${lon}&p_radius_miles=${Math.max(...RADIUS_MILES)}`);
-  }catch(e){
-    console.error(e);
-    g('radiusCardBody').innerHTML='<div style="color:var(--red)">Could not load market data.</div>';
-    return;
-  }
-  if(!Array.isArray(rows)){
-    g('radiusCardBody').innerHTML='<div style="color:var(--red)">Could not load market data — radius lookup may not be enabled yet.</div>';
+  const maxR=Math.max(...RADIUS_MILES);
+
+  // The real source Power BI uses: an exhaustive (not size-filtered) spatial
+  // join of every competitor branch within 10mi of this specific branch.
+  const compLinks=await api('branch_competitors_10mi_v2',
+    `my_branch_id=eq.${branch.uninumbr}&distance_miles=lte.${maxR}&select=competitor_branch_uninumbr,competitor_bank_id,competitor_institution_type,distance_miles`);
+
+  if(!Array.isArray(compLinks)){
+    g('radiusCardBody').innerHTML='<div style="color:var(--red)">Could not load competitor data — check branch_competitors_10mi_v2 is reachable via the proxy.</div>';
     return;
   }
 
+  // Enrich each competitor branch with its own deposits/YoY/score/zone — every
+  // institution nationwide is already scored in branch_opportunity_base, not
+  // just paying clients, so this is a direct lookup, not an estimate.
+  const compUninumbrs=[...new Set(compLinks.map(c=>c.competitor_branch_uninumbr))];
+  const branchInfoMap={};
+  for(let i=0;i<compUninumbrs.length;i+=400){
+    const chunk=compUninumbrs.slice(i,i+400);
+    const rows=await api('branch_opportunity_base',
+      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits`);
+    (Array.isArray(rows)?rows:[]).forEach(r=>branchInfoMap[r.uninumbr]=r);
+  }
+
+  const enriched=compLinks
+    .map(c=>({...c, info:branchInfoMap[c.competitor_branch_uninumbr]}))
+    .filter(c=>c.info);
+
+  // My own deposits in radius — this bank's OTHER branches near this one,
+  // computed client-side since branch_competitors_10mi_v2 only tracks
+  // competitors, not sibling branches of the selected institution.
+  const myNearby=branches
+    .map(b=>({...b, dist:haversineMiles(lat,lon,b.sims_latitude,b.sims_longitude)}))
+    .filter(b=>b.sims_latitude && b.sims_longitude && b.dist<=maxR);
+
   const tableRows=RADIUS_MILES.map(mi=>{
-    const inRing=rows.filter(r=>r.distance_miles<=mi);
-    const total=inRing.reduce((a,r)=>a+(+r.deposits||0),0);
-    const mine=myBankId!=null
-      ? inRing.filter(r=>r.bank_id===myBankId).reduce((a,r)=>a+(+r.deposits||0),0)
-      : null;
-    const sharePct = (mine!=null && total>0) ? (mine/total*100) : null;
-    return {mi,total,mine,sharePct,count:inRing.length};
+    const compInRing=enriched.filter(c=>c.distance_miles<=mi);
+    const mineInRing=myNearby.filter(b=>b.dist<=mi);
+    const compTotal=compInRing.reduce((a,c)=>a+(+c.info.latest_dep||0),0);
+    const mineTotal=mineInRing.reduce((a,b)=>a+(+b.latest_dep||0),0);
+    const total=compTotal+mineTotal;
+    const sharePct = total>0 ? (mineTotal/total*100) : null;
+    return {mi, count:compInRing.length+mineInRing.length, total, mine:mineTotal, sharePct};
   });
+
+  // Competitor institution list, grouped by bank, sorted by deposits — matches
+  // the Power BI "Institution" table, not size-filtered like the top-3 list
+  // used elsewhere in BMAP (branch_target_competitors).
+  const compGroups={};
+  enriched.forEach(c=>{
+    const key=c.competitor_bank_id;
+    if(!compGroups[key]) compGroups[key]={
+      bank_id:c.competitor_bank_id, type:c.competitor_institution_type,
+      name:c.info.namefull, deposits:0, branches:0, minDist:Infinity, yoyVals:[]
+    };
+    compGroups[key].deposits+=(+c.info.latest_dep||0);
+    compGroups[key].branches+=1;
+    compGroups[key].minDist=Math.min(compGroups[key].minDist,+c.distance_miles||Infinity);
+    if(c.info.yoy_deposits!=null) compGroups[key].yoyVals.push(+c.info.yoy_deposits);
+  });
+  let competitors=Object.values(compGroups).sort((a,b)=>b.deposits-a.deposits);
 
   const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
   g('radiusCardBody').innerHTML=`
@@ -504,7 +574,7 @@ async function analyzeRadius(branch){
             <td>${r.mi} mi</td>
             <td>${r.count}</td>
             <td>${fmtM(r.total)}</td>
-            <td>${r.mine!=null?fmtM(r.mine):'—'}</td>
+            <td>${fmtM(r.mine)}</td>
             <td>
               ${r.sharePct!=null?r.sharePct.toFixed(1)+'%':'—'}
               ${r.sharePct!=null?`<div class="radius-share-bar"><div class="radius-share-fill" style="width:${Math.min(100,r.sharePct)}%"></div></div>`:''}
@@ -512,7 +582,26 @@ async function analyzeRadius(branch){
           </tr>`).join('')}
       </tbody>
     </table>
-    ${myBankId==null?'<div style="padding:8px 0 0;font-size:10.5px;color:var(--muted)">Market share unavailable — institution type not recognized for this lookup.</div>':''}
+    ${competitors.length?`
+    <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Competitors — within ${maxR} mi (${competitors.length})</div>
+    <table class="radius-table">
+      <thead><tr><th>Type</th><th>Institution</th><th>Branches</th><th>Deposits</th><th>Avg YoY</th><th>Nearest</th></tr></thead>
+      <tbody>
+        ${competitors.map(c=>{
+          const avgYoy=c.yoyVals.length?c.yoyVals.reduce((a,v)=>a+v,0)/c.yoyVals.length:null;
+          return `
+          <tr>
+            <td>${c.type||'—'}</td>
+            <td style="font-family:'Inter',system-ui,sans-serif;font-weight:600">${c.name}</td>
+            <td>${c.branches}</td>
+            <td>${fmtM(c.deposits)}</td>
+            <td>${avgYoy!=null?(avgYoy*100).toFixed(1)+'%':'—'}</td>
+            <td>${c.minDist.toFixed(1)} mi</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    ` : '<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches found in range.</div>'}
   `;
 }
 

@@ -50,6 +50,14 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .legend-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
 
 .card{position:absolute;top:14px;right:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:280px;display:none;overflow:hidden}
+.radius-card{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:400px;max-width:92vw;display:none;overflow:hidden}
+.radius-card.on{display:block}
+.radius-table{width:100%;border-collapse:collapse;font-size:12px}
+.radius-table th{text-align:left;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.radius-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace}
+.radius-table tr:last-child td{border-bottom:none}
+.radius-share-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:4px;width:80px}
+.radius-share-fill{height:100%;background:var(--blue)}
 .card.on{display:block}
 .card-hd{background:var(--navy);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
 .card-hd-t{color:#fff;font-size:14px;font-weight:700}
@@ -172,7 +180,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div class="legend-item"><span class="legend-sw" style="background:#F5A623"></span>Top Priority</div>
     <div class="legend-item"><span class="legend-sw" style="background:#27500A"></span>Next</div>
     <div class="legend-item"><span class="legend-sw" style="background:#185FA5"></span>Opportunity</div>
-    <div class="legend-item"><span class="legend-sw" style="background:#C9CDD3"></span>Not in priority list</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#8B93A0;border:1.5px solid #5B6472"></span>Not in priority list</div>
     <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted)">Circle size = deposits</div>
   </div>
 
@@ -187,6 +195,14 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       <span class="card-x" onclick="closeCard()">✕</span>
     </div>
     <div class="card-body" id="zipCardBody"></div>
+  </div>
+
+  <div class="radius-card" id="radiusCard">
+    <div class="card-hd">
+      <span class="card-hd-t" id="radiusCardTitle">Radius Market Summary</span>
+      <span class="card-x" onclick="closeRadiusCard()">✕</span>
+    </div>
+    <div id="radiusCardBody" style="padding:14px 16px;font-size:12px;color:var(--muted)">Loading…</div>
   </div>
 
   <div class="story-overlay" id="storyOverlay">
@@ -210,7 +226,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 
-let map, branchLayer, competitorLayer, personaLayer;
+let map, branchLayer, competitorLayer, personaLayer, radiusLayer;
 let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
 let zipCityCache={};
 let priorityHighlightOn=false;
@@ -375,6 +391,7 @@ function initMap(){
   branchLayer=L.layerGroup().addTo(map);
   competitorLayer=L.layerGroup();
   personaLayer=L.layerGroup();
+  radiusLayer=L.layerGroup().addTo(map);
 
   g('toggleBranches').addEventListener('change',e=>{
     if(e.target.checked){branchLayer.addTo(map);g('legendZones').classList.add('on');}
@@ -415,6 +432,89 @@ function initMap(){
 }
 
 function closeCard(){g('zipCard').classList.remove('on');}
+
+function closeRadiusCard(){
+  g('radiusCard').classList.remove('on');
+  radiusLayer.clearLayers();
+}
+
+// geo.branches_master_v2's bank_id is the RSSDID (per the same convention used
+// everywhere else in BMAP). inst_key is "bank_<RSSDID>" for banks — credit unions
+// use a different id scheme there, so this deliberately returns null for "cu_"
+// keys rather than guessing wrong.
+function bankIdFromInstKey(ik){
+  if(!ik) return null;
+  if(ik.startsWith('bank_')){
+    const n=+ik.slice(5);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+const RADIUS_MILES=[1,3,10];
+
+async function analyzeRadius(branch){
+  const lat=branch.sims_latitude, lon=branch.sims_longitude;
+  if(!lat || !lon) return;
+
+  // Draw the rings immediately — this doesn't need the market data to render.
+  radiusLayer.clearLayers();
+  const ringStyle={color:'#1a2332',weight:1.3,fillOpacity:0,dashArray:'4,4'};
+  RADIUS_MILES.forEach(mi=>{
+    L.circle([lat,lon],{radius:mi*1609.34,...ringStyle}).addTo(radiusLayer);
+  });
+  L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#1a2332',fillOpacity:1}).addTo(radiusLayer);
+
+  g('radiusCardTitle').textContent=`${branch.namebr} — Radius Market Summary`;
+  g('radiusCardBody').innerHTML='Loading market data…';
+  g('radiusCard').classList.add('on');
+
+  const myBankId=bankIdFromInstKey(selInstKey);
+  let rows;
+  try{
+    rows=await api('rpc/branches_within_radius',
+      `p_lat=${lat}&p_lon=${lon}&p_radius_miles=${Math.max(...RADIUS_MILES)}`);
+  }catch(e){
+    console.error(e);
+    g('radiusCardBody').innerHTML='<div style="color:var(--red)">Could not load market data.</div>';
+    return;
+  }
+  if(!Array.isArray(rows)){
+    g('radiusCardBody').innerHTML='<div style="color:var(--red)">Could not load market data — radius lookup may not be enabled yet.</div>';
+    return;
+  }
+
+  const tableRows=RADIUS_MILES.map(mi=>{
+    const inRing=rows.filter(r=>r.distance_miles<=mi);
+    const total=inRing.reduce((a,r)=>a+(+r.deposits||0),0);
+    const mine=myBankId!=null
+      ? inRing.filter(r=>r.bank_id===myBankId).reduce((a,r)=>a+(+r.deposits||0),0)
+      : null;
+    const sharePct = (mine!=null && total>0) ? (mine/total*100) : null;
+    return {mi,total,mine,sharePct,count:inRing.length};
+  });
+
+  const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
+  g('radiusCardBody').innerHTML=`
+    <table class="radius-table">
+      <thead><tr><th>Radius</th><th>Branches</th><th>Total Deposits</th><th>Your Deposits</th><th>Market Share</th></tr></thead>
+      <tbody>
+        ${tableRows.map(r=>`
+          <tr>
+            <td>${r.mi} mi</td>
+            <td>${r.count}</td>
+            <td>${fmtM(r.total)}</td>
+            <td>${r.mine!=null?fmtM(r.mine):'—'}</td>
+            <td>
+              ${r.sharePct!=null?r.sharePct.toFixed(1)+'%':'—'}
+              ${r.sharePct!=null?`<div class="radius-share-bar"><div class="radius-share-fill" style="width:${Math.min(100,r.sharePct)}%"></div></div>`:''}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    ${myBankId==null?'<div style="padding:8px 0 0;font-size:10.5px;color:var(--muted)">Market share unavailable — institution type not recognized for this lookup.</div>':''}
+  `;
+}
 
 function closeStory(){g('storyOverlay').classList.remove('on');}
 
@@ -533,7 +633,7 @@ async function renderPersonaLayer(branchSet){
   const personaMap={};
   for(let i=0;i<zips.length;i+=400){
     const chunk=zips.slice(i,i+400);
-    const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona,occupation_group,income,zip_age,is_high_income,is_senior_area,is_young_adult_area`);
+    const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona,occupation_group,income,zip_age,is_high_income,is_senior_area,is_young_adult_area,total_population,est_households`);
     rows.forEach(r=>personaMap[r.zip]=r);
   }
 
@@ -577,7 +677,9 @@ async function renderPersonaLayer(branchSet){
           <div class="card-row"><span class="k">Dominant Occupation</span><span class="v">${p.occupation_group||'—'}</span></div>
           <div class="card-row"><span class="k">Median Income</span><span class="v">${p.income?'$'+Number(p.income).toLocaleString():'—'}</span></div>
           <div class="card-row"><span class="k">Majority Age Band</span><span class="v">${p.zip_age||'—'}</span></div>
+          <div class="card-row"><span class="k">Est. Households</span><span class="v">${p.est_households?Number(p.est_households).toLocaleString():'—'}</span></div>
           ${flagsHtml}
+          ${p.est_households?`<div style="font-size:10px;color:var(--muted);margin-top:8px">Households estimated from population ÷ avg. household size — not a direct Census count.</div>`:''}
         ` : `<div class="card-row"><span class="k">No persona data</span><span class="v">—</span></div>`;
         g('zipCard').classList.add('on');
       });
@@ -614,14 +716,15 @@ function drawBranches(list){
     const tier = priorityTierOf(b.campaign);
     if(tier) priorityCount++;
     const color = priorityHighlightOn
-      ? (tier ? PRIORITY_TIER_COLOR[tier] : '#C9CDD3')
+      ? (tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0')
       : (ZONE_COLOR[b.opportunity_zone]||'#999');
     const persona=branchPersonaMap[b.zipbr];
     const audience=persona?(PERSONA_AUDIENCE[persona]||persona):null;
+    const strokeColor = (priorityHighlightOn && !tier) ? '#5B6472' : '#fff';
     const m=L.circleMarker([b.sims_latitude,b.sims_longitude],{
       radius:rScale(b.latest_dep),
-      color:'#fff',weight:1.5,fillColor:color,
-      fillOpacity: priorityHighlightOn ? (tier?0.95:0.45) : 0.9
+      color:strokeColor,weight:1.5,fillColor:color,
+      fillOpacity: priorityHighlightOn ? (tier?0.95:0.6) : 0.9
     });
     m.bindPopup(`
       <div class="pop-t">${b.namebr}</div>
@@ -630,7 +733,9 @@ function drawBranches(list){
       <div class="pop-r">Play: <b>${b.campaign||'—'}</b>${tier?` · <span style="color:${PRIORITY_TIER_COLOR[tier]}">${PRIORITY_TIER_LABEL[tier]}</span>`:''}</div>
       <div class="pop-r">Deposits: <b>$${((+b.latest_dep||0)/1e6).toFixed(1)}M</b> · YoY: <b>${((+b.yoy_deposits||0)*100).toFixed(1)}%</b></div>
       ${audience?`<div class="pop-r" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">🎯 <b>${audience}</b></div>`:''}
+      <div class="pop-r" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:10.5px">📍 1/3/10mi radius shown below</div>
     `);
+    m.on('click',()=>analyzeRadius(b));
     m.addTo(branchLayer);
   });
   g('countBranches').textContent=list.length;
@@ -708,6 +813,7 @@ async function loadBank(ik){
   branchLayer.clearLayers();competitorLayer.clearLayers();personaLayer.clearLayers();
   g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
   g('togglePriority').checked=false; priorityHighlightOn=false; g('legendPriority').classList.remove('on');
+  closeRadiusCard();
   topoData=null;
   stateVal='';cityVal='';
 

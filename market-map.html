@@ -106,6 +106,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div>
       <div class="logo-text">BMAP MARKET MAP</div>
       <div class="logo-sub">Branches · Competitors · Persona — Verlocity Intelligence Hub</div>
+      <div id="audiencePhrase" style="display:none;color:#F5A623;font-size:11.5px;font-weight:600;margin-top:3px;max-width:520px"></div>
     </div>
   </div>
   <div class="hdr-right">
@@ -140,6 +141,12 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       <span class="lbl">Competitors</span>
       <span class="count" id="countCompetitors">—</span>
     </div>
+    <div class="layer-row" id="rowPriority">
+      <input type="checkbox" id="togglePriority">
+      <span class="dot" style="background:var(--amber)"></span>
+      <span class="lbl">Priority Branches</span>
+      <span class="count" id="countPriority">—</span>
+    </div>
     <div class="layer-row" id="rowPersona">
       <input type="checkbox" id="togglePersona">
       <span class="dot" style="background:#6366F1"></span>
@@ -157,6 +164,16 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div class="legend-item"><span class="legend-sw" style="background:var(--blue)"></span>Analyze</div>
     <div class="legend-item"><span class="legend-sw" style="background:var(--defend)"></span>Defend</div>
     <div class="legend-item"><span class="legend-sw" style="background:var(--red)"></span>Justify</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted)">Circle size = deposits</div>
+  </div>
+
+  <div class="legend" id="legendPriority">
+    <div class="legend-title">Branch Priority</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#F5A623"></span>Top Priority</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#27500A"></span>Next</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#185FA5"></span>Opportunity</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#C9CDD3"></span>Not in priority list</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted)">Circle size = deposits</div>
   </div>
 
   <div class="legend" id="legendPersona">
@@ -195,6 +212,8 @@ const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 
 let map, branchLayer, competitorLayer, personaLayer;
 let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
+let zipCityCache={};
+let priorityHighlightOn=false;
 let stateVal='', cityVal='';
 const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
 const PERSONA_COLOR={
@@ -203,6 +222,35 @@ const PERSONA_COLOR={
   'Retired & Secure':'#7C3AED','Blue Collar Core':'#B45309','Tourism & Hospitality':'#0891B2',
   'Mixed Area':'#9CA3AF'
 };
+// Short audience phrase per persona — no AI call, just a lookup table built from the
+// same persona→product logic already used in the Market Story prompt, so the two stay
+// consistent with each other.
+const PERSONA_AUDIENCE={
+  'Healthcare Hubs':'Healthcare workers — direct-deposit switch, HYSA',
+  'Knowledge Communities':'Educated professionals — digital checking, cash mgmt',
+  'Urban Professionals':'Urban professionals — digital-first checking',
+  'Growing Families':'Young families — CD laddering, first-home savings',
+  'Makers & Trades':'Skilled trades — small-business checking',
+  'Service Backbone':'Service workers — no-fee everyday checking',
+  'Retired & Secure':'Retirees — HYSA, CD laddering',
+  'Blue Collar Core':'Blue-collar households — small-business/everyday checking',
+  'Tourism & Hospitality':'Hospitality workers — seasonal savings',
+  'Mixed Area':'Mixed demographic — broad checking & savings'
+};
+let branchPersonaMap={};
+// Same tiering the Hub's Branch Priority widget uses — grouped by the 16-play
+// `campaign` field, not the older priority_tier score. Keep in sync with the Hub.
+const TOP_PRIORITY_CAMPAIGNS=['Aggressive Acquisition','Urgent Competitive Push'];
+const NEXT_CAMPAIGNS=['Market Domination','Grow Share'];
+const OPPORTUNITY_CAMPAIGNS=['Growth Opportunity','Niche Opportunity'];
+function priorityTierOf(campaign){
+  if(TOP_PRIORITY_CAMPAIGNS.includes(campaign)) return 'top';
+  if(NEXT_CAMPAIGNS.includes(campaign)) return 'next';
+  if(OPPORTUNITY_CAMPAIGNS.includes(campaign)) return 'opportunity';
+  return null;
+}
+const PRIORITY_TIER_LABEL={top:'Top Priority',next:'Next',opportunity:'Opportunity'};
+const PRIORITY_TIER_COLOR={top:'#F5A623',next:'#27500A',opportunity:'#185FA5'};
 
 function bootApp(){
   initMap();
@@ -290,6 +338,23 @@ function vulnColor(v){
   return `rgb(${rgb.join(',')})`;
 }
 
+// Deposit-size radius scale — sqrt interpolation so marker AREA (not radius) tracks
+// deposits roughly linearly, which is the perceptually correct way to size circles
+// by a dollar value. Scale is built fresh per draw call from whatever's on screen,
+// so it stays meaningful whether you're looking at 3 branches or 300.
+function depositRadiusScale(values,minR,maxR){
+  minR = minR||5; maxR = maxR||24;
+  const nums = values.map(v=>+v||0).filter(v=>v>0);
+  if(!nums.length) return ()=> (minR+maxR)/2;
+  const min=Math.min(...nums), max=Math.max(...nums);
+  if(min===max) return ()=> (minR+maxR)/2;
+  return v=>{
+    v = Math.max(min, Math.min(max, +v||min));
+    const t = Math.sqrt((v-min)/(max-min));
+    return minR + t*(maxR-minR);
+  };
+}
+
 function initMap(){
   map=L.map('map',{zoomControl:true}).setView([37.8,-96],4);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
@@ -305,6 +370,17 @@ function initMap(){
   });
   g('toggleCompetitors').addEventListener('change',e=>{
     if(e.target.checked) competitorLayer.addTo(map); else map.removeLayer(competitorLayer);
+  });
+  g('togglePriority').addEventListener('change',e=>{
+    priorityHighlightOn=e.target.checked;
+    drawBranches(getFilteredBranches());
+    if(priorityHighlightOn){
+      g('legendZones').classList.remove('on');
+      g('legendPriority').classList.add('on');
+    } else {
+      g('legendPriority').classList.remove('on');
+      if(g('toggleBranches').checked) g('legendZones').classList.add('on');
+    }
   });
   g('togglePersona').addEventListener('change',async e=>{
     if(e.target.checked){
@@ -339,11 +415,11 @@ function copyStory(){
   });
 }
 
-async function callAI(system,userMsg,max_tokens=1400){
+async function callAI(system,userMsg,max_tokens=1400,model='claude-sonnet-4-5'){
   const resp=await fetch(AI_PROXY,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens,system,messages:[{role:'user',content:userMsg}]})
+    body:JSON.stringify({model,max_tokens,system,messages:[{role:'user',content:userMsg}]})
   });
   const data=await resp.json();
   if(data.error) throw new Error(data.error.message);
@@ -445,8 +521,18 @@ async function renderPersonaLayer(branchSet){
   const personaMap={};
   for(let i=0;i<zips.length;i+=400){
     const chunk=zips.slice(i,i+400);
-    const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona,occupation_group,income,zip_age`);
+    const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona,occupation_group,income,zip_age,is_high_income,is_senior_area,is_young_adult_area`);
     rows.forEach(r=>personaMap[r.zip]=r);
+  }
+
+  // Batch city/state lookups so the card can say "Zip 08540 — Princeton, NJ" instead of
+  // a bare zip code nobody recognizes. Cached across calls since the same zips recur
+  // as the user pans/filters.
+  const uncached = zips.filter(z=>!zipCityCache[z]);
+  for(let i=0;i<uncached.length;i+=400){
+    const chunk=uncached.slice(i,i+400);
+    const rows=await api('uszips',`zip=in.(${chunk.join(',')})&select=zip,city,state`);
+    rows.forEach(r=>zipCityCache[r.zip]={city:r.city,state:r.state});
   }
 
   personaLayer.clearLayers();
@@ -461,12 +547,25 @@ async function renderPersonaLayer(branchSet){
       layer.on('click',()=>{
         const zip=f.properties.ZCTA5CE10;
         const p=personaMap[zip];
-        g('zipCardTitle').textContent=`Zip ${zip}`;
+        const loc=zipCityCache[zip];
+        g('zipCardTitle').textContent = loc ? `${loc.city}, ${loc.state} — ${zip}` : `Zip ${zip}`;
+
+        const flags=[];
+        if(p){
+          if(+p.is_high_income) flags.push('High income area');
+          if(+p.is_senior_area) flags.push('Senior-concentrated');
+          if(+p.is_young_adult_area) flags.push('Young adult-concentrated');
+        }
+        const flagsHtml = flags.length
+          ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">${flags.map(f=>`<span style="background:#EFF3F8;color:var(--navy);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px">${f}</span>`).join('')}</div>`
+          : '';
+
         g('zipCardBody').innerHTML = p ? `
           <div class="card-row"><span class="k">Persona</span><span class="v">${p.persona}</span></div>
           <div class="card-row"><span class="k">Dominant Occupation</span><span class="v">${p.occupation_group||'—'}</span></div>
           <div class="card-row"><span class="k">Median Income</span><span class="v">${p.income?'$'+Number(p.income).toLocaleString():'—'}</span></div>
           <div class="card-row"><span class="k">Majority Age Band</span><span class="v">${p.zip_age||'—'}</span></div>
+          ${flagsHtml}
         ` : `<div class="card-row"><span class="k">No persona data</span><span class="v">—</span></div>`;
         g('zipCard').classList.add('on');
       });
@@ -493,30 +592,44 @@ function getFilteredBranches(){
 
 function drawBranches(list){
   branchLayer.clearLayers();
+  const rScale=depositRadiusScale(list.map(b=>b.latest_dep),5,24);
+  let priorityCount=0;
   list.forEach(b=>{
-    const color=ZONE_COLOR[b.opportunity_zone]||'#999';
+    const tier = priorityTierOf(b.campaign);
+    if(tier) priorityCount++;
+    const color = priorityHighlightOn
+      ? (tier ? PRIORITY_TIER_COLOR[tier] : '#C9CDD3')
+      : (ZONE_COLOR[b.opportunity_zone]||'#999');
+    const persona=branchPersonaMap[b.zipbr];
+    const audience=persona?(PERSONA_AUDIENCE[persona]||persona):null;
     const m=L.circleMarker([b.sims_latitude,b.sims_longitude],{
-      radius:7,color:'#fff',weight:1.5,fillColor:color,fillOpacity:0.9
+      radius:rScale(b.latest_dep),
+      color:'#fff',weight:1.5,fillColor:color,
+      fillOpacity: priorityHighlightOn ? (tier?0.95:0.45) : 0.9
     });
     m.bindPopup(`
       <div class="pop-t">${b.namebr}</div>
       <div class="pop-r">${b.citybr}, ${b.stalpbr} ${b.zipbr||''}</div>
       <div class="pop-r">Zone: <b>${b.opportunity_zone||'—'}</b> · Score: <b>${(+b.opportunity_score||0).toFixed(1)}</b></div>
+      <div class="pop-r">Play: <b>${b.campaign||'—'}</b>${tier?` · <span style="color:${PRIORITY_TIER_COLOR[tier]}">${PRIORITY_TIER_LABEL[tier]}</span>`:''}</div>
       <div class="pop-r">Deposits: <b>$${((+b.latest_dep||0)/1e6).toFixed(1)}M</b> · YoY: <b>${((+b.yoy_deposits||0)*100).toFixed(1)}%</b></div>
+      ${audience?`<div class="pop-r" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">🎯 <b>${audience}</b></div>`:''}
     `);
     m.addTo(branchLayer);
   });
   g('countBranches').textContent=list.length;
+  g('countPriority').textContent=priorityCount;
 }
 
 function drawCompetitors(list){
   competitorLayer.clearLayers();
+  const rScale=depositRadiusScale(list.map(c=>c.target_dep_m),4,20);
   list.forEach(c=>{
     const coord=coordMap[c.target_uninumbr];
     if(!coord?.lat) return;
     const color=vulnColor(c.vuln_score);
     const m=L.circleMarker([coord.lat,coord.lon],{
-      radius:6,color:'#fff',weight:1,fillColor:color,fillOpacity:0.85
+      radius:rScale(c.target_dep_m),color:'#fff',weight:1,fillColor:color,fillOpacity:0.85
     });
     m.bindPopup(`
       <div class="pop-t">${c.target_namefull}</div>
@@ -578,13 +691,25 @@ async function loadBank(ik){
   g('layerPanel').style.display='block';
   branchLayer.clearLayers();competitorLayer.clearLayers();personaLayer.clearLayers();
   g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
+  g('togglePriority').checked=false; priorityHighlightOn=false; g('legendPriority').classList.remove('on');
   topoData=null;
   stateVal='';cityVal='';
 
   branches = await api('branch_opportunity_base',
-    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,latest_dep,yoy_deposits&limit=2000`);
+    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,matrix_quadrant,campaign,priority_tier,priority_score,latest_dep,yoy_deposits&limit=2000`);
   branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
   populateFilters();
+
+  // One batched persona lookup for every branch's own zip — not one call per branch,
+  // so this is a single fast query regardless of network size, no AI tokens involved.
+  branchPersonaMap={};
+  const brZips=[...new Set(branches.map(b=>b.zipbr).filter(Boolean))];
+  for(let i=0;i<brZips.length;i+=400){
+    const chunk=brZips.slice(i,i+400);
+    const rows=await api('vw_zip_persona',`zip=in.(${chunk.join(',')})&select=zip,persona`);
+    rows.forEach(r=>branchPersonaMap[r.zip]=r.persona);
+  }
+
   drawBranches(branches);
 
   if(branches.length){
@@ -602,6 +727,42 @@ async function loadBank(ik){
   }
   competitors = compRaw.filter(c=>coordMap[c.target_uninumbr]?.lat);
   drawCompetitors(competitors);
+
+  generateTargetAudiencePhrase(branches); // fires async, doesn't block map render
+}
+
+// Short "who to target" phrase for the loaded bank — deliberately cheap: Haiku,
+// small aggregated input (not raw branch rows), ~40-token cap on the output.
+// Runs once per bank load, not on every filter change.
+async function generateTargetAudiencePhrase(branchList){
+  const box=g('audiencePhrase');
+  box.style.display='none';
+  if(!branchList.length) return;
+
+  const top=[...branchList].sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0)).slice(0,15);
+  const zips=[...new Set(top.map(b=>b.zipbr).filter(Boolean))];
+  if(!zips.length) return;
+
+  const rows=await api('vw_zip_persona',`zip=in.(${zips.join(',')})&select=zip,persona,income,zip_age`);
+  if(!rows.length) return;
+
+  const counts={};
+  rows.forEach(r=>{counts[r.persona]=(counts[r.persona]||0)+1;});
+  const ranked=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([p])=>p);
+  const avgIncome=Math.round(rows.reduce((a,r)=>a+(+r.income||0),0)/rows.filter(r=>r.income).length || 0);
+
+  box.textContent='Analyzing target audience…';
+  box.style.display='block';
+
+  const system=`You write a single short phrase (max 14 words) naming the target audience for a bank's deposit growth campaign, based on the dominant customer personas in its top-opportunity markets. No preamble, no punctuation at the end beyond a period, just the phrase itself.`;
+  const userMsg=`Dominant personas in top-opportunity branches (most to least common): ${ranked.join(', ')}. Average household income in these areas: ${avgIncome?'$'+avgIncome.toLocaleString():'unknown'}.`;
+
+  try{
+    const text=await callAI(system,userMsg,60,'claude-haiku-4-5-20251001');
+    box.textContent='🎯 '+text.trim();
+  }catch(e){
+    box.style.display='none';
+  }
 }
 
 async function doSearch(q){

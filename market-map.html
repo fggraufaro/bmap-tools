@@ -458,6 +458,7 @@ function closeCard(){g('zipCard').classList.remove('on');}
 function closeRadiusCard(){
   g('radiusCard').classList.remove('on');
   radiusLayer.clearLayers();
+  radiusAnalysis=null;
 }
 
 // geo.branches_master_v2's bank_id is the RSSDID (per the same convention used
@@ -474,7 +475,8 @@ function bankIdFromInstKey(ik){
 }
 
 const RADIUS_MILES=[1,3,10];
-
+let selectedRadiusMi=3;
+let radiusAnalysis=null; // {branch, lat, lon, maxR, enriched, myNearby} — fetched once, re-rendered per radius pick
 
 // Haversine distance in miles — used to find this bank's OWN nearby branches
 // (branch_competitors_10mi_v2 only lists competitor branches relative to a
@@ -489,14 +491,6 @@ function haversineMiles(lat1,lon1,lat2,lon2){
 async function analyzeRadius(branch){
   const lat=branch.sims_latitude, lon=branch.sims_longitude;
   if(!lat || !lon) return;
-
-  // Draw the rings immediately — this doesn't need the market data to render.
-  radiusLayer.clearLayers();
-  const ringStyle={color:'#1a2332',weight:1.3,fillOpacity:0,dashArray:'4,4'};
-  RADIUS_MILES.forEach(mi=>{
-    L.circle([lat,lon],{radius:mi*1609.34,...ringStyle}).addTo(radiusLayer);
-  });
-  L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#1a2332',fillOpacity:1}).addTo(radiusLayer);
 
   g('radiusCardTitle').textContent=`${branch.namebr} — Radius Market Summary`;
   g('radiusCardBody').innerHTML='Loading market data…';
@@ -530,12 +524,42 @@ async function analyzeRadius(branch){
     .map(c=>({...c, info:branchInfoMap[c.competitor_branch_uninumbr]}))
     .filter(c=>c.info && c.info.sims_latitude && c.info.sims_longitude);
 
-  // Plot every competitor branch in range, not just the old top-3 set the
-  // main Competitors layer shows — this is the same full list in the card
-  // below, so the map and the table should always agree.
-  if(enriched.length){
-    const rScale=depositRadiusScale(enriched.map(c=>c.info.latest_dep),4,20);
-    enriched.forEach(c=>{
+  // My own nearby branches — this bank's OTHER branches near this one,
+  // computed client-side since branch_competitors_10mi_v2 only tracks
+  // competitors, not sibling branches of the selected institution.
+  const myNearby=branches
+    .map(b=>({...b, dist:haversineMiles(lat,lon,b.sims_latitude,b.sims_longitude)}))
+    .filter(b=>b.sims_latitude && b.sims_longitude && b.dist<=maxR);
+
+  radiusAnalysis={branch, lat, lon, maxR, enriched, myNearby};
+  renderRadiusView();
+}
+
+function setRadiusMi(mi){
+  selectedRadiusMi=mi;
+  renderRadiusView();
+}
+
+// Redraws the ring, the on-map competitor markers, and the card — all scoped
+// to whichever single radius is currently selected. No refetch: analyzeRadius
+// already pulled everything out to the largest radius, this just re-filters.
+function renderRadiusView(){
+  if(!radiusAnalysis) return;
+  const {branch, lat, lon, enriched, myNearby}=radiusAnalysis;
+  const mi=selectedRadiusMi;
+
+  radiusLayer.clearLayers();
+  L.circle([lat,lon],{radius:mi*1609.34,color:'#1a2332',weight:1.5,fillOpacity:0,dashArray:'4,4'}).addTo(radiusLayer);
+  L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#1a2332',fillOpacity:1}).addTo(radiusLayer);
+
+  const compInRadius=enriched.filter(c=>c.distance_miles<=mi);
+  const mineInRadius=myNearby.filter(b=>b.dist<=mi);
+
+  // Competitors outside the selected radius are hidden entirely, not just
+  // deprioritized — only what's in-range gets drawn.
+  if(compInRadius.length){
+    const rScale=depositRadiusScale(compInRadius.map(c=>c.info.latest_dep),4,20);
+    compInRadius.forEach(c=>{
       const marker=L.marker([c.info.sims_latitude,c.info.sims_longitude],{
         icon:diamondIcon(rScale(c.info.latest_dep)*2,'#A32D2D')
       });
@@ -549,28 +573,17 @@ async function analyzeRadius(branch){
     });
   }
 
-  // My own deposits in radius — this bank's OTHER branches near this one,
-  // computed client-side since branch_competitors_10mi_v2 only tracks
-  // competitors, not sibling branches of the selected institution.
-  const myNearby=branches
-    .map(b=>({...b, dist:haversineMiles(lat,lon,b.sims_latitude,b.sims_longitude)}))
-    .filter(b=>b.sims_latitude && b.sims_longitude && b.dist<=maxR);
+  const compTotal=compInRadius.reduce((a,c)=>a+(+c.info.latest_dep||0),0);
+  const mineTotal=mineInRadius.reduce((a,b)=>a+(+b.latest_dep||0),0);
+  const total=compTotal+mineTotal;
+  const sharePct = total>0 ? (mineTotal/total*100) : null;
+  const branchCount=compInRadius.length+mineInRadius.length;
 
-  const tableRows=RADIUS_MILES.map(mi=>{
-    const compInRing=enriched.filter(c=>c.distance_miles<=mi);
-    const mineInRing=myNearby.filter(b=>b.dist<=mi);
-    const compTotal=compInRing.reduce((a,c)=>a+(+c.info.latest_dep||0),0);
-    const mineTotal=mineInRing.reduce((a,b)=>a+(+b.latest_dep||0),0);
-    const total=compTotal+mineTotal;
-    const sharePct = total>0 ? (mineTotal/total*100) : null;
-    return {mi, count:compInRing.length+mineInRing.length, total, mine:mineTotal, sharePct};
-  });
-
-  // Competitor institution list, grouped by bank, sorted by deposits — matches
-  // the Power BI "Institution" table, not size-filtered like the top-3 list
-  // used elsewhere in BMAP (branch_target_competitors).
+  // Competitor institution list for the selected radius only, grouped by
+  // bank, sorted by deposits — not size-filtered like branch_target_competitors
+  // elsewhere in BMAP.
   const compGroups={};
-  enriched.forEach(c=>{
+  compInRadius.forEach(c=>{
     const key=c.competitor_bank_id;
     if(!compGroups[key]) compGroups[key]={
       bank_id:c.competitor_bank_id, type:c.competitor_institution_type,
@@ -582,32 +595,31 @@ async function analyzeRadius(branch){
     compGroups[key].minDist=Math.min(compGroups[key].minDist, Number.isFinite(dm)?dm:Infinity);
     if(c.info.yoy_deposits!=null) compGroups[key].yoyVals.push(+c.info.yoy_deposits);
   });
-  let competitors=Object.values(compGroups).sort((a,b)=>b.deposits-a.deposits);
+  const compList=Object.values(compGroups).sort((a,b)=>b.deposits-a.deposits);
 
   const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
   g('radiusCardBody').innerHTML=`
-    <table class="radius-table">
-      <thead><tr><th>Radius</th><th>Branches</th><th>Total Deposits</th><th>Your Deposits</th><th>Market Share</th></tr></thead>
-      <tbody>
-        ${tableRows.map(r=>`
-          <tr>
-            <td>${r.mi} mi</td>
-            <td>${r.count}</td>
-            <td>${fmtM(r.total)}</td>
-            <td>${fmtM(r.mine)}</td>
-            <td>
-              ${r.sharePct!=null?r.sharePct.toFixed(1)+'%':'—'}
-              ${r.sharePct!=null?`<div class="radius-share-bar"><div class="radius-share-fill" style="width:${Math.min(100,r.sharePct)}%"></div></div>`:''}
-            </td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-    ${competitors.length?`
-    <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Competitors — within ${maxR} mi (${competitors.length})</div>
+    <div style="padding:14px 16px 4px;display:flex;gap:6px">
+      ${RADIUS_MILES.map(m=>`<button onclick="setRadiusMi(${m})" style="flex:1;padding:8px 0;border-radius:8px;border:1.5px solid ${m===mi?'var(--navy)':'var(--border)'};background:${m===mi?'var(--navy)':'#fff'};color:${m===mi?'#fff':'var(--navy)'};font-weight:700;font-size:12.5px;cursor:pointer;font-family:'IBM Plex Mono',monospace">${m} mi</button>`).join('')}
+    </div>
+
+    <div style="padding:16px;display:flex;gap:18px;align-items:center;border-bottom:1px solid var(--border);margin-top:8px">
+      <div style="width:64px;height:64px;border-radius:50%;flex-shrink:0;background:conic-gradient(var(--blue) ${Math.min(100,sharePct||0)*3.6}deg, var(--border) 0deg);display:flex;align-items:center;justify-content:center">
+        <div style="width:46px;height:46px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace">${sharePct!=null?sharePct.toFixed(0)+'%':'—'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700">Market Share within ${mi} mi</div>
+        <div style="font-size:13px;margin-top:4px">Your deposits: <b>${fmtM(mineTotal)}</b> of <b>${fmtM(total)}</b> total</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${branchCount} branches in range</div>
+      </div>
+    </div>
+
+    ${compList.length?`
+    <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Competitors — within ${mi} mi (${compList.length})</div>
     <table class="radius-table">
       <thead><tr><th>Type</th><th>Institution</th><th>Branches</th><th>Deposits</th><th>Avg YoY</th><th>Nearest</th></tr></thead>
       <tbody>
-        ${competitors.map(c=>{
+        ${compList.map(c=>{
           const avgYoy=c.yoyVals.length?c.yoyVals.reduce((a,v)=>a+v,0)/c.yoyVals.length:null;
           return `
           <tr>
@@ -621,7 +633,7 @@ async function analyzeRadius(branch){
         }).join('')}
       </tbody>
     </table>
-    ` : '<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches found in range.</div>'}
+    ` : '<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within '+mi+' mi.</div>'}
   `;
 }
 

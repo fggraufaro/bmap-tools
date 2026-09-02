@@ -507,18 +507,18 @@ async function showTopCityHeatmap(){
     }
   }
 
-  // Same proximity technique Persona uses — a box around each of the top
-  // city's branches, matched against zip centroids — so this fills the real
-  // zip-code shapes around that city rather than a blurred point cloud.
-  const RADIUS_DEG=0.12;
-  const boxes=topCityInfo.branches.map(b=>({
-    minLat:b.sims_latitude-RADIUS_DEG, maxLat:b.sims_latitude+RADIUS_DEG,
-    minLon:b.sims_longitude-RADIUS_DEG, maxLon:b.sims_longitude+RADIUS_DEG
-  }));
+  // A box per branch (Persona's approach) was too generous here — with
+  // multiple branches spread a few miles apart, the unioned boxes sprawled
+  // across neighboring towns instead of highlighting just this city. Use one
+  // tight box centered on the city's own centroid instead.
+  const cLat=topCityInfo.branches.reduce((a,b)=>a+b.sims_latitude,0)/topCityInfo.branches.length;
+  const cLon=topCityInfo.branches.reduce((a,b)=>a+b.sims_longitude,0)/topCityInfo.branches.length;
+  const RADIUS_DEG=0.045; // ~3mi around the city center
+  const box={minLat:cLat-RADIUS_DEG, maxLat:cLat+RADIUS_DEG, minLon:cLon-RADIUS_DEG, maxLon:cLon+RADIUS_DEG};
   const inBox=topoData.features.filter(f=>{
     const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
     if(Number.isNaN(c[1])) return false;
-    return boxes.some(bx=>c[1]>=bx.minLat && c[1]<=bx.maxLat && c[0]>=bx.minLon && c[0]<=bx.maxLon);
+    return c[1]>=box.minLat && c[1]<=box.maxLat && c[0]>=box.minLon && c[0]<=box.maxLon;
   });
 
   heatLayer.clearLayers();
@@ -528,8 +528,7 @@ async function showTopCityHeatmap(){
   heatLayer.addTo(map);
 
   g('heatmapCityName').textContent=topCityInfo.name;
-  const bounds=L.latLngBounds(topCityInfo.branches.map(b=>[b.sims_latitude,b.sims_longitude]));
-  map.fitBounds(bounds.pad(0.6));
+  map.fitBounds([[box.minLat,box.minLon],[box.maxLat,box.maxLon]],{padding:[40,40]});
 }
 
 function hideTopCityHeatmap(){

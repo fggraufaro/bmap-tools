@@ -228,7 +228,6 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 </div><!-- /appWrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
@@ -421,6 +420,7 @@ function initMap(){
   competitorLayer=L.layerGroup();
   personaLayer=L.layerGroup();
   radiusLayer=L.layerGroup().addTo(map);
+  heatLayer=L.layerGroup();
 
   g('toggleBranches').addEventListener('change',e=>{
     if(e.target.checked){branchLayer.addTo(map);g('legendZones').classList.add('on');}
@@ -485,37 +485,55 @@ function computeTopCity(branchList){
   return arr[0];
 }
 
-function showTopCityHeatmap(){
-  if(heatLayer) map.removeLayer(heatLayer);
-  if(typeof L.heatLayer!=='function'){
-    g('heatmapCityName').textContent='plugin failed to load';
-    console.error('L.heatLayer is not available — leaflet.heat script did not load.');
-    return;
-  }
+async function showTopCityHeatmap(){
   if(!topCityInfo || !topCityInfo.branches.length){
     g('heatmapCityName').textContent='no data';
     return;
   }
-  const maxScore=Math.max(...topCityInfo.branches.map(b=>+b.opportunity_score||0),1);
-  const points=topCityInfo.branches.map(b=>[
-    b.sims_latitude, b.sims_longitude, Math.max(0.15,(+b.opportunity_score||0)/maxScore)
-  ]);
-  heatLayer=L.heatLayer(points,{
-    radius:45, blur:35, maxZoom:16, max:1,
-    gradient:{0.2:'#fce4ec',0.4:'#f8bbd0',0.6:'#f06292',0.8:'#d81b60',1.0:'#880e4f'}
+  g('heatmapCityName').textContent='loading…';
+
+  if(!topoData){
+    try{
+      const resp=await fetch('./zip_boundaries.topojson');
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const topo=await resp.json();
+      const key=Object.keys(topo.objects)[0];
+      topoData=topojson.feature(topo,topo.objects[key]);
+      topoData.features = topoData.features.filter(f=>f.geometry);
+    }catch(e){
+      console.error('zip_boundaries.topojson failed to load:',e);
+      g('heatmapCityName').textContent='load failed';
+      return;
+    }
+  }
+
+  // Same proximity technique Persona uses — a box around each of the top
+  // city's branches, matched against zip centroids — so this fills the real
+  // zip-code shapes around that city rather than a blurred point cloud.
+  const RADIUS_DEG=0.12;
+  const boxes=topCityInfo.branches.map(b=>({
+    minLat:b.sims_latitude-RADIUS_DEG, maxLat:b.sims_latitude+RADIUS_DEG,
+    minLon:b.sims_longitude-RADIUS_DEG, maxLon:b.sims_longitude+RADIUS_DEG
+  }));
+  const inBox=topoData.features.filter(f=>{
+    const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
+    if(Number.isNaN(c[1])) return false;
+    return boxes.some(bx=>c[1]>=bx.minLat && c[1]<=bx.maxLat && c[0]>=bx.minLon && c[0]<=bx.maxLon);
   });
-  // leaflet.heat has no built-in whole-layer opacity option — this dims the
-  // canvas it renders to, which is what makes it read as "a bit transparent"
-  // rather than a solid wash of color.
-  heatLayer.on('add',function(){ if(this._canvas) this._canvas.style.opacity='0.55'; });
+
+  heatLayer.clearLayers();
+  L.geoJSON({type:'FeatureCollection',features:inBox},{
+    style:()=>({color:'#9D174D',weight:1,opacity:0.6,fillColor:'#DB2777',fillOpacity:0.35})
+  }).addTo(heatLayer);
   heatLayer.addTo(map);
+
   g('heatmapCityName').textContent=topCityInfo.name;
   const bounds=L.latLngBounds(topCityInfo.branches.map(b=>[b.sims_latitude,b.sims_longitude]));
   map.fitBounds(bounds.pad(0.6));
 }
 
 function hideTopCityHeatmap(){
-  if(heatLayer) map.removeLayer(heatLayer);
+  map.removeLayer(heatLayer);
 }
 
 function closeRadiusCard(){

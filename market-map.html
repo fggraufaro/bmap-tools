@@ -165,7 +165,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div class="layer-row" id="rowHeatmap">
       <input type="checkbox" id="toggleHeatmap">
       <span class="dot" style="background:#DB2777"></span>
-      <span class="lbl">Heatmap — Top City</span>
+      <span class="lbl">Heatmap — Top 10 Cities</span>
       <span class="count" id="heatmapCityName" style="font-size:9.5px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
     </div>
     <div style="padding:10px 12px">
@@ -465,28 +465,27 @@ function initMap(){
 
 function closeCard(){g('zipCard').classList.remove('on');}
 
-let topCityInfo=null; // {name, branches} — the city with the highest total opportunity score for the selected bank
+let topCitiesInfo=null; // array of {name, branches, totalScore, rank} — top N cities by total opportunity score
 
 // Ranks by SUM of opportunity_score across a bank's branches in each city —
 // i.e. the city with the most concentrated growth opportunity, not just the
 // most branches or the single highest-scoring branch.
-function computeTopCity(branchList){
+function computeTopCities(branchList, n=10){
   const groups={};
   branchList.forEach(b=>{
     if(!b.sims_latitude || !b.sims_longitude) return;
-    const key=`${b.citybr}, ${b.stalpbr}`;
+    const key=b.metro || `${b.citybr}, ${b.stalpbr}`;
     if(!groups[key]) groups[key]={name:key, branches:[], totalScore:0};
     groups[key].branches.push(b);
     groups[key].totalScore+=(+b.opportunity_score||0);
   });
   const arr=Object.values(groups);
-  if(!arr.length) return null;
   arr.sort((a,b)=>b.totalScore-a.totalScore);
-  return arr[0];
+  return arr.slice(0,n).map((c,i)=>({...c, rank:i+1}));
 }
 
 async function showTopCityHeatmap(){
-  if(!topCityInfo || !topCityInfo.branches.length){
+  if(!topCitiesInfo || !topCitiesInfo.length){
     g('heatmapCityName').textContent='no data';
     return;
   }
@@ -507,33 +506,68 @@ async function showTopCityHeatmap(){
     }
   }
 
-  // A box per branch (Persona's approach) sprawled across neighboring towns
-  // when branches were a few miles apart. A single fixed-radius box fixed
-  // that but was too small for a bigger, more spread-out city like Jackson.
-  // This instead bounds the actual spread of the city's own branches, plus a
-  // modest buffer — a tight cluster stays small, a spread-out city grows to
-  // actually cover its branches, without unioning individual branch boxes.
-  const lats=topCityInfo.branches.map(b=>b.sims_latitude);
-  const lons=topCityInfo.branches.map(b=>b.sims_longitude);
-  const PAD_DEG=0.035; // ~2.4mi buffer beyond the outermost branches
-  const box={
-    minLat:Math.min(...lats)-PAD_DEG, maxLat:Math.max(...lats)+PAD_DEG,
-    minLon:Math.min(...lons)-PAD_DEG, maxLon:Math.max(...lons)+PAD_DEG
-  };
-  const inBox=topoData.features.filter(f=>{
-    const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
-    if(Number.isNaN(c[1])) return false;
-    return c[1]>=box.minLat && c[1]<=box.maxLat && c[0]>=box.minLon && c[0]<=box.maxLon;
+  // Each city gets its own box, sized to that city's own branch spread plus a
+  // buffer — not unioned across cities, so city #1 and city #7 don't bleed
+  // into each other's shape. If a zip somehow falls in two cities' boxes, it
+  // keeps whichever rank is better (lower number = higher priority).
+  const PAD_DEG=0.035; // ~2.4mi buffer beyond each city's outermost branch
+  const rankByZip={};
+  let overallBounds=null;
+  topCitiesInfo.forEach(city=>{
+    const lats=city.branches.map(b=>b.sims_latitude);
+    const lons=city.branches.map(b=>b.sims_longitude);
+    const box={
+      minLat:Math.min(...lats)-PAD_DEG, maxLat:Math.max(...lats)+PAD_DEG,
+      minLon:Math.min(...lons)-PAD_DEG, maxLon:Math.max(...lons)+PAD_DEG
+    };
+    overallBounds = overallBounds
+      ? overallBounds.extend([[box.minLat,box.minLon],[box.maxLat,box.maxLon]])
+      : L.latLngBounds([box.minLat,box.minLon],[box.maxLat,box.maxLon]);
+    topoData.features.forEach(f=>{
+      const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
+      if(Number.isNaN(c[1])) return;
+      if(c[1]>=box.minLat && c[1]<=box.maxLat && c[0]>=box.minLon && c[0]<=box.maxLon){
+        const zip=f.properties.ZCTA5CE10;
+        const prev=rankByZip[zip];
+        if(!prev || city.rank<prev.rank) rankByZip[zip]={rank:city.rank, city:city.name};
+      }
+    });
   });
+
+  const inBox=topoData.features.filter(f=>rankByZip[f.properties.ZCTA5CE10]);
 
   heatLayer.clearLayers();
   L.geoJSON({type:'FeatureCollection',features:inBox},{
-    style:()=>({color:'#9D174D',weight:1,opacity:0.6,fillColor:'#DB2777',fillOpacity:0.35})
+    style:f=>{
+      const info=rankByZip[f.properties.ZCTA5CE10];
+      // Rank 1 darkest/most opaque, rank 10 lightest — same hue throughout so
+      // it still reads as one coherent "target cities" layer.
+      const fillOpacity=Math.max(0.14, 0.5-(info.rank-1)*0.035);
+      return {color:'#9D174D',weight:1,opacity:0.55,fillColor:'#DB2777',fillOpacity};
+    },
+    onEachFeature:(f,layer)=>{
+      const info=rankByZip[f.properties.ZCTA5CE10];
+      layer.bindTooltip(`#${info.rank} — ${info.city}`,{sticky:true});
+    }
   }).addTo(heatLayer);
-  heatLayer.addTo(map);
 
-  g('heatmapCityName').textContent=topCityInfo.name;
-  map.fitBounds([[box.minLat,box.minLon],[box.maxLat,box.maxLon]],{padding:[40,40]});
+  // Rank labels at each city's own center, so overlapping/adjacent cities are
+  // still individually identifiable even where their shading looks similar.
+  topCitiesInfo.forEach(city=>{
+    const cLat=city.branches.reduce((a,b)=>a+b.sims_latitude,0)/city.branches.length;
+    const cLon=city.branches.reduce((a,b)=>a+b.sims_longitude,0)/city.branches.length;
+    L.marker([cLat,cLon],{
+      icon:L.divIcon({
+        className:'',
+        html:`<div style="background:#9D174D;color:#fff;font-weight:700;font-size:11px;padding:2px 7px;border-radius:99px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'IBM Plex Mono',monospace">#${city.rank} ${city.name}</div>`,
+        iconAnchor:[20,10]
+      })
+    }).addTo(heatLayer);
+  });
+
+  heatLayer.addTo(map);
+  g('heatmapCityName').textContent=`${topCitiesInfo.length} cities`;
+  if(overallBounds) map.fitBounds(overallBounds,{padding:[40,40]});
 }
 
 function hideTopCityHeatmap(){
@@ -1031,7 +1065,7 @@ async function loadBank(ik){
   g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
   g('togglePriority').checked=false; priorityHighlightOn=false; g('legendPriority').classList.remove('on');
   closeRadiusCard();
-  g('toggleHeatmap').checked=false; hideTopCityHeatmap(); topCityInfo=null; g('heatmapCityName').textContent='—';
+  g('toggleHeatmap').checked=false; hideTopCityHeatmap(); topCitiesInfo=null; g('heatmapCityName').textContent='—';
   topoData=null;
   stateVal='';cityVal='';
 
@@ -1039,7 +1073,19 @@ async function loadBank(ik){
     `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,matrix_quadrant,campaign,priority_tier,priority_score,latest_dep,yoy_deposits&limit=2000`);
   branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
   populateFilters();
-  topCityInfo=computeTopCity(branches);
+  // Metro area, not raw citybr — branches in Boylston/West Boylston/Clinton, MA
+  // all say different citybr values but are the same Worcester, MA metro. Using
+  // citybr alone would split one real market into several undersized groups.
+  const brUninumbrs=branches.map(b=>b.uninumbr).filter(Boolean);
+  const metroMap={};
+  for(let i=0;i<brUninumbrs.length;i+=400){
+    const chunk=brUninumbrs.slice(i,i+400);
+    const rows=await api('vw_branch_opportunity_cbsa',`uninumbr=in.(${chunk.join(',')})&select=uninumbr,metro`);
+    (Array.isArray(rows)?rows:[]).forEach(r=>metroMap[r.uninumbr]=r.metro);
+  }
+  branches.forEach(b=>{ b.metro = metroMap[b.uninumbr] || `${b.citybr}, ${b.stalpbr}`; });
+
+  topCitiesInfo=computeTopCities(branches, 10);
 
   // One batched persona lookup for every branch's own zip — not one call per branch,
   // so this is a single fast query regardless of network size, no AI tokens involved.

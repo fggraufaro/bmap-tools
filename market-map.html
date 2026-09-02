@@ -228,7 +228,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 </div><!-- /appWrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
@@ -487,6 +487,11 @@ function computeTopCity(branchList){
 
 function showTopCityHeatmap(){
   if(heatLayer) map.removeLayer(heatLayer);
+  if(typeof L.heatLayer!=='function'){
+    g('heatmapCityName').textContent='plugin failed to load';
+    console.error('L.heatLayer is not available — leaflet.heat script did not load.');
+    return;
+  }
   if(!topCityInfo || !topCityInfo.branches.length){
     g('heatmapCityName').textContent='no data';
     return;

@@ -162,6 +162,12 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       <span class="lbl">Persona / Zip</span>
       <span class="count" id="countPersona">—</span>
     </div>
+    <div class="layer-row" id="rowHeatmap">
+      <input type="checkbox" id="toggleHeatmap">
+      <span class="dot" style="background:#DB2777"></span>
+      <span class="lbl">Heatmap — Top City</span>
+      <span class="count" id="heatmapCityName" style="font-size:9.5px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+    </div>
     <div style="padding:10px 12px">
       <button class="story-btn" id="storyBtn">📊 Generate Market Story</button>
     </div>
@@ -222,12 +228,13 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 </div><!-- /appWrap -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 
-let map, branchLayer, competitorLayer, personaLayer, radiusLayer;
+let map, branchLayer, competitorLayer, personaLayer, radiusLayer, heatLayer;
 let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
 let zipCityCache={};
 let priorityHighlightOn=false;
@@ -439,6 +446,9 @@ function initMap(){
       personaLayer.addTo(map);g('legendPersona').classList.add('on');
     } else {map.removeLayer(personaLayer);g('legendPersona').classList.remove('on');}
   });
+  g('toggleHeatmap').addEventListener('change',e=>{
+    if(e.target.checked) showTopCityHeatmap(); else hideTopCityHeatmap();
+  });
   g('legendZones').classList.add('on');
 
   g('storyBtn').addEventListener('click',generateMarketStory);
@@ -454,6 +464,54 @@ function initMap(){
 }
 
 function closeCard(){g('zipCard').classList.remove('on');}
+
+let topCityInfo=null; // {name, branches} — the city with the highest total opportunity score for the selected bank
+
+// Ranks by SUM of opportunity_score across a bank's branches in each city —
+// i.e. the city with the most concentrated growth opportunity, not just the
+// most branches or the single highest-scoring branch.
+function computeTopCity(branchList){
+  const groups={};
+  branchList.forEach(b=>{
+    if(!b.sims_latitude || !b.sims_longitude) return;
+    const key=`${b.citybr}, ${b.stalpbr}`;
+    if(!groups[key]) groups[key]={name:key, branches:[], totalScore:0};
+    groups[key].branches.push(b);
+    groups[key].totalScore+=(+b.opportunity_score||0);
+  });
+  const arr=Object.values(groups);
+  if(!arr.length) return null;
+  arr.sort((a,b)=>b.totalScore-a.totalScore);
+  return arr[0];
+}
+
+function showTopCityHeatmap(){
+  if(heatLayer) map.removeLayer(heatLayer);
+  if(!topCityInfo || !topCityInfo.branches.length){
+    g('heatmapCityName').textContent='no data';
+    return;
+  }
+  const maxScore=Math.max(...topCityInfo.branches.map(b=>+b.opportunity_score||0),1);
+  const points=topCityInfo.branches.map(b=>[
+    b.sims_latitude, b.sims_longitude, Math.max(0.15,(+b.opportunity_score||0)/maxScore)
+  ]);
+  heatLayer=L.heatLayer(points,{
+    radius:45, blur:35, maxZoom:16, max:1,
+    gradient:{0.2:'#fce4ec',0.4:'#f8bbd0',0.6:'#f06292',0.8:'#d81b60',1.0:'#880e4f'}
+  });
+  // leaflet.heat has no built-in whole-layer opacity option — this dims the
+  // canvas it renders to, which is what makes it read as "a bit transparent"
+  // rather than a solid wash of color.
+  heatLayer.on('add',function(){ if(this._canvas) this._canvas.style.opacity='0.55'; });
+  heatLayer.addTo(map);
+  g('heatmapCityName').textContent=topCityInfo.name;
+  const bounds=L.latLngBounds(topCityInfo.branches.map(b=>[b.sims_latitude,b.sims_longitude]));
+  map.fitBounds(bounds.pad(0.6));
+}
+
+function hideTopCityHeatmap(){
+  if(heatLayer) map.removeLayer(heatLayer);
+}
 
 function closeRadiusCard(){
   g('radiusCard').classList.remove('on');
@@ -617,18 +675,18 @@ function renderRadiusView(){
     ${compList.length?`
     <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Competitors — within ${mi} mi (${compList.length})</div>
     <table class="radius-table">
-      <thead><tr><th>Type</th><th>Institution</th><th>Branches</th><th>Deposits</th><th>Avg YoY</th><th>Nearest</th></tr></thead>
+      <thead><tr><th>Type</th><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Market Share</th></tr></thead>
       <tbody>
         ${compList.map(c=>{
           const avgYoy=c.yoyVals.length?c.yoyVals.reduce((a,v)=>a+v,0)/c.yoyVals.length:null;
+          const compSharePct = total>0 ? (c.deposits/total*100) : null;
           return `
           <tr>
             <td>${c.type||'—'}</td>
             <td style="font-family:'Inter',system-ui,sans-serif;font-weight:600">${c.name}</td>
-            <td>${c.branches}</td>
             <td>${fmtM(c.deposits)}</td>
             <td>${avgYoy!=null?(avgYoy*100).toFixed(1)+'%':'—'}</td>
-            <td>${c.minDist.toFixed(1)} mi</td>
+            <td>${compSharePct!=null?compSharePct.toFixed(1)+'%':'—'}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -946,6 +1004,7 @@ async function loadBank(ik){
   g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
   g('togglePriority').checked=false; priorityHighlightOn=false; g('legendPriority').classList.remove('on');
   closeRadiusCard();
+  g('toggleHeatmap').checked=false; hideTopCityHeatmap(); topCityInfo=null; g('heatmapCityName').textContent='—';
   topoData=null;
   stateVal='';cityVal='';
 
@@ -953,6 +1012,7 @@ async function loadBank(ik){
     `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,matrix_quadrant,campaign,priority_tier,priority_score,latest_dep,yoy_deposits&limit=2000`);
   branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
   populateFilters();
+  topCityInfo=computeTopCity(branches);
 
   // One batched persona lookup for every branch's own zip — not one call per branch,
   // so this is a single fast query regardless of network size, no AI tokens involved.

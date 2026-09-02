@@ -50,7 +50,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .legend-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
 
 .card{position:absolute;top:14px;right:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:280px;display:none;overflow:hidden}
-.radius-card{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);width:480px;max-width:94vw;max-height:60vh;display:none;overflow:hidden;flex-direction:column}
+.radius-card{position:absolute;top:0;right:0;bottom:0;z-index:1000;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.14);width:420px;max-width:88vw;display:none;overflow:hidden;flex-direction:column}
 .radius-card.on{display:flex}
 .radius-card #radiusCardBody{overflow-y:auto}
 .radius-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -665,28 +665,32 @@ async function generateMarketStory(){
     }
   }
 
-  const ids=new Set(filtered.map(b=>b.uninumbr));
-  const compByBranch={};
-  competitors.filter(c=>ids.has(c.my_branch_id)).forEach(c=>{
-    (compByBranch[c.my_branch_id]=compByBranch[c.my_branch_id]||[]).push(c);
-  });
+  const compWithCoords=competitors.filter(c=>c.info.sims_latitude && c.info.sims_longitude);
 
   const sorted=[...filtered].sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0));
   const lines=sorted.slice(0,40).map(b=>{
     const p=personaMap[b.zipbr];
-    const topComp=(compByBranch[b.uninumbr]||[]).sort((x,y)=>(+y.vuln_score||0)-(+x.vuln_score||0))[0];
+    // Nearest competitor computed client-side by distance — the network-wide
+    // competitor set no longer carries a per-branch vulnerability score (that
+    // was specific to branch_target_competitors), so distance is the honest
+    // signal available here.
+    let nearest=null, nearestDist=Infinity;
+    compWithCoords.forEach(c=>{
+      const d=haversineMiles(b.sims_latitude,b.sims_longitude,c.info.sims_latitude,c.info.sims_longitude);
+      if(d<nearestDist){nearestDist=d; nearest=c;}
+    });
     return [
       `${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}`,
       `  Zone: ${b.opportunity_zone||'—'} | Score: ${(+b.opportunity_score||0).toFixed(1)} | Deposits: $${((+b.latest_dep||0)/1e6).toFixed(1)}M | YoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}%`,
       `  Persona: ${p?p.persona:'—'} | Income: ${p&&p.income?'$'+Number(p.income).toLocaleString():'—'} | Age band: ${p?p.zip_age:'—'}`,
-      topComp?`  Nearest vulnerable competitor: ${topComp.target_namefull} | Vuln: ${topComp.vuln_score||'—'} | ${topComp.target_dist_mi||'—'} mi`:'  No competitor data'
+      nearest?`  Nearest competitor: ${nearest.info.namefull} | ${nearestDist.toFixed(1)} mi | Deposits: $${((+nearest.info.latest_dep||0)/1e6).toFixed(1)}M`:'  No competitor data'
     ].join('\n');
   }).join('\n\n');
 
-  const system=`You are a deposit-growth strategist writing for Verlocity's Market Map. You are given branch-level opportunity zone, zip persona, and competitor vulnerability data for one bank's network. Write a concise "Where and How to Win Deposits" narrative:
+  const system=`You are a deposit-growth strategist writing for Verlocity's Market Map. You are given branch-level opportunity zone, zip persona, and nearby-competitor data for one bank's network. Write a concise "Where and How to Win Deposits" narrative:
 
 1. Rank the top 5-8 priority branches or zip clusters for a deposit growth campaign.
-2. For each, explain WHY in one or two sentences by connecting the opportunity zone, the local zip persona, and any nearby vulnerable competitor — not just restating the numbers.
+2. For each, explain WHY in one or two sentences by connecting the opportunity zone, the local zip persona, and the nearby competitor's presence — not just restating the numbers.
 3. Recommend the specific deposit product or messaging angle that fits that persona (examples: high-yield savings or CD laddering for Retired & Secure; CD laddering or first-home savings for Growing Families; digital-first checking or cash management for Urban Professionals or Knowledge Communities; small-business checking for Makers & Trades or Blue Collar Core).
 
 Confident boardroom tone. No methodology section. No follow-up questions. Do not restate the raw data — synthesize it into an argument.`;
@@ -855,17 +859,20 @@ function drawCompetitors(list){
   competitorLayer.clearLayers();
   const minR = list.length<=6 ? 9 : 4;
   const maxR = list.length<=6 ? 22 : 20;
-  const rScale=depositRadiusScale(list.map(c=>c.target_dep_m),minR,maxR);
+  const rScale=depositRadiusScale(list.map(c=>c.info.latest_dep),minR,maxR);
   list.forEach(c=>{
-    const coord=coordMap[c.target_uninumbr];
-    if(!coord?.lat) return;
-    const color=vulnColor(c.vuln_score);
-    const m=L.marker([coord.lat,coord.lon],{icon:diamondIcon(rScale(c.target_dep_m)*2,color)});
+    const info=c.info;
+    // Colored by the competitor branch's own opportunity zone — a single
+    // "vulnerability" score doesn't apply network-wide the way it did for one
+    // client branch, so this reuses the same Invest/Analyze/Defend/Justify
+    // palette branches use, just rendered as a diamond.
+    const color=ZONE_COLOR[info.opportunity_zone]||'#A32D2D';
+    const m=L.marker([info.sims_latitude,info.sims_longitude],{icon:diamondIcon(rScale(info.latest_dep)*2,color)});
     m.bindPopup(`
-      <div class="pop-t">${c.target_namefull}</div>
-      <div class="pop-r">Vulnerability: <b>${c.vuln_score||'—'}</b> · Distance: <b>${c.target_dist_mi||'—'} mi</b></div>
-      <div class="pop-r">Deposits: <b>$${c.target_dep_m||'—'}M</b> · YoY: <b>${c.target_yoy_pct||'—'}%</b></div>
-      <div class="pop-r">Zone: <b>${c.target_zone||'—'}</b></div>
+      <div class="pop-t">${info.namefull}</div>
+      <div class="pop-r">Zone: <b>${info.opportunity_zone||'—'}</b> · Score: <b>${(+info.opportunity_score||0).toFixed(1)}</b></div>
+      <div class="pop-r">Deposits: <b>$${((+info.latest_dep||0)/1e6).toFixed(1)}M</b> · YoY: <b>${((+info.yoy_deposits||0)*100).toFixed(1)}%</b></div>
+      <div class="pop-r">Nearest branch: <b>${(+c.dist).toFixed(1)} mi</b></div>
     `);
     m.addTo(competitorLayer);
   });
@@ -893,8 +900,12 @@ function populateCityFilter(){
 
 async function applyFilters(){
   const filteredBranches=getFilteredBranches();
-  const ids=new Set(filteredBranches.map(b=>b.uninumbr));
-  const filteredCompetitors=competitors.filter(c=>ids.has(c.my_branch_id));
+  // Competitors are no longer tied 1:1 to a single branch (that was
+  // branch_target_competitors' shape); keep any competitor within 10mi of at
+  // least one currently-visible branch, matching how the full set was fetched.
+  const filteredCompetitors=competitors.filter(c=>
+    filteredBranches.some(b=>haversineMiles(b.sims_latitude,b.sims_longitude,c.info.sims_latitude,c.info.sims_longitude)<=10)
+  );
   drawBranches(filteredBranches);
   drawCompetitors(filteredCompetitors);
   if(filteredBranches.length){
@@ -947,16 +958,33 @@ async function loadBank(ik){
     map.fitBounds(branches.map(b=>[b.sims_latitude,b.sims_longitude]),{padding:[60,60]});
   }
 
-  const compRaw = await api('branch_target_competitors',
-    `my_inst_key=eq.${ik}&select=my_branch_id,target_uninumbr,target_namefull,target_dep_m,target_yoy_pct,vuln_score,target_dist_mi,target_zone,target_rank&order=vuln_score.desc&limit=1000`);
-  const targetIds=[...new Set(compRaw.map(c=>c.target_uninumbr).filter(Boolean))];
-  coordMap={};
-  for(let i=0;i<targetIds.length;i+=400){
-    const chunk=targetIds.slice(i,i+400);
-    const rows=await api('branch_opportunity_base',`uninumbr=in.(${chunk.join(',')})&select=uninumbr,sims_latitude,sims_longitude`);
-    rows.forEach(r=>coordMap[r.uninumbr]={lat:r.sims_latitude,lon:r.sims_longitude});
+  // Competitors layer now pulls the same exhaustive branch_competitors_10mi_v2
+  // source the click-to-analyze feature uses, for every branch in the network —
+  // not the old size-filtered top-3 (branch_target_competitors). Fetched in
+  // batches per branch, deduped by competitor branch so one doesn't get drawn
+  // twice just because it's near two of this bank's branches.
+  const branchIds=branches.map(b=>b.uninumbr).filter(Boolean);
+  const compLinkMap={}; // competitor_branch_uninumbr -> nearest distance to any of this bank's branches
+  for(let i=0;i<branchIds.length;i+=50){
+    const chunk=branchIds.slice(i,i+50);
+    const rows=await api('branch_competitors_10mi_v2',
+      `my_branch_id=in.(${chunk.join(',')})&distance_miles=lte.10&select=competitor_branch_uninumbr,distance_miles`);
+    (Array.isArray(rows)?rows:[]).forEach(r=>{
+      const prev=compLinkMap[r.competitor_branch_uninumbr];
+      if(prev==null || r.distance_miles<prev) compLinkMap[r.competitor_branch_uninumbr]=r.distance_miles;
+    });
   }
-  competitors = compRaw.filter(c=>coordMap[c.target_uninumbr]?.lat);
+  const compUninumbrs=Object.keys(compLinkMap);
+  const compInfoMap={};
+  for(let i=0;i<compUninumbrs.length;i+=400){
+    const chunk=compUninumbrs.slice(i,i+400);
+    const rows=await api('branch_opportunity_base',
+      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits,sims_latitude,sims_longitude`);
+    (Array.isArray(rows)?rows:[]).forEach(r=>compInfoMap[r.uninumbr]=r);
+  }
+  competitors = compUninumbrs
+    .map(id=>({uninumbr:id, dist:compLinkMap[id], info:compInfoMap[id]}))
+    .filter(c=>c.info && c.info.sims_latitude && c.info.sims_longitude);
   drawCompetitors(competitors);
 
   generateTargetAudiencePhrase(branches); // fires async, doesn't block map render

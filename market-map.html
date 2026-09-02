@@ -507,14 +507,19 @@ async function showTopCityHeatmap(){
     }
   }
 
-  // A box per branch (Persona's approach) was too generous here — with
-  // multiple branches spread a few miles apart, the unioned boxes sprawled
-  // across neighboring towns instead of highlighting just this city. Use one
-  // tight box centered on the city's own centroid instead.
-  const cLat=topCityInfo.branches.reduce((a,b)=>a+b.sims_latitude,0)/topCityInfo.branches.length;
-  const cLon=topCityInfo.branches.reduce((a,b)=>a+b.sims_longitude,0)/topCityInfo.branches.length;
-  const RADIUS_DEG=0.045; // ~3mi around the city center
-  const box={minLat:cLat-RADIUS_DEG, maxLat:cLat+RADIUS_DEG, minLon:cLon-RADIUS_DEG, maxLon:cLon+RADIUS_DEG};
+  // A box per branch (Persona's approach) sprawled across neighboring towns
+  // when branches were a few miles apart. A single fixed-radius box fixed
+  // that but was too small for a bigger, more spread-out city like Jackson.
+  // This instead bounds the actual spread of the city's own branches, plus a
+  // modest buffer — a tight cluster stays small, a spread-out city grows to
+  // actually cover its branches, without unioning individual branch boxes.
+  const lats=topCityInfo.branches.map(b=>b.sims_latitude);
+  const lons=topCityInfo.branches.map(b=>b.sims_longitude);
+  const PAD_DEG=0.035; // ~2.4mi buffer beyond the outermost branches
+  const box={
+    minLat:Math.min(...lats)-PAD_DEG, maxLat:Math.max(...lats)+PAD_DEG,
+    minLon:Math.min(...lons)-PAD_DEG, maxLon:Math.max(...lons)+PAD_DEG
+  };
   const inBox=topoData.features.filter(f=>{
     const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
     if(Number.isNaN(c[1])) return false;

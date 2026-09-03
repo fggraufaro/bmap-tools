@@ -427,9 +427,14 @@ function drawCompetitors(list) {
 // ── Load bank ──
 let currentBranches = [];
 async function loadBank(ik) {
-  initMap();
   g('empty').style.display = 'none';
   g('main').style.display = 'flex';
+  initMap();
+  // Leaflet measures its container's pixel size at construction time. Since
+  // #main was just switched from display:none, the browser hasn't finished
+  // laying it out yet in some cases — invalidateSize() on the next tick
+  // forces Leaflet to re-measure and fixes the grey/half-loaded tile bug.
+  setTimeout(() => map && map.invalidateSize(), 50);
   g('actionsRow').innerHTML = '';
 
   const [summaryRows, branches] = await Promise.all([
@@ -530,7 +535,26 @@ async function loadRateRadar(ik) {
   const anyLive = rows.some(r => r.live);
 
   if (!anyLive) {
-    g('rrBody').innerHTML = `<div class="rr-source">Named competitors identified · none crawled by Rate Radar yet</div>${rows.map(r => `<div class="rr-row"><div class="rr-name">${r.comp.target_namefull}</div></div>`).join('')}`;
+    // Nothing crawled yet for this institution's named competitors. Show
+    // representative sample figures instead of a blank list, so the panel
+    // demonstrates the shape of what Rate Radar produces — but this is
+    // fabricated placeholder data, so it must never be mistaken for real
+    // rates. Disclosed with a persistent banner and a tag on every row,
+    // not just a one-time note that could get scrolled past.
+    const sampleRate = (seed, base, spread) => {
+      let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+      return (base + ((h % 100) / 100) * spread).toFixed(2);
+    };
+    const sampleChip = (label, val, unit) => `<div class="rr-chip">${label} <b>${val}%</b>${unit ? ` <span style="color:var(--muted)">${unit}</span>` : ''}</div>`;
+    g('rrBody').innerHTML = `
+      <div class="rr-source" style="color:#A33C31;font-weight:700">⚠ SAMPLE DATA — this institution's competitors haven't been crawled by Rate Radar yet. Figures below are illustrative placeholders, not real rates.</div>
+      ${rows.map(r => {
+        const n = r.comp.target_namefull;
+        return `<div class="rr-row">
+          <div class="rr-name">${n} <span class="rr-vuln" style="background:#FBEEEC;color:#A33C31">SAMPLE</span></div>
+          <div class="rr-rates">${sampleChip('CD', sampleRate(n + 'cd', 4.10, 0.9), '12mo')}${sampleChip('Savings', sampleRate(n + 'sv', 1.80, 1.1))}${sampleChip('MMA', sampleRate(n + 'mm', 2.60, 0.8))}</div>
+        </div>`;
+      }).join('')}`;
     return;
   }
 

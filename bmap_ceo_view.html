@@ -61,6 +61,24 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 .panel-t{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em}
 .panel-tag{font-size:10px;color:var(--muted)}
 #map{height:420px;width:100%}
+.map-wrap{position:relative;overflow:hidden}
+.map-legend{position:absolute;bottom:10px;left:10px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:10.5px;z-index:500;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.legend-t{font-weight:700;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.legend-row{display:flex;align-items:center;gap:6px;padding:1.5px 0}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-note{color:var(--muted);margin-top:4px;font-size:9.5px}
+.radius-card{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:90%;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.14);z-index:600;display:none;flex-direction:column}
+.radius-card.on{display:flex}
+.radius-card-hdr{background:var(--navy);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;flex-shrink:0}
+.radius-card-body{overflow-y:auto;flex:1}
+.radius-tabs{padding:12px 12px 4px;display:flex;gap:6px}
+.radius-tab{flex:1;padding:7px 0;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--navy);font-weight:700;font-size:11.5px;cursor:pointer;font-family:'Inter',sans-serif}
+.radius-tab.active{border-color:var(--navy);background:var(--navy);color:#fff}
+.radius-share{padding:14px;display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--border);margin-top:6px}
+.radius-share-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.radius-table{width:100%;border-collapse:collapse;font-size:10.5px}
+.radius-table th{text-align:left;padding:6px 8px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--border)}
+.radius-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
 .rr-body{padding:14px 18px;max-height:420px;overflow-y:auto}
 .rr-row{padding:10px 0;border-bottom:1px solid var(--border)}
 .rr-row:last-child{border-bottom:none}
@@ -205,8 +223,25 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 
     <div class="grid2">
       <div class="panel">
-        <div class="panel-hdr"><div class="panel-t">Where your opportunity is</div><div class="panel-tag">Live map</div></div>
-        <div id="map"></div>
+        <div class="panel-hdr"><div class="panel-t">Where your opportunity is</div><div class="panel-tag" id="mapHint">Click a branch to see nearby competitors</div></div>
+        <div class="map-wrap">
+          <div id="map"></div>
+          <div class="map-legend">
+            <div class="legend-t">Branch priority</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#CDD61A"></span>Act now</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#66CC99"></span>Next up</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#02A7C2"></span>Worth watching</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#8B93A0"></span>Not flagged</div>
+            <div class="legend-note">Circle size = deposits</div>
+          </div>
+          <div class="radius-card" id="radiusCard">
+            <div class="radius-card-hdr">
+              <b id="radiusCardTitle">—</b>
+              <span class="story-close" onclick="clearRadius()">✕</span>
+            </div>
+            <div class="radius-card-body" id="radiusCardBody"></div>
+          </div>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-hdr"><div class="panel-t">Rate Radar</div><div class="panel-tag">Named competitors</div></div>
@@ -380,7 +415,7 @@ const PRIORITY_TIER_COLOR = { top: '#CDD61A', next: '#66CC99', opportunity: '#02
 // rebuilt: deposit-sized circles (sqrt-scaled, so marker AREA tracks
 // dollars), diamond competitors, priority-tier coloring hardcoded on (no
 // toggle UI — a CEO view has nothing to switch, per req #5). ──
-let map, branchLayer, competitorLayer;
+let map, branchLayer, competitorLayer, radiusLayer;
 function diamondIcon(size, color) {
   const s = Math.max(6, size);
   return L.divIcon({ className: '', iconSize: [s, s], iconAnchor: [s / 2, s / 2],
@@ -399,6 +434,7 @@ function initMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', subdomains: 'abc', maxZoom: 19 }).addTo(map);
   branchLayer = L.layerGroup().addTo(map);
   competitorLayer = L.layerGroup().addTo(map);
+  radiusLayer = L.layerGroup().addTo(map);
 }
 function drawBranches(list) {
   branchLayer.clearLayers();
@@ -406,22 +442,131 @@ function drawBranches(list) {
   const rScale = depositRadiusScale(list.map(b => b.latest_dep), minR, maxR);
   list.forEach(b => {
     const tier = priorityTierOf(b.campaign);
-    const color = tier ? PRIORITY_TIER_COLOR[tier] : (ZONE_COLOR[b.opportunity_zone] || '#999');
+    const color = tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0';
     const m = L.circleMarker([b.sims_latitude, b.sims_longitude], { radius: rScale(b.latest_dep), color: tier ? '#5B6472' : '#fff', weight: 1.5, fillColor: color, fillOpacity: tier ? 0.95 : 0.75 });
-    m.bindPopup(`<div class="pop-t">${b.namebr}</div><div class="pop-r">${b.citybr}, ${b.stalpbr}</div><div class="pop-r">${ZONE_PLAIN[b.opportunity_zone] || ''}</div><div class="pop-r">Deposits: $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M</div>`);
+    m.bindPopup(`<div class="pop-t">${b.namebr}</div><div class="pop-r">${b.citybr}, ${b.stalpbr}</div><div class="pop-r">${ZONE_PLAIN[b.opportunity_zone] || ''}</div><div class="pop-r">Deposits: $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M</div><div class="pop-r" style="margin-top:4px;color:var(--blue)">Click to see nearby competitors →</div>`);
+    m.on('click', () => onBranchClick(b));
     m.addTo(branchLayer);
   });
 }
-function drawCompetitors(list) {
-  competitorLayer.clearLayers();
-  const minR = list.length <= 6 ? 9 : 4, maxR = list.length <= 6 ? 22 : 20;
-  const rScale = depositRadiusScale(list.map(c => c.info.latest_dep), minR, maxR);
-  list.forEach(c => {
-    const info = c.info;
-    const m = L.marker([info.sims_latitude, info.sims_longitude], { icon: diamondIcon(rScale(info.latest_dep) * 2, ZONE_COLOR[info.opportunity_zone] || '#B84A3E') });
-    m.bindPopup(`<div class="pop-t">${info.namefull}</div><div class="pop-r">Deposits: $${((+info.latest_dep || 0) / 1e6).toFixed(1)}M</div>`);
-    m.addTo(competitorLayer);
+// ── Radius search — click a branch to see the same "Radius Market Summary"
+// panel as BMAP Growth Map: 1/3/10mi tabs, a market-share ring, and a
+// competitor table (type, institution, deposits, YoY, share). Ported from
+// Growth Map's analyzeRadius()/renderRadiusView(), scoped to one branch at
+// a time — competitors are never shown on the map until a branch is
+// clicked, avoiding the "wall of diamonds" overload. ──
+const RADIUS_MILES = [1, 3, 10];
+let radiusAnalysis = null; // {branch, lat, lon, maxR, enriched, myNearby}
+let selectedRadiusMi = 3;
+
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function onBranchClick(branch) {
+  const lat = branch.sims_latitude, lon = branch.sims_longitude;
+  if (!lat || !lon) return;
+
+  g('radiusCardTitle').textContent = `${branch.namebr} — Radius Market Summary`;
+  g('radiusCardBody').innerHTML = 'Loading market data…';
+  g('radiusCard').classList.add('on');
+  g('mapHint').textContent = '';
+
+  const maxR = Math.max(...RADIUS_MILES);
+  const compLinks = await api('branch_competitors_10mi_v2', `my_branch_id=eq.${branch.uninumbr}&distance_miles=lte.${maxR}&select=competitor_branch_uninumbr,competitor_bank_id,competitor_institution_type,distance_miles`);
+  if (!Array.isArray(compLinks)) { g('radiusCardBody').innerHTML = '<div style="padding:14px;color:var(--red);font-size:12px">Could not load competitor data.</div>'; return; }
+
+  const compUninumbrs = [...new Set(compLinks.map(c => c.competitor_branch_uninumbr))];
+  const branchInfoMap = {};
+  for (let i = 0; i < compUninumbrs.length; i += 400) {
+    const chunk = compUninumbrs.slice(i, i + 400);
+    const rows = await api('branch_opportunity_base', `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits,sims_latitude,sims_longitude`);
+    (Array.isArray(rows) ? rows : []).forEach(r => branchInfoMap[r.uninumbr] = r);
+  }
+  const enriched = compLinks.map(c => ({ ...c, info: branchInfoMap[c.competitor_branch_uninumbr] })).filter(c => c.info && c.info.sims_latitude && c.info.sims_longitude);
+
+  // This bank's own OTHER branches nearby — branch_competitors_10mi_v2 only
+  // tracks competitors relative to my_branch_id, not this institution's own
+  // sibling branches, so that's computed client-side from currentBranches.
+  const myNearby = currentBranches
+    .map(b => ({ ...b, dist: haversineMiles(lat, lon, b.sims_latitude, b.sims_longitude) }))
+    .filter(b => b.sims_latitude && b.sims_longitude && b.dist <= maxR);
+
+  radiusAnalysis = { branch, lat, lon, maxR, enriched, myNearby };
+  renderRadius();
+}
+
+function setRadiusMi(mi) { selectedRadiusMi = mi; renderRadius(); }
+
+function renderRadius() {
+  if (!radiusAnalysis) return;
+  const { lat, lon, enriched, myNearby } = radiusAnalysis;
+  const mi = selectedRadiusMi;
+
+  radiusLayer.clearLayers();
+  L.circle([lat, lon], { radius: mi * 1609.34, color: '#083D5F', weight: 1.5, fillOpacity: 0, dashArray: '4,4' }).addTo(radiusLayer);
+  L.circleMarker([lat, lon], { radius: 4, color: '#fff', weight: 1, fillColor: '#083D5F', fillOpacity: 1 }).addTo(radiusLayer);
+
+  const compInRadius = enriched.filter(c => c.distance_miles <= mi);
+  const mineInRadius = myNearby.filter(b => b.dist <= mi);
+
+  if (compInRadius.length) {
+    const rScale = depositRadiusScale(compInRadius.map(c => c.info.latest_dep), 8, 22);
+    compInRadius.forEach(c => {
+      const m = L.marker([c.info.sims_latitude, c.info.sims_longitude], { icon: diamondIcon(rScale(c.info.latest_dep) * 2, ZONE_COLOR[c.info.opportunity_zone] || '#B84A3E') });
+      m.bindPopup(`<div class="pop-t">${c.info.namefull}</div><div class="pop-r">Deposits: $${((+c.info.latest_dep || 0) / 1e6).toFixed(1)}M · YoY: ${((+c.info.yoy_deposits || 0) * 100).toFixed(1)}%</div><div class="pop-r">Distance: ${(+c.distance_miles).toFixed(1)} mi</div>`);
+      m.addTo(radiusLayer);
+    });
+  }
+
+  const compTotal = compInRadius.reduce((a, c) => a + (+c.info.latest_dep || 0), 0);
+  const mineTotal = mineInRadius.reduce((a, b) => a + (+b.latest_dep || 0), 0);
+  const total = compTotal + mineTotal;
+  const sharePct = total > 0 ? (mineTotal / total * 100) : null;
+  const branchCount = compInRadius.length + mineInRadius.length;
+
+  const compGroups = {};
+  compInRadius.forEach(c => {
+    const key = c.competitor_bank_id;
+    if (!compGroups[key]) compGroups[key] = { type: c.competitor_institution_type, name: c.info.namefull, deposits: 0, yoyVals: [] };
+    compGroups[key].deposits += (+c.info.latest_dep || 0);
+    if (c.info.yoy_deposits != null) compGroups[key].yoyVals.push(+c.info.yoy_deposits);
   });
+  const compList = Object.values(compGroups).sort((a, b) => b.deposits - a.deposits);
+  const fmtM = v => '$' + (v / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';
+
+  g('radiusCardBody').innerHTML = `
+    <div class="radius-tabs">${RADIUS_MILES.map(m => `<button class="radius-tab ${m === mi ? 'active' : ''}" onclick="setRadiusMi(${m})">${m} mi</button>`).join('')}</div>
+    <div class="radius-share">
+      <div style="width:56px;height:56px;border-radius:50%;flex-shrink:0;background:conic-gradient(var(--blue) ${Math.min(100, sharePct || 0) * 3.6}deg, var(--border) 0deg);display:flex;align-items:center;justify-content:center">
+        <div style="width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${sharePct != null ? sharePct.toFixed(0) + '%' : '—'}</div>
+      </div>
+      <div>
+        <div class="radius-share-lbl">Market share within ${mi} mi</div>
+        <div style="font-size:12px;margin-top:3px">Your deposits: <b>${fmtM(mineTotal)}</b> of <b>${fmtM(total)}</b> total</div>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${branchCount} branches in range</div>
+      </div>
+    </div>
+    ${compList.length ? `
+    <div style="padding:10px 10px 2px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Competitors — within ${mi} mi (${compList.length})</div>
+    <table class="radius-table">
+      <thead><tr><th>Type</th><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Share</th></tr></thead>
+      <tbody>${compList.map(c => {
+        const avgYoy = c.yoyVals.length ? c.yoyVals.reduce((a, v) => a + v, 0) / c.yoyVals.length : null;
+        const shr = total > 0 ? (c.deposits / total * 100) : null;
+        return `<tr><td>${c.type || '—'}</td><td style="font-weight:600">${c.name}</td><td>${fmtM(c.deposits)}</td><td>${avgYoy != null ? (avgYoy * 100).toFixed(1) + '%' : '—'}</td><td>${shr != null ? shr.toFixed(1) + '%' : '—'}</td></tr>`;
+      }).join('')}</tbody>
+    </table>` : `<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within ${mi} mi.</div>`}`;
+}
+
+function clearRadius() {
+  radiusAnalysis = null;
+  if (radiusLayer) radiusLayer.clearLayers();
+  g('radiusCard') && g('radiusCard').classList.remove('on');
+  g('mapHint') && (g('mapHint').textContent = 'Click a branch to see nearby competitors');
 }
 
 // ── Load bank ──
@@ -483,25 +628,12 @@ async function loadBank(ik) {
   // so a real "vs. last month" number isn't available yet. Worth a follow-up
   // if a monthly-cadence delta is wanted for real, not just framed that way.
 
-  // ── Map ──
+  // ── Map — every branch shown, colored by priority tier; competitors are
+  // never drawn until a specific branch is clicked (radius search), which
+  // avoids the "wall of diamonds" the first screenshot showed. ──
+  clearRadius();
   drawBranches(currentBranches);
   if (currentBranches.length) map.fitBounds(currentBranches.map(b => [b.sims_latitude, b.sims_longitude]), { padding: [40, 40] });
-  const branchIds = currentBranches.map(b => b.uninumbr).filter(Boolean);
-  const compLinkMap = {};
-  for (let i = 0; i < branchIds.length; i += 50) {
-    const chunk = branchIds.slice(i, i + 50);
-    const rows = await api('branch_competitors_10mi_v2', `my_branch_id=in.(${chunk.join(',')})&distance_miles=lte.10&select=competitor_branch_uninumbr,distance_miles`);
-    (Array.isArray(rows) ? rows : []).forEach(r => { const prev = compLinkMap[r.competitor_branch_uninumbr]; if (prev == null || r.distance_miles < prev) compLinkMap[r.competitor_branch_uninumbr] = r.distance_miles; });
-  }
-  const compUninumbrs = Object.keys(compLinkMap);
-  const compInfoMap = {};
-  for (let i = 0; i < compUninumbrs.length; i += 400) {
-    const chunk = compUninumbrs.slice(i, i + 400);
-    const rows = await api('branch_opportunity_base', `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,sims_latitude,sims_longitude`);
-    (Array.isArray(rows) ? rows : []).forEach(r => compInfoMap[r.uninumbr] = r);
-  }
-  const competitors = compUninumbrs.map(id => ({ uninumbr: id, dist: compLinkMap[id], info: compInfoMap[id] })).filter(c => c.info && c.info.sims_latitude && c.info.sims_longitude);
-  drawCompetitors(competitors);
 
   // ── Actions row — real branches, plain language, no invented cards ──
   const byScore = [...currentBranches].sort((a, b) => (+b.opportunity_score || 0) - (+a.opportunity_score || 0));

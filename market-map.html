@@ -637,7 +637,7 @@ async function showTopCityHeatmap(){
     }
   }
 
-  const PAD_DEG=0.035; // ~2.4mi buffer beyond each city's outermost branch
+  const PAD_DEG=0.08; // ~5.5mi buffer beyond each city's outermost branch — bigger, more visible highlight
   heatLayer.clearLayers();
   let overallBounds=null;
 
@@ -660,6 +660,7 @@ async function showTopCityHeatmap(){
         minLat:Math.min(...lats)-PAD_DEG, maxLat:Math.max(...lats)+PAD_DEG,
         minLon:Math.min(...lons)-PAD_DEG, maxLon:Math.max(...lons)+PAD_DEG
       };
+      city._box=box; // kept for label placement below
       overallBounds = overallBounds
         ? overallBounds.extend([[box.minLat,box.minLon],[box.maxLat,box.maxLon]])
         : L.latLngBounds([box.minLat,box.minLon],[box.maxLat,box.maxLon]);
@@ -687,22 +688,24 @@ async function showTopCityHeatmap(){
       }
     }).addTo(heatLayer);
 
-    // Rank labels at each city's own center. Priority badges sit slightly
-    // above their point, Opportunity badges slightly below — when two cities
-    // from different lists are geographically close (e.g. Jackson/Pearl/
-    // Meridian, MS all sit within a short distance of each other), this keeps
-    // their labels from landing exactly on top of one another. Higher-ranked
-    // cities render above lower-ranked ones regardless of list.
-    const vOffset = listType==='dominate' ? 20 : -2;
+    // Badges anchored at the TOP edge of each city's highlighted area, not its
+    // center — the center is buried under the tinted fill and other markers;
+    // the top edge is reliably open space, so the label actually lands
+    // somewhere readable instead of guessing an offset. Text dropped the
+    // repeated "PRIORITY"/"OPPORTUNITY" word — color already carries that via
+    // the legend, so the badge is just rank + city, shorter and less prone
+    // to overlapping its neighbors. Higher-ranked cities render above
+    // lower-ranked ones regardless of list.
     cities.forEach(city=>{
-      const cLat=city.branches.reduce((a,b)=>a+b.sims_latitude,0)/city.branches.length;
-      const cLon=city.branches.reduce((a,b)=>a+b.sims_longitude,0)/city.branches.length;
-      L.marker([cLat,cLon],{
+      const box=city._box;
+      const topLat=box.maxLat;
+      const midLon=(box.minLon+box.maxLon)/2;
+      L.marker([topLat,midLon],{
         zIndexOffset:(4-city.rank)*1000,
         icon:L.divIcon({
           className:'',
-          html:`<div style="background:${style.border};color:#111;font-weight:700;font-size:10px;padding:2px 7px;border-radius:99px;white-space:nowrap;border:1.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${style.label} #${city.rank} ${city.name}</div>`,
-          iconAnchor:[20,vOffset]
+          html:`<div style="background:${style.border};color:#111;font-weight:700;font-size:10.5px;padding:2px 8px;border-radius:99px;white-space:nowrap;border:1.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">#${city.rank} ${city.name}</div>`,
+          iconAnchor:[38,26]
         })
       }).addTo(heatLayer);
     });
@@ -722,6 +725,8 @@ function closeRadiusCard(){
   g('radiusCard').classList.remove('on');
   radiusLayer.clearLayers();
   radiusAnalysis=null;
+  activeRadiusFilter=null;
+  refreshLayerColors();
 }
 
 // geo.branches_master_v2's bank_id is the RSSDID (per the same convention used
@@ -740,6 +745,7 @@ function bankIdFromInstKey(ik){
 const RADIUS_MILES=[1,3,10];
 let selectedRadiusMi=3;
 let radiusAnalysis=null; // {branch, lat, lon, maxR, enriched, myNearby} — fetched once, re-rendered per radius pick
+let activeRadiusFilter=null; // {lat, lon, mi} — when set, drawBranches/drawCompetitors grey out anything outside this radius
 
 // Haversine distance in miles — used to find this bank's OWN nearby branches
 // (branch_competitors_10mi_v2 only lists competitor branches relative to a
@@ -811,6 +817,9 @@ function renderRadiusView(){
   const {branch, lat, lon, enriched, myNearby}=radiusAnalysis;
   const mi=selectedRadiusMi;
 
+  activeRadiusFilter={lat, lon, mi};
+  refreshLayerColors();
+
   radiusLayer.clearLayers();
   L.circle([lat,lon],{radius:mi*1609.34,color:'#083D5F',weight:1.5,fillOpacity:0,dashArray:'4,4'}).addTo(radiusLayer);
   L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#083D5F',fillOpacity:1}).addTo(radiusLayer);
@@ -823,8 +832,9 @@ function renderRadiusView(){
   if(compInRadius.length){
     const rScale=depositRadiusScale(compInRadius.map(c=>c.info.latest_dep),4,20);
     compInRadius.forEach(c=>{
+      const zColor=ZONE_COLOR[c.info.opportunity_zone]||'#B84A3E';
       const marker=L.marker([c.info.sims_latitude,c.info.sims_longitude],{
-        icon:diamondIcon(rScale(c.info.latest_dep)*2,'#B84A3E')
+        icon:diamondIcon(rScale(c.info.latest_dep)*2,zColor)
       });
       marker.bindPopup(`
         <div class="pop-t">${c.info.namefull}</div>
@@ -1104,16 +1114,24 @@ function drawBranches(list){
   list.forEach(b=>{
     const tier = priorityTierOf(b.campaign);
     if(tier) priorityCount++;
-    const color = priorityHighlightOn
-      ? (tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0')
-      : (ZONE_COLOR[b.opportunity_zone]||'#999');
+    const outsideRadius = activeRadiusFilter &&
+      haversineMiles(activeRadiusFilter.lat,activeRadiusFilter.lon,b.sims_latitude,b.sims_longitude) > activeRadiusFilter.mi;
+    let color, strokeColor, fillOpacity;
+    if(outsideRadius){
+      color='#C9CDD3'; strokeColor='#9AA1AC'; fillOpacity=0.45;
+    } else {
+      color = priorityHighlightOn
+        ? (tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0')
+        : (ZONE_COLOR[b.opportunity_zone]||'#999');
+      strokeColor = (priorityHighlightOn && !tier) ? '#5B6472' : '#fff';
+      fillOpacity = priorityHighlightOn ? (tier?0.95:0.6) : 0.9;
+    }
     const persona=branchPersonaMap[b.zipbr];
     const audience=persona?(PERSONA_AUDIENCE[persona]||persona):null;
-    const strokeColor = (priorityHighlightOn && !tier) ? '#5B6472' : '#fff';
     const m=L.circleMarker([b.sims_latitude,b.sims_longitude],{
       radius:rScale(b.latest_dep),
       color:strokeColor,weight:1.5,fillColor:color,
-      fillOpacity: priorityHighlightOn ? (tier?0.95:0.6) : 0.9
+      fillOpacity
     });
     m.bindPopup(`
       <div class="pop-t">${b.namebr}</div>
@@ -1141,8 +1159,11 @@ function drawCompetitors(list){
     // Colored by the competitor branch's own opportunity zone — a single
     // "vulnerability" score doesn't apply network-wide the way it did for one
     // client branch, so this reuses the same Invest/Analyze/Defend/Justify
-    // palette branches use, just rendered as a diamond.
-    const color=ZONE_COLOR[info.opportunity_zone]||'#B84A3E';
+    // palette branches use, just rendered as a diamond. Greyed out entirely
+    // when a radius is active and this competitor falls outside it.
+    const outsideRadius = activeRadiusFilter &&
+      haversineMiles(activeRadiusFilter.lat,activeRadiusFilter.lon,info.sims_latitude,info.sims_longitude) > activeRadiusFilter.mi;
+    const color = outsideRadius ? '#C9CDD3' : (ZONE_COLOR[info.opportunity_zone]||'#B84A3E');
     const m=L.marker([info.sims_latitude,info.sims_longitude],{icon:diamondIcon(rScale(info.latest_dep)*2,color)});
     m.bindPopup(`
       <div class="pop-t">${info.namefull}</div>
@@ -1172,6 +1193,18 @@ function populateCityFilter(){
   cf.innerHTML='<option value="">All Cities</option>'+cities.map(c=>`<option value="${c}">${c}</option>`).join('');
   cf.value=keep;
   cityVal=keep;
+}
+
+// Recolors the main Branches/Competitors layers against the current filters —
+// used when the radius selection changes, so it doesn't re-zoom the map or
+// re-render Persona the way a full applyFilters() would.
+function refreshLayerColors(){
+  const filteredBranches=getFilteredBranches();
+  const filteredCompetitors=competitors.filter(c=>
+    filteredBranches.some(b=>haversineMiles(b.sims_latitude,b.sims_longitude,c.info.sims_latitude,c.info.sims_longitude)<=10)
+  );
+  drawBranches(filteredBranches);
+  drawCompetitors(filteredCompetitors);
 }
 
 async function applyFilters(){

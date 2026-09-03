@@ -6,18 +6,18 @@
 <title>BMAP Market Map</title>
 <link rel="icon" type="image/png" href="https://fggraufaro.github.io/bmap-tools/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--navy:#1a2332;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;--blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;--gray:#F5F5F2;--border:#E0DED8;--text:#1a2332;--muted:#777;--white:#fff;--defend:#854F0B}
+:root{--navy:#083D5F;--amber:#CDD61A;--green:#66CC99;--lgreen:#EAF7F0;--blue:#02A7C2;--lblue:#E3F6F9;--red:#B84A3E;--lred:#FBEEEC;--gray:#F5F5F2;--border:#E0DED8;--text:#213141;--muted:#5C6B75;--white:#fff;--defend:#854F0B}
 html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--gray);color:var(--text);font-size:14px;overflow:hidden}
 
 .header{background:var(--navy);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1200}
 .logo{display:flex;align-items:center;gap:10px}
 .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
 .logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
-.logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
 .hdr-right{display:flex;align-items:center;gap:10px}
 
 .search-wrap{position:relative;width:280px}
@@ -28,8 +28,8 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .dd-item:last-child{border-bottom:none}
 .dd-item:hover{background:#FFFBF2}
 .dd-name{font-size:13px;font-weight:600;color:var(--text)}
-.dd-meta{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:2px}
-.dd-msg{padding:12px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.dd-meta{font-size:10px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;color:var(--muted);margin-top:2px}
+.dd-msg{padding:12px 14px;font-size:11px;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;color:var(--muted)}
 
 .body{position:relative;height:calc(100vh - 60px)}
 #map{position:absolute;inset:0;background:#e8ebee}
@@ -41,7 +41,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .layer-row input{cursor:pointer}
 .layer-row .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .layer-row .lbl{flex:1;font-weight:600}
-.layer-row .count{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)}
+.layer-row .count{font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;font-size:10px;color:var(--muted)}
 
 .legend{position:absolute;bottom:14px;left:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:10px 14px;font-size:11px;max-width:220px;display:none}
 .legend.on{display:block}
@@ -55,7 +55,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .radius-card #radiusCardBody{overflow-y:auto}
 .radius-table{width:100%;border-collapse:collapse;font-size:12px}
 .radius-table th{text-align:left;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
-.radius-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace}
+.radius-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
 .radius-table tr:last-child td{border-bottom:none}
 .radius-share-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:4px;width:80px}
 .radius-share-fill{height:100%;background:var(--blue)}
@@ -67,7 +67,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .card-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px}
 .card-row:last-child{border-bottom:none}
 .card-row .k{color:var(--muted)}
-.card-row .v{font-weight:700;font-family:'IBM Plex Mono',monospace}
+.card-row .v{font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
 
 .empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;text-align:center;pointer-events:none}
 .empty-state b{color:var(--navy);font-size:16px}
@@ -88,7 +88,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .leaflet-popup-content-wrapper{border-radius:8px;font-family:'Inter',system-ui,sans-serif}
 .pop-t{font-weight:700;font-size:13px;margin-bottom:4px}
 .pop-r{font-size:11.5px;color:var(--muted);margin-top:2px}
-.pop-r b{color:var(--text);font-family:'IBM Plex Mono',monospace}
+.pop-r b{color:var(--text);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -115,7 +115,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div>
       <div class="logo-text">BMAP MARKET MAP</div>
       <div class="logo-sub">Branches · Competitors · Persona — Verlocity Intelligence Hub</div>
-      <div id="audiencePhrase" style="display:none;color:#F5A623;font-size:11.5px;font-weight:600;margin-top:3px;max-width:520px"></div>
+      <div id="audiencePhrase" style="display:none;color:#8FA015;font-size:11.5px;font-weight:600;margin-top:3px;max-width:520px"></div>
     </div>
   </div>
   <div class="hdr-right">
@@ -184,9 +184,9 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 
   <div class="legend" id="legendPriority">
     <div class="legend-title">Branch Priority</div>
-    <div class="legend-item"><span class="legend-sw" style="background:#F5A623"></span>Top Priority</div>
-    <div class="legend-item"><span class="legend-sw" style="background:#27500A"></span>Next</div>
-    <div class="legend-item"><span class="legend-sw" style="background:#185FA5"></span>Opportunity</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#CDD61A"></span>Top Priority</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#66CC99"></span>Next</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#02A7C2"></span>Opportunity</div>
     <div class="legend-item"><span class="legend-sw" style="background:#8B93A0;border:1.5px solid #5B6472"></span>Not in priority list</div>
     <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted)">Circle size = deposits</div>
   </div>
@@ -238,7 +238,7 @@ let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, dd
 let zipCityCache={};
 let priorityHighlightOn=false;
 let stateVal='', cityVal='';
-const ZONE_COLOR={Invest:'#27500A',Analyze:'#185FA5',Defend:'#854F0B',Justify:'#A32D2D'};
+const ZONE_COLOR={Invest:'#66CC99',Analyze:'#02A7C2',Defend:'#854F0B',Justify:'#B84A3E'};
 const PERSONA_COLOR={
   'Healthcare Hubs':'#0EA5A0','Knowledge Communities':'#6366F1','Makers & Trades':'#D97706',
   'Service Backbone':'#64748B','Urban Professionals':'#DB2777','Growing Families':'#16A34A',
@@ -273,7 +273,7 @@ function priorityTierOf(campaign){
   return null;
 }
 const PRIORITY_TIER_LABEL={top:'Top Priority',next:'Next',opportunity:'Opportunity'};
-const PRIORITY_TIER_COLOR={top:'#F5A623',next:'#27500A',opportunity:'#185FA5'};
+const PRIORITY_TIER_COLOR={top:'#CDD61A',next:'#66CC99',opportunity:'#02A7C2'};
 
 function bootApp(){
   initMap();
@@ -559,7 +559,7 @@ async function showTopCityHeatmap(){
     L.marker([cLat,cLon],{
       icon:L.divIcon({
         className:'',
-        html:`<div style="background:#9D174D;color:#fff;font-weight:700;font-size:11px;padding:2px 7px;border-radius:99px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'IBM Plex Mono',monospace">#${city.rank} ${city.name}</div>`,
+        html:`<div style="background:#9D174D;color:#fff;font-weight:700;font-size:11px;padding:2px 7px;border-radius:99px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">#${city.rank} ${city.name}</div>`,
         iconAnchor:[20,10]
       })
     }).addTo(heatLayer);
@@ -668,8 +668,8 @@ function renderRadiusView(){
   const mi=selectedRadiusMi;
 
   radiusLayer.clearLayers();
-  L.circle([lat,lon],{radius:mi*1609.34,color:'#1a2332',weight:1.5,fillOpacity:0,dashArray:'4,4'}).addTo(radiusLayer);
-  L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#1a2332',fillOpacity:1}).addTo(radiusLayer);
+  L.circle([lat,lon],{radius:mi*1609.34,color:'#083D5F',weight:1.5,fillOpacity:0,dashArray:'4,4'}).addTo(radiusLayer);
+  L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#083D5F',fillOpacity:1}).addTo(radiusLayer);
 
   const compInRadius=enriched.filter(c=>c.distance_miles<=mi);
   const mineInRadius=myNearby.filter(b=>b.dist<=mi);
@@ -680,7 +680,7 @@ function renderRadiusView(){
     const rScale=depositRadiusScale(compInRadius.map(c=>c.info.latest_dep),4,20);
     compInRadius.forEach(c=>{
       const marker=L.marker([c.info.sims_latitude,c.info.sims_longitude],{
-        icon:diamondIcon(rScale(c.info.latest_dep)*2,'#A32D2D')
+        icon:diamondIcon(rScale(c.info.latest_dep)*2,'#B84A3E')
       });
       marker.bindPopup(`
         <div class="pop-t">${c.info.namefull}</div>
@@ -719,12 +719,12 @@ function renderRadiusView(){
   const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
   g('radiusCardBody').innerHTML=`
     <div style="padding:14px 16px 4px;display:flex;gap:6px">
-      ${RADIUS_MILES.map(m=>`<button onclick="setRadiusMi(${m})" style="flex:1;padding:8px 0;border-radius:8px;border:1.5px solid ${m===mi?'var(--navy)':'var(--border)'};background:${m===mi?'var(--navy)':'#fff'};color:${m===mi?'#fff':'var(--navy)'};font-weight:700;font-size:12.5px;cursor:pointer;font-family:'IBM Plex Mono',monospace">${m} mi</button>`).join('')}
+      ${RADIUS_MILES.map(m=>`<button onclick="setRadiusMi(${m})" style="flex:1;padding:8px 0;border-radius:8px;border:1.5px solid ${m===mi?'var(--navy)':'var(--border)'};background:${m===mi?'var(--navy)':'#fff'};color:${m===mi?'#fff':'var(--navy)'};font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${m} mi</button>`).join('')}
     </div>
 
     <div style="padding:16px;display:flex;gap:18px;align-items:center;border-bottom:1px solid var(--border);margin-top:8px">
       <div style="width:64px;height:64px;border-radius:50%;flex-shrink:0;background:conic-gradient(var(--blue) ${Math.min(100,sharePct||0)*3.6}deg, var(--border) 0deg);display:flex;align-items:center;justify-content:center">
-        <div style="width:46px;height:46px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace">${sharePct!=null?sharePct.toFixed(0)+'%':'—'}</div>
+        <div style="width:46px;height:46px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${sharePct!=null?sharePct.toFixed(0)+'%':'—'}</div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700">Market Share within ${mi} mi</div>
@@ -997,7 +997,7 @@ function drawCompetitors(list){
     // "vulnerability" score doesn't apply network-wide the way it did for one
     // client branch, so this reuses the same Invest/Analyze/Defend/Justify
     // palette branches use, just rendered as a diamond.
-    const color=ZONE_COLOR[info.opportunity_zone]||'#A32D2D';
+    const color=ZONE_COLOR[info.opportunity_zone]||'#B84A3E';
     const m=L.marker([info.sims_latitude,info.sims_longitude],{icon:diamondIcon(rScale(info.latest_dep)*2,color)});
     m.bindPopup(`
       <div class="pop-t">${info.namefull}</div>

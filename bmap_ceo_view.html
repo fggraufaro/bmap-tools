@@ -42,25 +42,25 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 #empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;color:var(--muted);gap:8px}
 #empty .e-t{font-size:15px;font-weight:700;color:var(--navy)}
 
-#main{display:none;flex-direction:column;max-width:1180px;margin:0 auto;padding:22px 28px 60px;gap:20px}
+#main{display:none;flex-direction:column;max-width:1400px;margin:0 auto;padding:16px 20px 40px;gap:14px}
 
 /* ── Verdict — one sentence, not a numbers dashboard (req #2) ── */
-.verdict-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px 26px}
-.v-bankline{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px}
-.v-sentence{font-size:20px;font-weight:600;color:var(--navy);line-height:1.4;margin-bottom:18px}
-.v-stats{display:flex;gap:28px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border)}
+.verdict-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+.v-bankline{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.v-sentence{font-size:19px;font-weight:600;color:var(--navy);line-height:1.35;margin-bottom:12px}
+.v-stats{display:flex;gap:28px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--border)}
 .v-stat .val{font-size:22px;font-weight:800;color:var(--navy)}
 .v-stat .delta{font-size:12px;font-weight:700;margin-top:2px}
 .v-stat .lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-top:4px}
 
 /* ── Map + Rate Radar side by side ── */
-.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px}
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
 @media (max-width:860px){.grid2{grid-template-columns:1fr}}
 .panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
 .panel-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .panel-t{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em}
 .panel-tag{font-size:10px;color:var(--muted)}
-#map{height:420px;width:100%}
+#map{height:600px;width:100%}
 .map-wrap{position:relative;overflow:hidden}
 .map-legend{position:absolute;bottom:10px;left:10px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:10.5px;z-index:500;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .legend-t{font-weight:700;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
@@ -79,7 +79,7 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 .radius-table{width:100%;border-collapse:collapse;font-size:10.5px}
 .radius-table th{text-align:left;padding:6px 8px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--border)}
 .radius-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
-.rr-body{padding:14px 18px;max-height:420px;overflow-y:auto}
+.rr-body{padding:14px 18px;max-height:600px;overflow-y:auto}
 .rr-row{padding:10px 0;border-bottom:1px solid var(--border)}
 .rr-row:last-child{border-bottom:none}
 .rr-name{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px}

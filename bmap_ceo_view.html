@@ -102,6 +102,18 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 .action-tier{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .action-branch{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:5px}
 .action-why{font-size:12px;color:var(--text);line-height:1.45}
+.action-move{font-size:12px;color:var(--navy);line-height:1.45;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+.action-move b{font-weight:800}
+.action-status{margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status-btn{background:var(--gray);border:1px solid var(--border);border-radius:14px;padding:5px 11px;font-size:10.5px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit}
+.status-btn:hover{background:var(--lblue)}
+.status-btn.on{background:var(--green);border-color:var(--green);color:#fff}
+.status-btn.off{background:var(--gray);border-color:var(--border);color:var(--muted)}
+.status-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px}
+.status-badge.in-progress{background:var(--lgreen);color:#1E7A4C}
+.status-badge.dismissed{background:var(--gray);color:var(--muted)}
+.section-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px}
+.next-steps{display:flex;flex-direction:column}
 
 /* ── Live-automation button — the moment it becomes obvious this is a live platform (req #7) ── */
 .story-cta{background:var(--navy);border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -116,6 +128,10 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 .story-box-hdr b{color:var(--navy);font-size:13px}
 .story-close{cursor:pointer;color:var(--muted);font-size:18px}
 .story-body{padding:18px 20px;overflow-y:auto;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.story-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0}
+.story-action-btn{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:8px 16px;font-size:11.5px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit}
+.story-action-btn:hover{background:var(--lblue)}
+.story-action-btn.ok{background:var(--lgreen);border-color:var(--green);color:#1E7A4C}
 
 .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -249,14 +265,17 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
       </div>
     </div>
 
-    <div class="actions" id="actionsRow"></div>
+    <div class="next-steps">
+      <div class="section-lbl">What's next — how to win these deposits</div>
+      <div class="actions" id="actionsRow"></div>
+    </div>
 
     <div class="story-cta">
       <div>
-        <div class="story-cta-t">See what the platform can generate on demand</div>
-        <div class="story-cta-s">This narrative is written live, right now, from your current branch data — not a canned report.</div>
+        <div class="story-cta-t">Want the full game plan?</div>
+        <div class="story-cta-s">Generate a written breakdown of exactly where and how to win deposits this month — written live, right now, from your current branch data.</div>
       </div>
-      <button class="story-btn" id="storyBtn" onclick="generateMarketStory()">Generate Market Story →</button>
+      <button class="story-btn" id="storyBtn" onclick="generateMarketStory()">Generate My Game Plan →</button>
     </div>
   </div>
 </div>
@@ -265,6 +284,10 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
   <div class="story-box">
     <div class="story-box-hdr"><b>Where and How to Win Deposits</b><span class="story-close" onclick="closeStory()">✕</span></div>
     <div class="story-body" id="storyBody"></div>
+    <div class="story-footer">
+      <button class="story-action-btn" id="storyCopyBtn" onclick="copyStory()">Copy</button>
+      <button class="story-action-btn" onclick="downloadStory()">Download</button>
+    </div>
   </div>
 </div>
 
@@ -401,6 +424,19 @@ const ZONE_PLAIN = {
 const TOP_PRIORITY_CAMPAIGNS = ['Aggressive Acquisition', 'Urgent Competitive Push'];
 const NEXT_CAMPAIGNS = ['Market Domination', 'Grow Share'];
 const OPPORTUNITY_CAMPAIGNS = ['Growth Opportunity', 'Niche Opportunity'];
+
+// ── "So what do I actually do" — the question a CEO asks right after the
+// verdict lands. Translated from the same 16-play matrix that drives the
+// full BMAP assessment (PLAY_MEDIA_BRIEF), condensed to one plain-language
+// instruction per play instead of a media-planning brief. ──
+const CAMPAIGN_ACTION = {
+  'Aggressive Acquisition': 'Fund a new-account campaign here — CDs or high-yield savings, targeted within a few miles of the branch.',
+  'Urgent Competitive Push': 'Go after this competitor\u2019s customers directly with a switching offer before they gain more ground.',
+  'Market Domination': 'Increase local marketing to convert existing local demand into new accounts before a competitor moves in.',
+  'Grow Share': 'Push CDs or savings products to households already banking nearby — this branch can take more of the market.',
+  'Growth Opportunity': 'Worth a targeted campaign once you\u2019ve confirmed which nearby audience is driving the opportunity.',
+  'Niche Opportunity': 'A specific local audience is driving this — confirm who before committing a media budget.'
+};
 function priorityTierOf(campaign) {
   if (TOP_PRIORITY_CAMPAIGNS.includes(campaign)) return 'top';
   if (NEXT_CAMPAIGNS.includes(campaign)) return 'next';
@@ -636,6 +672,32 @@ async function loadBank(ik) {
   if (currentBranches.length) map.fitBounds(currentBranches.map(b => [b.sims_latitude, b.sims_longitude]), { padding: [40, 40] });
 
   // ── Actions row — real branches, plain language, no invented cards ──
+  currentIk = ik;
+  renderActionsRow();
+
+  // ── Rate Radar — real named competitors, with a trend line, careful language ──
+  loadRateRadar(ik);
+}
+
+// ── Action status — lets the CEO mark a recommendation as "in progress" or
+// "not right now" right in the tool, instead of the card just being
+// read-only. Stored in localStorage, scoped to this browser: there's no
+// write-back endpoint on the Railway API for this yet, so it's local-only
+// for now, not synced across devices or visible to the Verlocity team.
+// Worth a real backend field if this proves useful — this is the fast,
+// no-new-infrastructure version. ──
+let currentIk = null;
+function actionStatusKey(uninumbr) { return `verlocity_action_status:${currentIk}:${uninumbr}`; }
+function getActionStatus(uninumbr) { try { return localStorage.getItem(actionStatusKey(uninumbr)); } catch (e) { return null; } }
+function setActionStatus(uninumbr, status) {
+  try {
+    const key = actionStatusKey(uninumbr);
+    if (localStorage.getItem(key) === status) localStorage.removeItem(key); // click again to clear
+    else localStorage.setItem(key, status);
+  } catch (e) { /* localStorage unavailable — status just won't persist */ }
+  renderActionsRow();
+}
+function renderActionsRow() {
   const byScore = [...currentBranches].sort((a, b) => (+b.opportunity_score || 0) - (+a.opportunity_score || 0));
   const tiers = { top: null, next: null, opportunity: null };
   byScore.forEach(b => { const t = priorityTierOf(b.campaign); if (t && !tiers[t]) tiers[t] = b; });
@@ -644,12 +706,16 @@ async function loadBank(ik) {
   actionOrder.forEach(([tier, cls]) => {
     const b = tiers[tier];
     if (!b) return;
-    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div></div>`;
+    const move = CAMPAIGN_ACTION[b.campaign];
+    const status = getActionStatus(b.uninumbr);
+    const statusHtml = status === 'in_progress'
+      ? `<div class="action-status"><span class="status-badge in-progress">✓ In progress</span><button class="status-btn" onclick="setActionStatus('${b.uninumbr}','in_progress')">Undo</button></div>`
+      : status === 'dismissed'
+      ? `<div class="action-status"><span class="status-badge dismissed">Not right now</span><button class="status-btn" onclick="setActionStatus('${b.uninumbr}','dismissed')">Undo</button></div>`
+      : `<div class="action-status"><button class="status-btn on" onclick="setActionStatus('${b.uninumbr}','in_progress')">Mark as in progress</button><button class="status-btn off" onclick="setActionStatus('${b.uninumbr}','dismissed')">Not right now</button></div>`;
+    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}</div>` : ''}${statusHtml}</div>`;
   });
   g('actionsRow').innerHTML = actionsHtml || '<div class="rr-empty">No flagged branches this month.</div>';
-
-  // ── Rate Radar — real named competitors, with a trend line, careful language ──
-  loadRateRadar(ik);
 }
 
 // ── Rate Radar — named institutions, live crawled rates, plus a small trend
@@ -746,6 +812,28 @@ Critical language rule: only state what the data actually shows. A deposit decli
   }
 }
 function closeStory() { g('storyOverlay').classList.remove('on'); }
+function copyStory() {
+  const text = g('storyBody').textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = g('storyCopyBtn');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1800);
+  });
+}
+function downloadStory() {
+  const text = g('storyBody').textContent;
+  if (!text) return;
+  const bankName = (g('hSub').textContent || 'Verlocity').replace(/[^a-z0-9]+/gi, '-');
+  const date = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${bankName}-deposit-game-plan-${date}.txt`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 g('si').addEventListener('input', e => {
   clearTimeout(ddTimer);

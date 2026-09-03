@@ -14,7 +14,14 @@
 /* Brand palette — verbatim from BMAP Growth Map / Verlocity_Brand_Guidelines_R2.pdf,
    not the older off-brand red/green used in the original Lite Hub prototype. */
 :root{--navy:#083D5F;--amber:#CDD61A;--green:#66CC99;--lgreen:#EAF7F0;--blue:#02A7C2;--lblue:#E3F6F9;--red:#B84A3E;--lred:#FBEEEC;--gray:#F5F5F2;--border:#E0DED8;--text:#213141;--muted:#5C6B75;--white:#fff}
-html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;background:var(--gray);color:var(--text);font-size:14px;font-variant-numeric:tabular-nums}
+html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;background:var(--gray);color:var(--text);font-size:14px;font-variant-numeric:tabular-nums;zoom:0.8}
+/* zoom:0.8 reproduces exactly the 80% browser-zoom look confirmed as correct —
+   simpler and safer than rescaling every font-size/padding value by hand, and
+   (unlike a CSS transform) the browser reflows at this size before Leaflet
+   measures the map container, so it won't reintroduce the earlier grey-tile
+   bug. Chromium/Edge/Safari support `zoom`; Firefox doesn't, and would just
+   render at 100% instead of erroring — worth confirming this is viewed in a
+   Chromium-based browser before relying on it everywhere it gets shared. */
 /* Scrollable by design (req #9) — this is browsed on the client's own time, not a locked live-demo viewport. */
 
 /* ── Access gate — same Railway session auth as the full Hub ──── */

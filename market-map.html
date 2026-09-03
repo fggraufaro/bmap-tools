@@ -165,8 +165,12 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     <div class="layer-row" id="rowHeatmap">
       <input type="checkbox" id="toggleHeatmap">
       <span class="dot" style="background:#DB2777"></span>
-      <span class="lbl">Heatmap — Top 10 Cities</span>
-      <span class="count" id="heatmapCityName" style="font-size:9.5px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+      <span class="lbl">Top Cities to Invest</span>
+      <span class="count" id="heatmapCityName" style="font-size:9.5px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+    </div>
+    <div style="padding:0 12px 10px;display:flex;gap:12px;font-size:10px;color:var(--muted)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#DB2777;display:inline-block"></span>Priority</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#66CC99;display:inline-block"></span>Opportunity</span>
     </div>
     <div style="padding:10px 12px">
       <button class="story-btn" id="storyBtn">📊 Generate Market Story</button>
@@ -465,27 +469,75 @@ function initMap(){
 
 function closeCard(){g('zipCard').classList.remove('on');}
 
-let topCitiesInfo=null; // array of {name, branches, totalScore, rank} — top N cities by total opportunity score
+let topCitiesInfo=null; // {dominate:[...top3], opportunity:[...top3]} — split by play strength
 
-// Ranks by SUM of opportunity_score across a bank's branches in each city —
-// i.e. the city with the most concentrated growth opportunity, not just the
-// most branches or the single highest-scoring branch.
-function computeTopCities(branchList, n=10){
+// Same underlying formula as the Hub's renderCities() in context-generator.html:
+// score = Σ over branches (play weight × deposit-size-norm × competitor-vulnerability).
+// Split into two independent rankings instead of one blended score, because a
+// CEO asks two different questions: "where am I already strong and should
+// extend that" (weight 10/6 plays) vs. "where's the opportunity even if I'm not
+// strong there yet" (weight 4 plays) — the same distinction the play-tier
+// system already draws for individual branches, just applied per city.
+const PLAY_WEIGHT={
+  'Aggressive Acquisition':10,'Urgent Competitive Push':10,
+  'Market Domination':6,'Grow Share':6,
+  'Growth Opportunity':4,'Niche Opportunity':4
+};
+
+function computeTopCities(branchList, n=3){
+  // Vulnerability ranked against the FULL network (not just visible branches)
+  // so "vulnerable" has a stable meaning — matches the Hub's approach.
+  const knownYoy = branchList.map(b=>b.avg_comp_yoy).filter(v=>v!==null&&v!==undefined&&v!=='').map(Number).sort((a,b)=>a-b);
+  const vulnFactor = b=>{
+    const v=b.avg_comp_yoy;
+    if(v===null||v===undefined||v===''||!knownYoy.length) return 0.5;
+    const rank=knownYoy.filter(x=>x<=+v).length;
+    return 1-(rank/knownYoy.length);
+  };
+
   const groups={};
   branchList.forEach(b=>{
     if(!b.sims_latitude || !b.sims_longitude) return;
-    const key=b.metro || `${b.citybr}, ${b.stalpbr}`;
-    if(!groups[key]) groups[key]={name:key, branches:[], totalScore:0};
+    const key=`${b.citybr}, ${b.stalpbr}`;
+    if(!groups[key]) groups[key]={name:key, branches:[]};
     groups[key].branches.push(b);
-    groups[key].totalScore+=(+b.opportunity_score||0);
   });
-  const arr=Object.values(groups);
-  arr.sort((a,b)=>b.totalScore-a.totalScore);
-  return arr.slice(0,n).map((c,i)=>({...c, rank:i+1}));
+
+  const scoreCity = (branches, tierMatch) => branches.reduce((sum,b)=>{
+    const tier=PLAY_WEIGHT[b.campaign];
+    if(!tierMatch(tier)) return sum;
+    const sizeNorm=(+b.deposit_size_norm||0)/100;
+    return sum + tier*sizeNorm*vulnFactor(b);
+  },0);
+
+  const cityBase = Object.values(groups).map(c=>{
+    let topPriorityN=0, nextN=0, oppN=0;
+    c.branches.forEach(b=>{
+      const tier=PLAY_WEIGHT[b.campaign];
+      if(tier===10) topPriorityN++; else if(tier===6) nextN++; else if(tier===4) oppN++;
+    });
+    const totalDep=c.branches.reduce((a,b)=>a+(+b.latest_dep||0),0);
+    const mktSizes=c.branches.map(b=>+b.total_deposits_10mi||0).filter(v=>v>0);
+    const avgMktSize=mktSizes.length?mktSizes.reduce((a,v)=>a+v,0)/mktSizes.length:null;
+    const shareOfMkt=avgMktSize?totalDep/avgMktSize:null;
+    const dominateScore=scoreCity(c.branches, t=>t===10||t===6);
+    const opportunityScore=scoreCity(c.branches, t=>t===4);
+    return {...c, dominateScore, opportunityScore, topPriorityN, nextN, oppN, totalDep, avgMktSize, shareOfMkt};
+  });
+
+  const dominate = cityBase.filter(c=>c.dominateScore>0)
+    .sort((a,b)=>b.dominateScore-a.dominateScore).slice(0,n)
+    .map((c,i)=>({...c, rank:i+1, score:c.dominateScore, listType:'dominate'}));
+
+  const opportunity = cityBase.filter(c=>c.opportunityScore>0)
+    .sort((a,b)=>b.opportunityScore-a.opportunityScore).slice(0,n)
+    .map((c,i)=>({...c, rank:i+1, score:c.opportunityScore, listType:'opportunity'}));
+
+  return {dominate, opportunity};
 }
 
 async function showTopCityHeatmap(){
-  if(!topCitiesInfo || !topCitiesInfo.length){
+  if(!topCitiesInfo || (!topCitiesInfo.dominate.length && !topCitiesInfo.opportunity.length)){
     g('heatmapCityName').textContent='no data';
     return;
   }
@@ -506,67 +558,73 @@ async function showTopCityHeatmap(){
     }
   }
 
-  // Each city gets its own box, sized to that city's own branch spread plus a
-  // buffer — not unioned across cities, so city #1 and city #7 don't bleed
-  // into each other's shape. If a zip somehow falls in two cities' boxes, it
-  // keeps whichever rank is better (lower number = higher priority).
   const PAD_DEG=0.035; // ~2.4mi buffer beyond each city's outermost branch
-  const rankByZip={};
+  heatLayer.clearLayers();
   let overallBounds=null;
-  topCitiesInfo.forEach(city=>{
-    const lats=city.branches.map(b=>b.sims_latitude);
-    const lons=city.branches.map(b=>b.sims_longitude);
-    const box={
-      minLat:Math.min(...lats)-PAD_DEG, maxLat:Math.max(...lats)+PAD_DEG,
-      minLon:Math.min(...lons)-PAD_DEG, maxLon:Math.max(...lons)+PAD_DEG
-    };
-    overallBounds = overallBounds
-      ? overallBounds.extend([[box.minLat,box.minLon],[box.maxLat,box.maxLon]])
-      : L.latLngBounds([box.minLat,box.minLon],[box.maxLat,box.maxLon]);
-    topoData.features.forEach(f=>{
-      const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
-      if(Number.isNaN(c[1])) return;
-      if(c[1]>=box.minLat && c[1]<=box.maxLat && c[0]>=box.minLon && c[0]<=box.maxLon){
-        const zip=f.properties.ZCTA5CE10;
-        const prev=rankByZip[zip];
-        if(!prev || city.rank<prev.rank) rankByZip[zip]={rank:city.rank, city:city.name};
+
+  // Each list (Priority / Opportunity) gets its own color and its own set of
+  // city boxes, sized to that city's actual branch spread — a city can appear
+  // in both lists (strong in some branches, upside in others), in which case
+  // both colors render there, which is accurate rather than a conflict to resolve.
+  const LIST_STYLE={
+    dominate:{fill:'#DB2777',border:'#9D174D',label:'PRIORITY'},
+    opportunity:{fill:'#66CC99',border:'#1E7A4C',label:'OPPORTUNITY'}
+  };
+
+  Object.entries(LIST_STYLE).forEach(([listType,style])=>{
+    const cities=topCitiesInfo[listType]||[];
+    const rankByZip={};
+    cities.forEach(city=>{
+      const lats=city.branches.map(b=>b.sims_latitude);
+      const lons=city.branches.map(b=>b.sims_longitude);
+      const box={
+        minLat:Math.min(...lats)-PAD_DEG, maxLat:Math.max(...lats)+PAD_DEG,
+        minLon:Math.min(...lons)-PAD_DEG, maxLon:Math.max(...lons)+PAD_DEG
+      };
+      overallBounds = overallBounds
+        ? overallBounds.extend([[box.minLat,box.minLon],[box.maxLat,box.maxLon]])
+        : L.latLngBounds([box.minLat,box.minLon],[box.maxLat,box.maxLon]);
+      topoData.features.forEach(f=>{
+        const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
+        if(Number.isNaN(c[1])) return;
+        if(c[1]>=box.minLat && c[1]<=box.maxLat && c[0]>=box.minLon && c[0]<=box.maxLon){
+          const zip=f.properties.ZCTA5CE10;
+          const prev=rankByZip[zip];
+          if(!prev || city.rank<prev.rank) rankByZip[zip]={rank:city.rank, city:city.name};
+        }
+      });
+    });
+
+    const inBox=topoData.features.filter(f=>rankByZip[f.properties.ZCTA5CE10]);
+    L.geoJSON({type:'FeatureCollection',features:inBox},{
+      style:f=>{
+        const info=rankByZip[f.properties.ZCTA5CE10];
+        const fillOpacity=Math.max(0.16, 0.48-(info.rank-1)*0.09);
+        return {color:style.border,weight:1,opacity:0.55,fillColor:style.fill,fillOpacity};
+      },
+      onEachFeature:(f,layer)=>{
+        const info=rankByZip[f.properties.ZCTA5CE10];
+        layer.bindTooltip(`${style.label} #${info.rank} — ${info.city}`,{sticky:true});
       }
+    }).addTo(heatLayer);
+
+    // Rank labels at each city's own center.
+    cities.forEach(city=>{
+      const cLat=city.branches.reduce((a,b)=>a+b.sims_latitude,0)/city.branches.length;
+      const cLon=city.branches.reduce((a,b)=>a+b.sims_longitude,0)/city.branches.length;
+      L.marker([cLat,cLon],{
+        icon:L.divIcon({
+          className:'',
+          html:`<div style="background:${style.border};color:#fff;font-weight:700;font-size:10.5px;padding:2px 7px;border-radius:99px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${style.label} #${city.rank} ${city.name}</div>`,
+          iconAnchor:[20,10]
+        })
+      }).addTo(heatLayer);
     });
   });
 
-  const inBox=topoData.features.filter(f=>rankByZip[f.properties.ZCTA5CE10]);
-
-  heatLayer.clearLayers();
-  L.geoJSON({type:'FeatureCollection',features:inBox},{
-    style:f=>{
-      const info=rankByZip[f.properties.ZCTA5CE10];
-      // Rank 1 darkest/most opaque, rank 10 lightest — same hue throughout so
-      // it still reads as one coherent "target cities" layer.
-      const fillOpacity=Math.max(0.14, 0.5-(info.rank-1)*0.035);
-      return {color:'#9D174D',weight:1,opacity:0.55,fillColor:'#DB2777',fillOpacity};
-    },
-    onEachFeature:(f,layer)=>{
-      const info=rankByZip[f.properties.ZCTA5CE10];
-      layer.bindTooltip(`#${info.rank} — ${info.city}`,{sticky:true});
-    }
-  }).addTo(heatLayer);
-
-  // Rank labels at each city's own center, so overlapping/adjacent cities are
-  // still individually identifiable even where their shading looks similar.
-  topCitiesInfo.forEach(city=>{
-    const cLat=city.branches.reduce((a,b)=>a+b.sims_latitude,0)/city.branches.length;
-    const cLon=city.branches.reduce((a,b)=>a+b.sims_longitude,0)/city.branches.length;
-    L.marker([cLat,cLon],{
-      icon:L.divIcon({
-        className:'',
-        html:`<div style="background:#9D174D;color:#fff;font-weight:700;font-size:11px;padding:2px 7px;border-radius:99px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">#${city.rank} ${city.name}</div>`,
-        iconAnchor:[20,10]
-      })
-    }).addTo(heatLayer);
-  });
-
   heatLayer.addTo(map);
-  g('heatmapCityName').textContent=`${topCitiesInfo.length} cities`;
+  const dN=topCitiesInfo.dominate.length, oN=topCitiesInfo.opportunity.length;
+  g('heatmapCityName').textContent=`${dN} priority · ${oN} opportunity`;
   if(overallBounds) map.fitBounds(overallBounds,{padding:[40,40]});
 }
 
@@ -1070,22 +1128,11 @@ async function loadBank(ik){
   stateVal='';cityVal='';
 
   branches = await api('branch_opportunity_base',
-    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,matrix_quadrant,campaign,priority_tier,priority_score,latest_dep,yoy_deposits&limit=2000`);
+    `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,matrix_quadrant,campaign,priority_tier,priority_score,latest_dep,yoy_deposits,deposit_size_norm,avg_comp_yoy,total_deposits_10mi&limit=2000`);
   branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
   populateFilters();
-  // Metro area, not raw citybr — branches in Boylston/West Boylston/Clinton, MA
-  // all say different citybr values but are the same Worcester, MA metro. Using
-  // citybr alone would split one real market into several undersized groups.
-  const brUninumbrs=branches.map(b=>b.uninumbr).filter(Boolean);
-  const metroMap={};
-  for(let i=0;i<brUninumbrs.length;i+=400){
-    const chunk=brUninumbrs.slice(i,i+400);
-    const rows=await api('vw_branch_opportunity_cbsa',`uninumbr=in.(${chunk.join(',')})&select=uninumbr,metro`);
-    (Array.isArray(rows)?rows:[]).forEach(r=>metroMap[r.uninumbr]=r.metro);
-  }
-  branches.forEach(b=>{ b.metro = metroMap[b.uninumbr] || `${b.citybr}, ${b.stalpbr}`; });
 
-  topCitiesInfo=computeTopCities(branches, 10);
+  topCitiesInfo=computeTopCities(branches, 3);
 
   // One batched persona lookup for every branch's own zip — not one call per branch,
   // so this is a single fast query regardless of network size, no AI tokens involved.

@@ -516,6 +516,21 @@ const CAMPAIGN_ACTION = {
   'Niche Opportunity': 'A specific local audience is driving this — confirm who before committing a media budget.'
 };
 
+// ── Per-campaign "why" text for the action cards. ZONE_PLAIN alone isn't
+// specific enough here: multiple campaigns across different priority tiers
+// share the same opportunity_zone (e.g. Market Domination and Growth
+// Opportunity are both "Invest"), which produced identical card copy for
+// branches sitting in different tiers. Keying off campaign instead of zone
+// gives every tier its own sentence. ──
+const CAMPAIGN_WHY = {
+  'Aggressive Acquisition': 'A branch losing ground fast — the clearest case for new-account investment',
+  'Urgent Competitive Push': 'A branch under direct competitive pressure, worth defending before you lose more ground',
+  'Market Domination': 'A branch where local demand supports pushing harder for new accounts',
+  'Grow Share': 'A branch with room to take more of the local market',
+  'Growth Opportunity': 'A branch showing early signs of opportunity, worth a targeted campaign once confirmed',
+  'Niche Opportunity': 'A branch where a specific local audience may be worth targeting'
+};
+
 // ── MediaPredict ROI engine — ported directly from MediaPredict_ROI_
 // Calculator.xlsx's "ROI Engine" sheet, same formulas, same benchmark
 // defaults. The spreadsheet's own goal is an INPUT (you say how much you
@@ -988,7 +1003,7 @@ function renderActionsRow() {
       ? `<div class="action-status"><span class="status-badge dismissed">Not right now</span><button class="status-btn" onclick="setActionStatus('${b.uninumbr}','dismissed')">Undo</button></div>`
       : `<div class="action-status"><button class="status-btn on" onclick="setActionStatus('${b.uninumbr}','in_progress')">Mark as in progress</button><button class="status-btn off" onclick="setActionStatus('${b.uninumbr}','dismissed')">Not right now</button></div>`;
     const branchLabel = `${b.namebr} — ${b.citybr}, ${b.stalpbr}`.replace(/'/g, "\\'");
-    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}<br><a href="javascript:void(0)" onclick="openROI('${branchLabel}','${b.uninumbr}')" style="color:var(--blue);font-weight:700;font-size:11.5px">See projected ROI →</a></div>` : ''}${statusHtml}</div>`;
+    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${CAMPAIGN_WHY[b.campaign] || ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}<br><a href="javascript:void(0)" onclick="openROI('${branchLabel}','${b.uninumbr}')" style="color:var(--blue);font-weight:700;font-size:11.5px">See projected ROI →</a></div>` : ''}${statusHtml}</div>`;
   });
   g('actionsRow').innerHTML = actionsHtml || '<div class="rr-empty">No flagged branches this month.</div>';
 }

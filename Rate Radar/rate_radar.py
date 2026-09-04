@@ -2605,6 +2605,7 @@ Use null if not mentioned. Only extract rates clearly stated by the bank."""
 
 
 async def run_crawler(banks):
+    run_started_at = datetime.now()
     # ── Version banner + environment ────────────────────────────────────────
     crawl_state["log"].append("Rate Radar v3.6 — Supabase push + 404-skip fast crawl")
     if PROXY_URL:
@@ -2998,6 +2999,12 @@ async def run_crawler(banks):
     saved = auto_save(crawl_state["results"])
     if saved and saved[0]:
         await push_to_supabase(crawl_state["results"], saved[0], saved[1])
+        # Run row must land before observation rows — rate_observations.run_id
+        # is a foreign key into rate_radar_runs.
+        not_public = len(crawl_state["results"]) - found - partial
+        await push_run_summary(saved[0], saved[1], run_started_at,
+                                found, partial, not_public, ai_calls, chat_calls)
+        await push_rate_observations(crawl_state["results"], saved[0])
 
 
 def _build_result_from_preflight(bank, pre):
@@ -3217,6 +3224,173 @@ async def push_to_supabase(results, run_id, run_date):
                 return False
     except Exception as e:
         crawl_state["log"].append(f"Supabase push error: {type(e).__name__}: {e}")
+        return False
+
+
+# ── v3.6: tidy rate_observations dual-write (Phase 1) ────────────────────────
+# Explodes each wide per-bank result into one row per product into the new
+# public.rate_observations / public.rate_radar_runs tables, alongside — never
+# instead of — the legacy raw.raw_rate_radar write above. Additive only: any
+# failure here is swallowed and logged, and must never affect the wide-table
+# write or the live dashboard, which still reads exclusively from
+# vw_rate_radar_latest.
+
+def _provenance(specific_url, general_url, note, product_label):
+    """Classify how one rate value was sourced. Mirrors, condition for
+    condition, the CASE logic already baked into vw_rate_radar_latest /
+    vw_rate_radar_history so the new tidy table and the legacy views never
+    disagree on the same crawl."""
+    su   = specific_url or ""
+    gen  = general_url or ""
+    note = (note or "").lower()
+    if "no fresh data found today" in note:
+        return "last_known_good"
+    if f"{product_label} from search" in note:
+        return "search"
+    if su.startswith("[Search]"):
+        return "search"
+    if "depositaccounts" in su.lower():
+        return "aggregator"
+    if su.startswith("http"):
+        return "site"
+    if su.startswith("[AI]") or gen.startswith("[AI]"):
+        return "ai_vision"
+    if gen.startswith("[Search]"):
+        return "search"
+    if gen.startswith("http"):
+        return "site"
+    return "search"
+
+
+def _confidence(provenance):
+    return {"site": "high", "ai_vision": "high", "aggregator": "medium",
+            "search": "low", "last_known_good": "low"}.get(provenance, "low")
+
+
+def _parse_term_months(cd_term):
+    """'12-month' -> 12, '1-year' -> 12, 'best found' / None -> None."""
+    if not cd_term or cd_term == "best found":
+        return None
+    m = re.search(r"(\d+)\s*[- ]?\s*(month|mo|year|yr)", cd_term, re.I)
+    if m:
+        n = int(m.group(1))
+        return n * 12 if m.group(2).lower().startswith("y") else n
+    m = re.search(r"\d+", cd_term)
+    return int(m.group()) if m else None
+
+
+def build_rate_observations(results, run_id):
+    """Explode wide result dicts into tidy public.rate_observations rows."""
+    now_iso = datetime.now().isoformat()
+    rows = []
+    for r in results:
+        bank_name = r.get("bank_name")
+        if not bank_name:
+            continue
+        note       = r.get("note")
+        source_url = r.get("source_url")
+        products = [
+            ("checking",     r.get("checking_apy"),    r.get("source_url_checking"), None),
+            ("savings",      r.get("savings_apy"),      r.get("source_url_savings"),  None),
+            ("cd",           r.get("cd_apy"),           r.get("source_url_cd"), r.get("cd_term")),
+            ("money_market", r.get("money_market_apy"), None, None),
+        ]
+        for product_type, apy, specific_url, cd_term in products:
+            if apy in ("", None):
+                continue
+            try:
+                apy_val = float(str(apy).replace("%", "").replace(",", ""))
+            except (ValueError, TypeError):
+                continue
+            provenance = _provenance(specific_url, source_url, note, product_type)
+            rows.append({
+                "run_id":            run_id,
+                "bank_name":         str(bank_name),
+                "rssdid":            str(r["RSSDID"]) if r.get("RSSDID") not in ("", None) else None,
+                "product_type":      product_type,
+                "term_months":       _parse_term_months(cd_term) if product_type == "cd" else None,
+                "apy":               apy_val,
+                "min_balance":       str(r["min_balance"]) if r.get("min_balance") not in ("", None) else None,
+                "source_url":        str(specific_url or source_url) if (specific_url or source_url) else None,
+                "extraction_method": provenance,
+                "confidence":        _confidence(provenance),
+                "observed_at":       now_iso,
+            })
+    return rows
+
+
+async def push_rate_observations(results, run_id):
+    """Dual-write companion to push_to_supabase — same run, tidy shape.
+    Must run after push_run_summary (rate_observations.run_id is a foreign
+    key into rate_radar_runs). Never raises."""
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return False
+    rows = build_rate_observations(results, run_id)
+    if not rows:
+        return False
+    url = f"{SUPABASE_URL}/rest/v1/rate_observations"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.post(url, headers=headers, data=json.dumps(rows),
+                              timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                if resp.status in (200, 201, 204):
+                    crawl_state["log"].append(
+                        f"Supabase: ✓ pushed {len(rows)} tidy rows to rate_observations "
+                        f"(run {run_id})")
+                    return True
+                body = (await resp.text())[:300]
+                crawl_state["log"].append(
+                    f"rate_observations push failed ({resp.status}): {body}")
+                return False
+    except Exception as e:
+        crawl_state["log"].append(f"rate_observations push error: {type(e).__name__}: {e}")
+        return False
+
+
+async def push_run_summary(run_id, run_date, started_at, banks_found, banks_partial,
+                            banks_error, ai_calls, chat_calls):
+    """One row per crawl run in public.rate_radar_runs — Phase 0's run-level
+    observability. Must complete before push_rate_observations (FK parent).
+    Never blocks the crawl."""
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return False
+    row = {
+        "run_id":          run_id,
+        "run_date":        run_date,
+        "started_at":      started_at.isoformat(),
+        "finished_at":     datetime.now().isoformat(),
+        "banks_attempted": banks_found + banks_partial + banks_error,
+        "banks_found":     banks_found,
+        "banks_partial":   banks_partial,
+        "banks_error":     banks_error,
+        "ai_vision_calls": ai_calls,
+        "chat_calls":      chat_calls,
+    }
+    url = f"{SUPABASE_URL}/rest/v1/rate_radar_runs?on_conflict=run_id"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.post(url, headers=headers, data=json.dumps(row),
+                              timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status in (200, 201, 204):
+                    crawl_state["log"].append(f"Supabase: ✓ logged run summary (run {run_id})")
+                    return True
+                body = (await resp.text())[:300]
+                crawl_state["log"].append(f"Run summary push failed ({resp.status}): {body}")
+                return False
+    except Exception as e:
+        crawl_state["log"].append(f"Run summary push error: {type(e).__name__}: {e}")
         return False
 
 

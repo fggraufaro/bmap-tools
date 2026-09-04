@@ -130,6 +130,36 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
 .story-btn:disabled{opacity:.5;cursor:not-allowed}
 #storyOverlay{display:none;position:fixed;inset:0;background:rgba(8,61,95,.85);z-index:900;align-items:center;justify-content:center;padding:24px}
 #storyOverlay.on{display:flex}
+
+/* ── MediaPredict ROI modal — deliberately shows every assumption as an
+   editable input, not a black-box number. This is the same discipline as
+   Rate Radar's SAMPLE DATA banner: a benchmark-derived estimate has to be
+   disclosed as one, not presented with false precision. The underlying
+   funnel math matches MediaPredict_ROI_Calculator.xlsx's ROI Engine sheet
+   exactly — same formulas, same benchmark defaults. ──*/
+#roiOverlay{display:none;position:fixed;inset:0;background:rgba(8,61,95,.85);z-index:900;align-items:center;justify-content:center;padding:24px}
+#roiOverlay.on{display:flex}
+.roi-box{background:#fff;border-radius:12px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.roi-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.roi-hdr b{color:var(--navy);font-size:13px}
+.roi-body{padding:0;overflow-y:auto}
+.roi-banner{background:var(--lred);color:#A33C31;font-size:11.5px;font-weight:700;padding:10px 20px;line-height:1.5}
+.roi-scenarios{display:flex;gap:8px;padding:14px 20px 0}
+.roi-scenario-btn{flex:1;padding:8px 0;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--navy);font-weight:700;font-size:11.5px;cursor:pointer;font-family:'Inter',sans-serif}
+.roi-scenario-btn.active{border-color:var(--navy);background:var(--navy);color:#fff}
+.roi-section{padding:14px 20px}
+.roi-section-t{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.roi-input-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0}
+.roi-input-row label{font-size:12px;color:var(--text)}
+.roi-input-row .roi-hint{font-size:10px;color:var(--muted);display:block;margin-top:1px}
+.roi-input-row input{width:90px;border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;text-align:right}
+.roi-outputs{background:var(--gray);border-radius:8px;margin:0 20px 20px;padding:14px 16px}
+.roi-out-row{display:flex;align-items:baseline;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--border)}
+.roi-out-row:last-child{border-bottom:none}
+.roi-out-label{font-size:11.5px;color:var(--text)}
+.roi-out-val{font-size:13px;font-weight:800;color:var(--navy)}
+.roi-out-val.hero{font-size:20px}
+.roi-note{font-size:10.5px;color:var(--muted);padding:0 20px 18px;line-height:1.5}
 .story-box{background:#fff;border-radius:12px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column}
 .story-box-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .story-box-hdr b{color:var(--navy);font-size:13px}
@@ -298,6 +328,32 @@ html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:3
   </div>
 </div>
 
+<div id="roiOverlay">
+  <div class="roi-box">
+    <div class="roi-hdr"><b id="roiTitle">Projected ROI</b><span class="story-close" onclick="closeROI()">✕</span></div>
+    <div class="roi-body">
+      <div class="roi-banner">⚠ PLANNING ESTIMATE — built from industry benchmark conversion rates and CPM, not Verlocity's own realized campaign results yet. Every assumption below is editable — check it before using this number with a client.</div>
+      <div class="roi-scenarios" id="roiScenarios"></div>
+      <div class="roi-section">
+        <div class="roi-section-t">Campaign goal</div>
+        <div class="roi-input-row"><label>Target new deposits (12 months)<span class="roi-hint">You set this — the tool doesn't predict it</span></label><input id="roiGoal" type="text"></div>
+        <div class="roi-note" id="roiGoalNote" style="padding:0 0 8px"></div>
+        <div class="roi-input-row"><label>Avg funded balance per account</label><input id="roiAvgBalance" type="text"></div>
+      </div>
+      <div class="roi-section">
+        <div class="roi-section-t">Funnel assumptions (industry benchmarks — edit if you have real data)</div>
+        <div class="roi-input-row"><label>App-start → funded conversion rate<span class="roi-hint">MediaPredict default: 70%</span></label><input id="roiConvRate" type="text"></div>
+        <div class="roi-input-row"><label>Landing page → application-start rate<span class="roi-hint">Benchmark: 8–12% for financial products</span></label><input id="roiLpRate" type="text"></div>
+        <div class="roi-input-row"><label>Blended click-through rate (CTR)<span class="roi-hint">Benchmark: 0.8–1.5% blended</span></label><input id="roiCtr" type="text"></div>
+        <div class="roi-input-row"><label>Blended CPM<span class="roi-hint">Typical: $14–22 for financial services</span></label><input id="roiCpm" type="text"></div>
+        <div class="roi-input-row"><label>12-month contribution value per account<span class="roi-hint">Source: your bank's own revenue data — not a benchmark</span></label><input id="roiContribution" type="text"></div>
+      </div>
+      <div class="roi-outputs" id="roiOutputs"></div>
+      <div class="roi-note" id="roiValidation"></div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 // ── Auth — same Railway session-proxy as the full Hub / Lite Hub ──
@@ -444,6 +500,125 @@ const CAMPAIGN_ACTION = {
   'Growth Opportunity': 'Worth a targeted campaign once you\u2019ve confirmed which nearby audience is driving the opportunity.',
   'Niche Opportunity': 'A specific local audience is driving this — confirm who before committing a media budget.'
 };
+
+// ── MediaPredict ROI engine — ported directly from MediaPredict_ROI_
+// Calculator.xlsx's "ROI Engine" sheet, same formulas, same benchmark
+// defaults. The spreadsheet's own goal is an INPUT (you say how much you
+// want to raise, it works backward to spend/reach required) — it does not
+// predict a deposit outcome from branch characteristics. Keeping that
+// framing here is deliberate: presenting this as a forward prediction
+// ("fund this play and get $X") would overstate what the math does. ──
+const MEDIAPREDICT_DEFAULTS = {
+  avgBalance: 8500,       // ROI Engine C7
+  convRate: 0.70,         // ROI Engine C11 — app-start to funded
+  lpRate: 0.10,           // ROI Engine C13 — landing page to app-start
+  ctr: 0.0125,            // ROI Engine C15
+  cpm: 18,                // ROI Engine C28 — midpoint of the sheet's $14-22 note, not a fixed value in the sheet itself
+  contribution: 150,      // ROI Engine C34 — no default in the sheet ("source: bank revenue data"); placeholder only
+};
+let ROI_SCENARIOS = { Low: 1000000, Mid: 2000000, High: 4000000 }; // default fallback; overwritten per-branch in loadROIForBranch() when a real capture pool is found
+
+let roiScenario = 'Mid';
+
+function fmtMoney(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtMoneyM(n) { return '$' + (n / 1e6).toFixed(2) + 'M'; }
+
+function openROI(branchName, uninumbr) {
+  document.getElementById('roiTitle').textContent = `${branchName} — Projected ROI`;
+  document.getElementById('roiOverlay').classList.add('on');
+  document.getElementById('roiScenarios').innerHTML = '<div style="padding:14px 0;color:var(--muted);font-size:12px"><span class="spin"></span> Loading branch capture data…</div>';
+  loadROIForBranch(branchName, uninumbr);
+}
+
+// ── Point 5: deposit goal driven by BMAP's own data, not a flat guess. ──
+// Pulls this branch's #1 vulnerability-ranked competitor from
+// analytics.branch_target_competitors — the exact same table, same
+// my_branch_id/target_rank keys, and same target_dep_m field that
+// bmap_assessment_doc.py's fetch_vulnerability_targets() uses for the full
+// assessment's "Illustrative Capture Scenarios" (1%/3%/7% of that
+// competitor's deposit base). Reusing it here means the CEO Snapshot's ROI
+// number and the full assessment doc's capture math can never quietly
+// disagree — they're the same underlying data, not two guesses.
+async function loadROIForBranch(branchName, uninumbr) {
+  const rows = await api('branch_target_competitors',
+    `my_branch_id=eq.${uninumbr}&select=target_namefull,target_dep_m&order=target_rank.asc&limit=1`);
+  const target = Array.isArray(rows) && rows.length ? rows[0] : null;
+
+  const g = id => document.getElementById(id);
+  g('roiAvgBalance').value = MEDIAPREDICT_DEFAULTS.avgBalance;
+  g('roiConvRate').value = (MEDIAPREDICT_DEFAULTS.convRate * 100).toFixed(1);
+  g('roiLpRate').value = (MEDIAPREDICT_DEFAULTS.lpRate * 100).toFixed(1);
+  g('roiCtr').value = (MEDIAPREDICT_DEFAULTS.ctr * 100).toFixed(2);
+  g('roiCpm').value = MEDIAPREDICT_DEFAULTS.cpm;
+  g('roiContribution').value = MEDIAPREDICT_DEFAULTS.contribution;
+
+  const scenBar = document.getElementById('roiScenarios');
+  const goalNote = document.getElementById('roiGoalNote');
+
+  if (target && target.target_dep_m) {
+    const capturePool = (+target.target_dep_m) * 1e6;
+    ROI_SCENARIOS = { '1% capture': capturePool * 0.01, '3% capture': capturePool * 0.03, '7% capture': capturePool * 0.07 };
+    roiScenario = '3% capture';
+    if (goalNote) goalNote.textContent = `Based on this branch's #1 named competitor — ${target.target_namefull} — same capture-pool math as the full BMAP assessment. Not this bank's own realized rate.`;
+  } else {
+    ROI_SCENARIOS = { Low: 1000000, Mid: 2000000, High: 4000000 };
+    roiScenario = 'Mid';
+    if (goalNote) goalNote.textContent = `No ranked competitor found for this branch yet — using generic scenario tiers instead of a capture-pool estimate.`;
+  }
+
+  g('roiGoal').value = Math.round(ROI_SCENARIOS[roiScenario]);
+  scenBar.innerHTML = Object.entries(ROI_SCENARIOS).map(([name, val]) =>
+    `<button class="roi-scenario-btn ${name === roiScenario ? 'active' : ''}" data-scenario="${name}" onclick="setROIScenario('${name}')">${name}<br><span style="font-weight:600;font-size:10px">${fmtMoneyM(val)}</span></button>`
+  ).join('');
+
+  ['roiGoal','roiAvgBalance','roiConvRate','roiLpRate','roiCtr','roiCpm','roiContribution'].forEach(id => {
+    g(id).oninput = recalcROI;
+  });
+  recalcROI();
+}
+
+function setROIScenario(name) {
+  roiScenario = name;
+  document.getElementById('roiGoal').value = ROI_SCENARIOS[name];
+  document.querySelectorAll('.roi-scenario-btn').forEach(b => b.classList.toggle('active', b.dataset.scenario === name));
+  recalcROI();
+}
+
+function closeROI() { document.getElementById('roiOverlay').classList.remove('on'); }
+
+function recalcROI() {
+  const g = id => parseFloat(document.getElementById(id).value) || 0;
+  const goal = g('roiGoal');
+  const avgBalance = g('roiAvgBalance');
+  const convRate = g('roiConvRate') / 100;
+  const lpRate = g('roiLpRate') / 100;
+  const ctr = g('roiCtr') / 100;
+  const cpm = g('roiCpm');
+  const contribution = g('roiContribution');
+
+  // Same chain as ROI Engine D8→D38, in order.
+  const fundedAccounts = avgBalance > 0 ? goal / avgBalance : 0;
+  const appStarts = convRate > 0 ? fundedAccounts / convRate : 0;
+  const lpVisitors = lpRate > 0 ? appStarts / lpRate : 0;
+  const impressions = ctr > 0 ? lpVisitors / ctr : 0;
+  const annualSpend = impressions / 1000 * cpm;
+  const mediaCAC = fundedAccounts > 0 ? annualSpend / fundedAccounts : 0;
+  const totalContribution = fundedAccounts * contribution;
+  const valueToCAC = mediaCAC > 0 ? contribution / mediaCAC : 0;
+  const netContribution = fundedAccounts * (contribution - mediaCAC);
+
+  document.getElementById('roiOutputs').innerHTML = `
+    <div class="roi-out-row"><span class="roi-out-label">Funded accounts needed</span><span class="roi-out-val">${Math.round(fundedAccounts).toLocaleString()}</span></div>
+    <div class="roi-out-row"><span class="roi-out-label">Impressions required</span><span class="roi-out-val">${Math.round(impressions).toLocaleString()}</span></div>
+    <div class="roi-out-row"><span class="roi-out-label">Estimated annual media spend</span><span class="roi-out-val">${fmtMoney(annualSpend)}</span></div>
+    <div class="roi-out-row"><span class="roi-out-label">Media CAC per funded account</span><span class="roi-out-val">${fmtMoney(mediaCAC)}</span></div>
+    <div class="roi-out-row"><span class="roi-out-label">Value-to-CAC ratio</span><span class="roi-out-val">${valueToCAC ? valueToCAC.toFixed(1) + 'x' : '—'}</span></div>
+    <div class="roi-out-row"><span class="roi-out-label">Total net contribution after media cost</span><span class="roi-out-val hero" style="color:${netContribution >= 0 ? '#1E7A4C' : '#A33C31'}">${fmtMoney(netContribution)}</span></div>`;
+
+  document.getElementById('roiValidation').textContent =
+    `Based on a ${fmtMoneyM(goal)} deposit goal at ${fmtMoney(avgBalance)}/account, ${(convRate*100).toFixed(0)}% funded-conversion, ${(lpRate*100).toFixed(0)}% landing-page conversion, ${(ctr*100).toFixed(2)}% CTR, and $${cpm} CPM — every one of those is a benchmark or an editable assumption above, not a measurement of this branch.`;
+}
+
 function priorityTierOf(campaign) {
   if (TOP_PRIORITY_CAMPAIGNS.includes(campaign)) return 'top';
   if (NEXT_CAMPAIGNS.includes(campaign)) return 'next';
@@ -720,7 +895,8 @@ function renderActionsRow() {
       : status === 'dismissed'
       ? `<div class="action-status"><span class="status-badge dismissed">Not right now</span><button class="status-btn" onclick="setActionStatus('${b.uninumbr}','dismissed')">Undo</button></div>`
       : `<div class="action-status"><button class="status-btn on" onclick="setActionStatus('${b.uninumbr}','in_progress')">Mark as in progress</button><button class="status-btn off" onclick="setActionStatus('${b.uninumbr}','dismissed')">Not right now</button></div>`;
-    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}</div>` : ''}${statusHtml}</div>`;
+    const branchLabel = `${b.namebr} — ${b.citybr}, ${b.stalpbr}`.replace(/'/g, "\\'");
+    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}<br><a href="javascript:void(0)" onclick="openROI('${branchLabel}','${b.uninumbr}')" style="color:var(--blue);font-weight:700;font-size:11.5px">See projected ROI →</a></div>` : ''}${statusHtml}</div>`;
   });
   g('actionsRow').innerHTML = actionsHtml || '<div class="rr-empty">No flagged branches this month.</div>';
 }

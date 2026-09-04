@@ -199,6 +199,9 @@ crawl_state = {
     "done":           False,
     "ai_calls":       0,      # track AI vision calls this run
     "chat_calls":     0,      # track chat interactions this run
+    "llm_input_tokens":  0,   # cumulative Anthropic input tokens this run
+    "llm_output_tokens": 0,   # cumulative Anthropic output tokens this run
+    "llm_web_searches":  0,   # cumulative billed web_search tool invocations this run
     "crawl_mode":     "auto",   # auto: standard → ai_agent fallback
     "cr_data":        {},     # {rssdid (int): {...implied APY fields...}} — current quarter
     "cr_period":      None,   # e.g. "Dec 2025"
@@ -206,6 +209,28 @@ crawl_state = {
     "cr_prev_period": None,   # e.g. "Sep 2025"
     "cr_quarters":    [],     # all available quarter labels
 }
+
+def _track_llm_usage(resp):
+    """Accumulate Anthropic token/web-search usage from a messages.create() response
+    into crawl_state. Never raises — usage tracking must not break the crawl."""
+    try:
+        usage = resp.usage
+        crawl_state["llm_input_tokens"]  += getattr(usage, "input_tokens", 0) or 0
+        crawl_state["llm_output_tokens"] += getattr(usage, "output_tokens", 0) or 0
+        server_tool_use = getattr(usage, "server_tool_use", None)
+        if server_tool_use is not None:
+            crawl_state["llm_web_searches"] += getattr(server_tool_use, "web_search_requests", 0) or 0
+    except Exception:
+        pass
+
+def _estimate_cost_usd(input_tokens, output_tokens, web_searches):
+    """Claude Haiku 4.5: $1/MTok input, $5/MTok output. Web search tool: $10/1000 searches."""
+    return round(
+        input_tokens  / 1_000_000 * 1.0 +
+        output_tokens / 1_000_000 * 5.0 +
+        web_searches  / 1000 * 10.0,
+        4
+    )
 
 RATE_PATHS = [
     "", "/rates", "/personal/rates", "/personal-banking/rates",
@@ -969,6 +994,7 @@ Rules:
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}]
         )
+        _track_llm_usage(resp)
         # Extract text content blocks
         txt = ""
         for block in resp.content:
@@ -1560,6 +1586,7 @@ Critical rules:
                 "content": img_blocks + [{"type": "text", "text": prompt}]
             }]
         )
+        _track_llm_usage(response)
 
         import json
         txt = response.content[0].text.strip()
@@ -2142,6 +2169,7 @@ async def ai_agent_crawl(page, bank):
                     {"type": "text", "text": question}
                 ]}]
             )
+            _track_llm_usage(resp)
             return resp.content[0].text.strip()
         except Exception as e:
             return f"ERROR: {e}"
@@ -2163,6 +2191,7 @@ Rules: use highest APY shown for each type. If no rates visible return all nulls
                     {"type": "text", "text": prompt}
                 ]}]
             )
+            _track_llm_usage(resp)
             txt = resp.content[0].text.strip()
             result = parse_json_object(txt)   # v3.5: tolerate non-JSON preamble
             cleaned = {
@@ -2575,6 +2604,7 @@ Use null if not mentioned. Only extract rates clearly stated by the bank."""
                 max_tokens=300,
                 messages=messages
             )
+            _track_llm_usage(resp)
             txt = resp.content[0].text.strip()
             result = parse_json_object(txt)
 
@@ -2990,11 +3020,15 @@ async def run_crawler(banks):
     partial = sum(1 for r in crawl_state["results"] if r["status"] == "Partial")
     ai_calls   = crawl_state.get("ai_calls", 0)
     chat_calls = crawl_state.get("chat_calls", 0)
+    llm_input_tokens  = crawl_state.get("llm_input_tokens", 0)
+    llm_output_tokens = crawl_state.get("llm_output_tokens", 0)
+    llm_web_searches  = crawl_state.get("llm_web_searches", 0)
     ai_note    = f" · {ai_calls} AI vision" if ai_calls else ""
     chat_note  = f" · {chat_calls} chat" if chat_calls else ""
+    cost_note  = f" · ${_estimate_cost_usd(llm_input_tokens, llm_output_tokens, llm_web_searches):.2f} LLM cost"
     crawl_state["log"].append(
         f"Done — {found} full, {partial} partial, "
-        f"{len(crawl_state['results'])-found-partial} not public{ai_note}{chat_note}"
+        f"{len(crawl_state['results'])-found-partial} not public{ai_note}{chat_note}{cost_note}"
     )
     saved = auto_save(crawl_state["results"])
     if saved and saved[0]:
@@ -3003,7 +3037,8 @@ async def run_crawler(banks):
         # is a foreign key into rate_radar_runs.
         not_public = len(crawl_state["results"]) - found - partial
         await push_run_summary(saved[0], saved[1], run_started_at,
-                                found, partial, not_public, ai_calls, chat_calls)
+                                found, partial, not_public, ai_calls, chat_calls,
+                                llm_input_tokens, llm_output_tokens, llm_web_searches)
         await push_rate_observations(crawl_state["results"], saved[0])
 
 
@@ -3354,23 +3389,28 @@ async def push_rate_observations(results, run_id):
 
 
 async def push_run_summary(run_id, run_date, started_at, banks_found, banks_partial,
-                            banks_error, ai_calls, chat_calls):
+                            banks_error, ai_calls, chat_calls,
+                            llm_input_tokens=0, llm_output_tokens=0, llm_web_searches=0):
     """One row per crawl run in public.rate_radar_runs — Phase 0's run-level
     observability. Must complete before push_rate_observations (FK parent).
     Never blocks the crawl."""
     if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
         return False
     row = {
-        "run_id":          run_id,
-        "run_date":        run_date,
-        "started_at":      started_at.isoformat(),
-        "finished_at":     datetime.now().isoformat(),
-        "banks_attempted": banks_found + banks_partial + banks_error,
-        "banks_found":     banks_found,
-        "banks_partial":   banks_partial,
-        "banks_error":     banks_error,
-        "ai_vision_calls": ai_calls,
-        "chat_calls":      chat_calls,
+        "run_id":             run_id,
+        "run_date":           run_date,
+        "started_at":         started_at.isoformat(),
+        "finished_at":        datetime.now().isoformat(),
+        "banks_attempted":    banks_found + banks_partial + banks_error,
+        "banks_found":        banks_found,
+        "banks_partial":      banks_partial,
+        "banks_error":        banks_error,
+        "ai_vision_calls":    ai_calls,
+        "chat_calls":         chat_calls,
+        "llm_input_tokens":   llm_input_tokens,
+        "llm_output_tokens":  llm_output_tokens,
+        "llm_web_searches":   llm_web_searches,
+        "estimated_cost_usd": _estimate_cost_usd(llm_input_tokens, llm_output_tokens, llm_web_searches),
     }
     url = f"{SUPABASE_URL}/rest/v1/rate_radar_runs?on_conflict=run_id"
     headers = {
@@ -3652,9 +3692,10 @@ def start():
     force_refresh = (request.json.get("force_refresh", False) if request.is_json
                       else request.form.get("force_refresh") in ("true", "1", "on"))
     crawl_state.update({"running": True, "results": [], "log": [], "done": False,
-                        "ai_calls": 0, "crawl_mode": mode, "force_refresh": force_refresh,
+                        "ai_calls": 0, "chat_calls": 0, "crawl_mode": mode, "force_refresh": force_refresh,
                         "preflight_total": 0, "preflight_done": 0, "phase": "starting",
-                        "removed": set()})
+                        "removed": set(), "llm_input_tokens": 0, "llm_output_tokens": 0,
+                        "llm_web_searches": 0})
     crawl_state["log"].append(f"Mode: {mode.upper()}" + (" · AI Vision ON" if ANTHROPIC_OK else " · No API key"))
     start_crawl_thread(crawl_state["banks"])
     return jsonify({"ok": True, "mode": mode})

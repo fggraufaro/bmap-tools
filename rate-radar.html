@@ -89,6 +89,18 @@ td{padding:8px 12px;vertical-align:middle}
 </head>
 <body>
 
+<div id="authGate" style="position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999">
+  <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center">
+    <div style="color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em;font-family:'DM Mono',monospace">ENTER ACCESS CODE</div>
+    <input id="tokenInput" type="password" placeholder="••••••••••••"
+      style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px;font-family:inherit"
+      onkeydown="if(event.key==='Enter')checkAccess()">
+    <div id="authErr" style="display:none;color:var(--amber);font-size:11px;margin-bottom:10px">Incorrect code — try again</div>
+    <button onclick="checkAccess()" style="width:100%;background:var(--amber);color:var(--navy);border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">Access →</button>
+  </div>
+</div>
+
+<div id="appWrap" style="display:none">
 <div class="header">
   <div class="logo">
     <div class="logo-dot"></div>
@@ -153,15 +165,49 @@ td{padding:8px 12px;vertical-align:middle}
   </div>
 
 </div>
+</div>
 
 <script>
-const URL='https://tuiiywphoynbmkxpoyps.supabase.co';
-const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1aWl5d3Bob3luYm1reHBveXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDg0NTMsImV4cCI6MjA3Mjk4NDQ1M30.8-JAz4WQRE3Fi6uH7xiYNTns92g-nV1A9pbUvSK549M';
+// ── Auth — same Railway session-proxy as the full Hub. The Supabase
+// anon key that used to sit here in plain text is gone: the browser now
+// gets a short-lived signed token after a password check, and every data
+// call goes through secure_proxy.py instead of hitting Supabase directly.
+const HUB_API='https://bmap-snapshot-production.up.railway.app';
+const g=id=>document.getElementById(id);
 let all=[],sortField=null,sortDir=1;
 
+async function checkAccess(){
+  const input=g('tokenInput').value.trim();
+  const btn=document.querySelector('#authGate button');
+  if(btn)btn.disabled=true;
+  try{
+    const r=await fetch(`${HUB_API}/auth/login`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:input})
+    });
+    if(!r.ok){
+      g('authErr').style.display='block';g('tokenInput').value='';g('tokenInput').focus();
+      if(btn)btn.disabled=false;return;
+    }
+    const data=await r.json();
+    sessionStorage.setItem('hub_token',data.token);
+    afterAuth();
+  }catch(e){
+    g('authErr').style.display='block';if(btn)btn.disabled=false;
+  }
+}
+
+function afterAuth(){
+  g('authGate').style.display='none';
+  g('appWrap').style.display='block';
+  load();
+}
+
 async function load(){
-  const r=await fetch(`${URL}/rest/v1/vw_rate_radar_latest?select=*&limit=2000`,{
-    headers:{'apikey':KEY,'Authorization':'Bearer '+KEY}});
+  const token=sessionStorage.getItem('hub_token');
+  const r=await fetch(`${HUB_API}/api/vw_rate_radar_latest?select=*&limit=2000`,{
+    headers:{'Authorization':'Bearer '+token}});
+  if(r.status===401){sessionStorage.removeItem('hub_token');location.reload();return;}
   all=await r.json();
   if(!Array.isArray(all)||all.length===0){showEmpty();return;}
   populateFilters();updateMetrics();render();
@@ -293,7 +339,7 @@ function sort(f){
   document.getElementById(id).addEventListener('input',render);
 });
 
-load();
+(function(){ if(sessionStorage.getItem('hub_token'))afterAuth(); })();
 </script>
 </body>
 </html>

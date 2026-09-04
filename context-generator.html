@@ -1685,6 +1685,13 @@ function selWf(n){
 
 // ── WF06 — BMAP SNAPSHOT DECK (Railway API) ───────────────────
 const BMAP_API = 'https://bmap-snapshot-production.up.railway.app';
+// /generate*, /assessment-status, /assessment-download all require the same
+// Hub session token as the /api/* proxy calls above -- these produce paid
+// deliverables, so they're gated the same way, not left open.
+function authHeaders(extra) {
+  const token = sessionStorage.getItem('hub_token');
+  return Object.assign({'Authorization': 'Bearer ' + token}, extra || {});
+}
 
 async function snapshotExport() {
   if (!window.selBank || !window.bankData) return;
@@ -1692,7 +1699,7 @@ async function snapshotExport() {
   const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
   btn.disabled=true;ld.classList.add('on');msg.textContent='Building deck on server...';
   try{
-    const resp=await fetch(`${BMAP_API}/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    const resp=await fetch(`${BMAP_API}/generate`,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({inst_key:ik,bank_name:bankName})});
     if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
     const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=`BMAP_Snapshot_${safe}_${date}.pptx`;document.body.appendChild(a);a.click();
@@ -1709,7 +1716,7 @@ async function boardBriefExport() {
   const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
   btn.disabled=true;ld.classList.add('on');msg.textContent='Building board brief...';
   try{
-    const resp=await fetch(`${BMAP_API}/generate-brief`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    const resp=await fetch(`${BMAP_API}/generate-brief`,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({inst_key:ik,bank_name:bankName})});
     if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
     const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=`Board_Brief_${safe}_${date}.pdf`;document.body.appendChild(a);a.click();
@@ -1737,7 +1744,7 @@ async function branchPreviewExport() {
   const btn=g('bpBtn'),ld=g('bpLd'),msg=g('bpMsg');
   btn.disabled=true;ld.classList.add('on');msg.textContent=`Building preview for ${branch.namebr}...`;
   try{
-    const resp=await fetch(`${BMAP_API}/generate-branch-preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName,branch_name:branch.namebr})});
+    const resp=await fetch(`${BMAP_API}/generate-branch-preview`,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({inst_key:ik,bank_name:bankName,branch_name:branch.namebr})});
     if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
     const blob=await resp.blob(),safe=bankName.replace(/[^a-z0-9]/gi,'_'),branchSafe=branch.namebr.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=`BMAP_Preview_${safe}_${branchSafe}_${date}.docx`;document.body.appendChild(a);a.click();
@@ -1758,7 +1765,7 @@ async function assessmentExport() {
   btn.disabled=true;ld.classList.add('on');msg.textContent='Starting assessment...';
   try{
     // Kick off the background job — returns almost instantly, real work happens server-side
-    const startResp=await fetch(`${BMAP_API}/generate-assessment-async`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:bankName})});
+    const startResp=await fetch(`${BMAP_API}/generate-assessment-async`,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({inst_key:ik,bank_name:bankName})});
     if(!startResp.ok){const err=await startResp.json().catch(()=>({error:startResp.statusText}));throw new Error(err.error||startResp.statusText);}
     const {job_id}=await startResp.json();
 
@@ -1769,7 +1776,7 @@ async function assessmentExport() {
     let statusRow=null;
     for(let i=0;i<maxPolls;i++){
       await new Promise(r=>setTimeout(r,3000));
-      const statusResp=await fetch(`${BMAP_API}/assessment-status/${job_id}`);
+      const statusResp=await fetch(`${BMAP_API}/assessment-status/${job_id}`,{headers:authHeaders()});
       if(!statusResp.ok) continue;
       statusRow=await statusResp.json();
       msg.textContent=statusRow.stage||'Working...';
@@ -1780,7 +1787,7 @@ async function assessmentExport() {
     }
 
     // Job done -- fetch the actual file
-    const dlResp=await fetch(`${BMAP_API}/assessment-download/${job_id}`);
+    const dlResp=await fetch(`${BMAP_API}/assessment-download/${job_id}`,{headers:authHeaders()});
     if(!dlResp.ok){const err=await dlResp.json().catch(()=>({error:dlResp.statusText}));throw new Error(err.error||dlResp.statusText);}
     const blob=await dlResp.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=statusRow.filename||`BMAP_Assessment_${bankName.replace(/[^a-z0-9]/gi,'_')}.docx`;
@@ -1827,7 +1834,7 @@ async function runBatchExport() {
     const banks=csvText.trim().split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#')&&!l.toLowerCase().startsWith('inst_key')).map(l=>{const p=l.split(',');return{inst_key:p[0].trim(),name:(p[1]||'').trim()};});
     if(!banks.length){alert('No banks found in CSV.');btn.disabled=false;ld.classList.remove('on');return;}
     msgEl.textContent=`Sending ${banks.length} banks to server...`;
-    const resp=await fetch(`${BMAP_API}/generate-batch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({banks})});
+    const resp=await fetch(`${BMAP_API}/generate-batch`,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({banks})});
     if(!resp.ok){const err=await resp.json().catch(()=>({error:resp.statusText}));throw new Error(err.error||resp.statusText);}
     const blob=await resp.blob(),date=new Date().toISOString().slice(0,10).replace(/-/g,''),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=`BMAP_Batch_${date}.zip`;document.body.appendChild(a);a.click();
@@ -2700,7 +2707,7 @@ function prUpdateSel(){
 async function prSingleSnap(ik,name,btn){
   btn.disabled=true;btn.textContent='⏳';
   try{
-    const resp=await fetch(BMAP_API_PR+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:ik,bank_name:name})});
+    const resp=await fetch(BMAP_API_PR+'/generate',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({inst_key:ik,bank_name:name})});
     if(!resp.ok)throw new Error(resp.statusText);
     const blob=await resp.blob(),safe=name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
     const url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -2722,7 +2729,7 @@ async function prRunSnapshot(useFiltered){
   try{
     const banks=pool.map(r=>({inst_key:r.inst_key,name:r.institution_name||r.inst_key}));
     const single=banks.length===1;
-    const resp=await fetch(BMAP_API_PR+(single?'/generate':'/generate-batch'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(single?{inst_key:banks[0].inst_key,bank_name:banks[0].name}:{banks})});
+    const resp=await fetch(BMAP_API_PR+(single?'/generate':'/generate-batch'),{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(single?{inst_key:banks[0].inst_key,bank_name:banks[0].name}:{banks})});
     if(!resp.ok)throw new Error(resp.statusText);
     const blob=await resp.blob(),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
     const fname=single?'BMAP_Snapshot_'+banks[0].name.replace(/[^a-z0-9]/gi,'_')+'_'+date+'.pptx':'BMAP_Batch_'+date+'.zip';
@@ -2745,7 +2752,7 @@ async function prRunBrief(useFiltered){
   try{
     for(const r of pool){
       const name=r.institution_name||r.inst_key;
-      const resp=await fetch(BMAP_API_PR+'/generate-brief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inst_key:r.inst_key,bank_name:name})});
+      const resp=await fetch(BMAP_API_PR+'/generate-brief',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({inst_key:r.inst_key,bank_name:name})});
       if(!resp.ok)throw new Error(resp.statusText);
       const blob=await resp.blob(),safe=name.replace(/[^a-z0-9]/gi,'_'),date=new Date().toISOString().slice(0,10).replace(/-/g,'');
       const url=URL.createObjectURL(blob),a=document.createElement('a');

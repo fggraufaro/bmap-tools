@@ -1068,17 +1068,57 @@ async function generateMarketStory() {
   g('storyOverlay').classList.add('on');
   g('storyBody').textContent = 'Gathering branch and competitor data…';
 
-  const sorted = [...currentBranches].sort((a, b) => (+b.opportunity_score || 0) - (+a.opportunity_score || 0));
-  const lines = sorted.slice(0, 25).map(b => `${b.namebr} — ${b.citybr}, ${b.stalpbr} | Zone: ${b.opportunity_zone || '—'} | Score: ${(+b.opportunity_score || 0).toFixed(1)} | Deposits: $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M | YoY: ${((+b.yoy_deposits || 0) * 100).toFixed(1)}%`).join('\n');
+  // ── Urgency-based selection, not just raw opportunity score. A real
+  // dollar decline needs to be seen before another growth story, regardless
+  // of where it ranks on opportunity_score — that's a scoring-model
+  // artifact, not a judgment about what a CEO needs to read first. ──
+  const withDollarChange = currentBranches.map(b => ({
+    ...b,
+    dollarYoy: (+b.latest_dep || 0) * (+b.yoy_deposits || 0),
+    smallBase: (+b.latest_dep || 0) < 20e6,
+  }));
+  const atRisk = withDollarChange.filter(b => b.dollarYoy < 0).sort((a, b) => a.dollarYoy - b.dollarYoy).slice(0, 3);
+  const growth = withDollarChange.filter(b => b.dollarYoy >= 0)
+    .sort((a, b) => (+b.opportunity_score || 0) - (+a.opportunity_score || 0)).slice(0, 5);
+  const selected = [...atRisk, ...growth];
 
-  const system = `You are a deposit-growth strategist writing a short monthly narrative for a bank CEO, for Verlocity's platform. Write "Where and How to Win Deposits":
-1. Name the top 3-5 priority branches and explain why in plain, boardroom language.
-2. Recommend a concrete next step for each.
-Critical language rule: only state what the data actually shows. A deposit decline or a competitor's rate move is NOT proof of customer churn or lost accounts — do not claim churn, attrition, or "customers leaving" unless account-level movement data is given, which it is not here. Frame these as risk or exposure, not as facts already in progress. No methodology section, no follow-up questions.`;
-  const userMsg = `BRANCH DATA (top opportunity-scored branches, ${currentBranches.length} branches total):\n\n${lines}`;
+  // Ground each selected branch in its real named competitor and the same
+  // recommended play already shown in the action cards — the model narrates,
+  // it doesn't invent a second, disconnected playbook.
+  const enriched = await Promise.all(selected.map(async b => {
+    const rows = await api('branch_target_competitors',
+      `my_branch_id=eq.${b.uninumbr}&select=target_namefull,target_dep_m&order=target_rank.asc&limit=1`);
+    const target = Array.isArray(rows) && rows.length ? rows[0] : null;
+    return { ...b, competitorName: target ? target.target_namefull : null, competitorDep: target ? target.target_dep_m : null };
+  }));
+
+  const lines = enriched.map(b => {
+    const dollarStr = (b.dollarYoy >= 0 ? '+$' : '-$') + (Math.abs(b.dollarYoy) / 1e6).toFixed(1) + 'M';
+    const recommendedPlay = CAMPAIGN_ACTION[b.campaign] || 'No specific play assigned yet — flag for review.';
+    return `${b.namebr} — ${b.citybr}, ${b.stalpbr}\n`
+      + `  Deposits: $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M | YoY: ${((+b.yoy_deposits || 0) * 100).toFixed(1)}% (${dollarStr})${b.smallBase ? ' | SMALL BASE — pct change is noisy, do not over-index on it' : ''}\n`
+      + `  Zone: ${b.opportunity_zone || '—'} | Opportunity score: ${(+b.opportunity_score || 0).toFixed(1)}\n`
+      + `  Named competitor: ${b.competitorName ? `${b.competitorName} ($${(+b.competitorDep).toFixed(0)}M deposits)` : 'none identified yet'}\n`
+      + `  Assigned play (use this, don't invent a different tactic): ${recommendedPlay}`;
+  }).join('\n\n');
+
+  const system = `You are a deposit-growth strategist writing a short narrative for a bank CEO, for Verlocity's platform. Write "Where and How to Win Deposits" covering the branches given, in the ORDER given — do not reorder them, they are already sequenced by urgency (declines first, then growth opportunities).
+
+For each branch:
+1. Explain why it matters in plain, boardroom language, using only the data given.
+2. State the next step using the "Assigned play" provided — restate it in your own narrative voice, do not invent a different tactic or recommendation not grounded in that play.
+3. If a named competitor is given, reference it by name. If none is given, say the play is based on market data, not name a competitor.
+
+Language rules, all mandatory:
+- Never claim churn, attrition, or "customers leaving" from a deposit decline alone — no account-level movement data is provided. Frame declines as risk/exposure, not events already happened.
+- Never assert an unearned causal story for growth — banned phrases: "the market is responding," "clearly winning," "clearly capturing share," "signals momentum" used as a conclusion rather than an observation. State the number, then the action — do not explain WHY growth happened unless the data says why.
+- If a branch is flagged SMALL BASE, say so explicitly and note the percentage is less reliable than it looks — do not present it with the same confidence as a large-base number.
+- No methodology section, no follow-up questions, no invented statistics not present in the data given.`;
+
+  const userMsg = `BRANCHES, IN REQUIRED ORDER (${atRisk.length} at-risk, ${growth.length} growth opportunity, out of ${currentBranches.length} total in network):\n\n${lines}`;
 
   try {
-    const text = await callAI(system, userMsg, 1200);
+    const text = await callAI(system, userMsg, 1400);
     g('storyBody').textContent = text;
   } catch (e) {
     g('storyBody').textContent = 'Failed to generate story: ' + e.message;

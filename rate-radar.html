@@ -75,6 +75,8 @@ td{padding:8px 12px;vertical-align:middle}
 .conf-dot.conf-stale{background:var(--muted)}
 .conf-dot.conf-none{background:#ddd}
 .conf-dot.conf-verified{background:var(--green);box-shadow:0 0 0 2px var(--lgreen)}
+.rate-val{cursor:pointer}
+.rate-val:hover{text-decoration:underline dotted;text-underline-offset:3px}
 .quality-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:middle}
 .quality-tag.verified{background:var(--lgreen);color:#1E7A4C}
 .quality-tag.mixed{background:#FBF6DD;color:#7A6A00}
@@ -317,40 +319,74 @@ const CONF_META={
 // the same Hub session that already gates this whole page. Escape bank_name
 // for the data-attribute (only real risk: a bank name containing a quote).
 function esc(s){return String(s==null?'':s).replace(/"/g,'&quot;');}
-function confDot(prov,verified,bankName,runId,productType){
+const VERIFY_MAX_AGE_DAYS=7;
+// Same 7-day cutoff the backend enforces — checked here too so a stale row
+// tells you why up front instead of making you go through both prompts
+// first. The backend re-checks independently; this is just faster feedback.
+function tooOldToVerify(runAt){
+  if(!runAt)return true;
+  const days=Math.floor((Date.now()-new Date(runAt).getTime())/86400000);
+  return days>VERIFY_MAX_AGE_DAYS;
+}
+function confDot(prov,verified,bankName,runId,productType,runAt){
   const cls=verified?'conf-verified':(CONF_META[prov]?CONF_META[prov][0]:'conf-none');
   const base=verified?'Manually verified':(CONF_META[prov]?CONF_META[prov][1]:'No confidence data');
-  const title=`${base} — click to ${verified?'unverify':'mark verified'}`;
-  return `<span class="conf-dot ${cls}" title="${esc(title)}" data-verify-bank="${esc(bankName)}" data-verify-run="${esc(runId)}" data-verify-product="${esc(productType)}" data-verify-current="${verified?1:0}"></span>`;
+  const title=tooOldToVerify(runAt)?`${base} — too old to verify (7-day window)`:`${base} — click to ${verified?'unverify':'mark verified'}`;
+  return `<span class="conf-dot ${cls}" title="${esc(title)}" data-verify-bank="${esc(bankName)}" data-verify-run="${esc(runId)}" data-verify-product="${esc(productType)}" data-verify-current="${verified?1:0}" data-verify-runat="${esc(runAt)}"></span>`;
 }
-function rateCell(v,sub,prov,verified,bankName,runId,productType){
+function rateCell(v,sub,prov,verified,bankName,runId,productType,runAt){
   if(!v)return'<span class="dash">—</span>';
   const n=parseFloat(v);
   const cls=n>=4?'rate-h':n>=1.5?'rate-m':'rate-l';
   const sub2=sub&&sub!=='best found'?`<span class="rate-sub">${sub}</span>`:'';
-  return`<span class="rate ${cls}">${confDot(prov,verified,bankName,runId,productType)}${n.toFixed(2)}%${sub2}</span>`;
+  const editTitle=tooOldToVerify(runAt)?'Too old to correct (7-day window)':'Click to correct this value';
+  return`<span class="rate ${cls}">${confDot(prov,verified,bankName,runId,productType,runAt)}<span class="rate-val" title="${esc(editTitle)}" data-edit-bank="${esc(bankName)}" data-edit-run="${esc(runId)}" data-edit-product="${esc(productType)}" data-edit-current="${n}" data-edit-runat="${esc(runAt)}">${n.toFixed(2)}%</span>${sub2}</span>`;
 }
-async function toggleVerify(bankName,runId,productType,currentlyVerified){
-  const nextVerified=!currentlyVerified;
-  if(!confirm(`Mark ${productType.replace('_',' ')} for "${bankName}" as ${nextVerified?'verified':'unverified'}?\n\nOnly do this if you've personally confirmed the rate on the bank's own site.`))return;
+function promptForName(){
   const name=prompt('Your name or initials (for the record):');
-  if(!name||!name.trim())return;
+  return name&&name.trim()?name.trim():null;
+}
+async function postVerifyAction(endpoint,payload){
   const token=sessionStorage.getItem('hub_token');
   try{
-    const r=await fetch(`${HUB_API}/api/verify-rate`,{
+    const r=await fetch(`${HUB_API}${endpoint}`,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({bank_name:bankName,run_id:runId,product_type:productType,verified:nextVerified,verified_by:name.trim()})
+      body:JSON.stringify(payload)
     });
     const data=await r.json();
     if(!r.ok){alert('Failed: '+(data.error||r.status));return;}
     await load();
   }catch(e){alert('Failed: '+e);}
 }
+async function toggleVerify(bankName,runId,productType,currentlyVerified,runAt){
+  if(tooOldToVerify(runAt)){alert(`This data is more than ${VERIFY_MAX_AGE_DAYS} days old — trigger a fresh crawl instead of verifying stale data.`);return;}
+  const nextVerified=!currentlyVerified;
+  if(!confirm(`Mark ${productType.replace('_',' ')} for "${bankName}" as ${nextVerified?'verified':'unverified'}?\n\nOnly do this if you've personally confirmed the rate on the bank's own site.`))return;
+  const name=promptForName();
+  if(!name)return;
+  await postVerifyAction('/api/verify-rate',{bank_name:bankName,run_id:runId,product_type:productType,verified:nextVerified,verified_by:name});
+}
+async function editRate(bankName,runId,productType,currentValue,runAt){
+  if(tooOldToVerify(runAt)){alert(`This data is more than ${VERIFY_MAX_AGE_DAYS} days old — trigger a fresh crawl instead of correcting stale data.`);return;}
+  const input=prompt(`Correct APY for ${productType.replace('_',' ')} at "${bankName}" (currently ${currentValue}%). Only do this if you've personally confirmed the real rate on the bank's own site:`,currentValue);
+  if(input===null)return;
+  const newVal=parseFloat(input);
+  if(isNaN(newVal)||newVal<0||newVal>15){alert('Enter a valid APY between 0 and 15.');return;}
+  const name=promptForName();
+  if(!name)return;
+  await postVerifyAction('/api/edit-rate',{bank_name:bankName,run_id:runId,product_type:productType,apy:newVal,verified_by:name});
+}
 document.getElementById('tbody').addEventListener('click',e=>{
   const dot=e.target.closest('.conf-dot');
-  if(!dot||!dot.dataset.verifyBank)return;
-  toggleVerify(dot.dataset.verifyBank,dot.dataset.verifyRun,dot.dataset.verifyProduct,dot.dataset.verifyCurrent==='1');
+  if(dot&&dot.dataset.verifyBank){
+    toggleVerify(dot.dataset.verifyBank,dot.dataset.verifyRun,dot.dataset.verifyProduct,dot.dataset.verifyCurrent==='1',dot.dataset.verifyRunat);
+    return;
+  }
+  const val=e.target.closest('.rate-val');
+  if(val&&val.dataset.editBank){
+    editRate(val.dataset.editBank,val.dataset.editRun,val.dataset.editProduct,val.dataset.editCurrent,val.dataset.editRunat);
+  }
 });
 const QUALITY_META={verified:['Verified','verified'],mixed:['Mixed','mixed'],'search-only':['Unverified','search-only']};
 function qualityTag(q){
@@ -386,11 +422,11 @@ function render(){
     <tr>
       <td><div class="bank-name">${r.bank_name}${qualityTag(r.data_quality)}</div>${r.bank_url?`<div class="bank-url"><a href="${r.bank_url}" target="_blank">${r.bank_url.replace(/^https?:\/\//,'')}</a></div>`:''}</td>
       <td style="font-family:DM Mono,monospace;font-size:11px">${r.state||'—'}</td>
-      <td>${rateCell(r.cd_apy,r.cd_term,r.cd_provenance,r.cd_verified,r.bank_name,r.run_id,'cd')}</td>
-      <td>${rateCell(r.savings_apy,null,r.savings_provenance,r.savings_verified,r.bank_name,r.run_id,'savings')}</td>
-      <td>${rateCell(r.high_yield_savings_apy,null,r.high_yield_savings_provenance,r.high_yield_savings_verified,r.bank_name,r.run_id,'high_yield_savings')}</td>
-      <td>${rateCell(r.money_market_apy,null,r.money_market_provenance,r.money_market_verified,r.bank_name,r.run_id,'money_market')}</td>
-      <td>${rateCell(r.checking_apy,null,r.checking_provenance,r.checking_verified,r.bank_name,r.run_id,'checking')}</td>
+      <td>${rateCell(r.cd_apy,r.cd_term,r.cd_provenance,r.cd_verified,r.bank_name,r.run_id,'cd',r.run_at)}</td>
+      <td>${rateCell(r.savings_apy,null,r.savings_provenance,r.savings_verified,r.bank_name,r.run_id,'savings',r.run_at)}</td>
+      <td>${rateCell(r.high_yield_savings_apy,null,r.high_yield_savings_provenance,r.high_yield_savings_verified,r.bank_name,r.run_id,'high_yield_savings',r.run_at)}</td>
+      <td>${rateCell(r.money_market_apy,null,r.money_market_provenance,r.money_market_verified,r.bank_name,r.run_id,'money_market',r.run_at)}</td>
+      <td>${rateCell(r.checking_apy,null,r.checking_provenance,r.checking_verified,r.bank_name,r.run_id,'checking',r.run_at)}</td>
       <td style="font-size:11px;font-family:DM Mono,monospace">${r.min_balance||'—'}</td>
       <td>${bdg(r.status)}</td>
       <td><div class="note-cell">${r.note||''}</div></td>

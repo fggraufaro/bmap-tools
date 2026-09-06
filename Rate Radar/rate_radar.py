@@ -2180,6 +2180,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         "source_url_savings":        source_urls.get("savings", ""),
         "source_url_cd":             source_urls.get("cd", ""),
         "crawled_at":                datetime.now().strftime("%Y-%m-%d %H:%M"),
+        # Phase 5: structured conditional/promo tags per product, from
+        # tag_rate_context() — survives into build_rate_observations() instead
+        # of only being rendered into the free-text note.
+        "rate_tags":                 dict(rate_tags),
         # Enrichment fields from CSV
         "bank_type":                 bank.get("bank_type", ""),
         "branch_address":            bank.get("branch_address", ""),
@@ -3485,6 +3489,7 @@ def build_rate_observations(results, run_id):
             continue
         note       = r.get("note")
         source_url = r.get("source_url")
+        rate_tags  = r.get("rate_tags") or {}   # Phase 5: {"savings": ["promo"], ...} from tag_rate_context()
         products = [
             ("checking",     r.get("checking_apy"),    r.get("source_url_checking"), None),
             ("savings",      r.get("savings_apy"),      r.get("source_url_savings"),  None),
@@ -3499,6 +3504,7 @@ def build_rate_observations(results, run_id):
             except (ValueError, TypeError):
                 continue
             provenance = _provenance(specific_url, source_url, note, product_type)
+            tags = rate_tags.get(product_type, [])
             rows.append({
                 "run_id":            run_id,
                 "bank_name":         str(bank_name),
@@ -3510,6 +3516,8 @@ def build_rate_observations(results, run_id):
                 "source_url":        str(specific_url or source_url) if (specific_url or source_url) else None,
                 "extraction_method": provenance,
                 "confidence":        _confidence(provenance),
+                "is_conditional":    "conditional" in tags,
+                "is_promo":          "promo" in tags,
                 "observed_at":       now_iso,
             })
     return rows

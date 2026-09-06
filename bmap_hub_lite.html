@@ -443,8 +443,8 @@ async function loadBank(ik){
   // is never populated in this workflow, so match on name — exact,
   // case-insensitive, trimmed — not fuzzy, and not RSSDID.
   const norm=s=>(s||'').trim().toLowerCase();
-  const compForRR=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=8`);
-  const namedComps=[...new Map((compForRR||[]).filter(c=>c.target_namefull).map(c=>[norm(c.target_namefull),c])).values()].slice(0,6);
+  const compForRR=await api('branch_target_competitors',`my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=12`);
+  const namedComps=[...new Map((compForRR||[]).filter(c=>c.target_namefull).map(c=>[norm(c.target_namefull),c])).values()].slice(0,10);
 
   let rrRows=[],fallback=false;
   if(namedComps.length){

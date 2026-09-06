@@ -1021,7 +1021,7 @@ function renderActionsRow() {
 // sparkline off vw_rate_radar_history (req #4). ──
 async function loadRateRadar(ik) {
   const norm = s => (s || '').trim().toLowerCase();
-  const compForRR = await api('branch_target_competitors', `my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=6`);
+  const compForRR = await api('branch_target_competitors', `my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=10`);
   const namedComps = [...new Map((compForRR || []).filter(c => c.target_namefull).map(c => [norm(c.target_namefull), c])).values()];
   if (!namedComps.length) { g('rrBody').innerHTML = '<div class="rr-empty">No named competitors computed for this institution yet.</div>'; return; }
 

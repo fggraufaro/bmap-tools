@@ -77,6 +77,7 @@ Call Reports folder (sits next to this script):
 
 import asyncio
 import csv
+import hashlib
 import io
 import json
 import re
@@ -232,6 +233,25 @@ def _classify_status(core_rate_count, of=3):
     if core_rate_count > 0:
         return STATUS_PARTIAL
     return STATUS_NOT_PUBLIC
+
+
+# ── Phase 4: named tuning config (was scattered magic numbers) ──────────────
+# Collected here so retuning any of these is a one-line change instead of a
+# file-wide hunt. Values are unchanged from what the code already ran with —
+# this is the infrastructure for tuning, not a claim that these numbers are
+# now optimal; actually retuning them should follow observed run behavior
+# (timeouts, rate-limit errors, wall-clock time), not a guess.
+MAX_CONCURRENT_BANKS         = 5   # banks crawled in parallel during the browser phase
+MAX_CONCURRENT_SEARCH_RETRIES = 2  # parallel final-pass API-search retries (Haiku TPM safety)
+PREFLIGHT_BATCH_SIZE         = 3   # banks per preflight search batch
+PREFLIGHT_BATCH_GAP_S        = 2   # pause between preflight batches
+PAGE_LOAD_TIMEOUT_MS         = 12000  # standard crawl_bank() page.goto timeout
+AGENT_PAGE_LOAD_TIMEOUT_MS   = 15000  # ai_agent_crawl/DA-scraper page.goto timeout
+PAGE_BUDGET_PER_BANK         = 12  # max pages visited per bank in crawl_bank()
+PAGE_BUDGET_PRIORITY_BONUS   = 2   # extra slots for links found via a priority page
+BROWSER_LAUNCH_TIMEOUT_S     = 45
+GOTO_RETRY_COUNT             = 1   # extra attempts on a transient page.goto failure
+GOTO_RETRY_BACKOFF_S         = 0.6
 
 
 def _track_llm_usage(resp):
@@ -496,7 +516,8 @@ def extract_domain(url):
     return m.group(1).replace('www.', '') if m else ''
 
 
-async def _goto_with_retry(page, url, timeout=12000, retries=1, backoff=0.6):
+async def _goto_with_retry(page, url, timeout=PAGE_LOAD_TIMEOUT_MS,
+                            retries=GOTO_RETRY_COUNT, backoff=GOTO_RETRY_BACKOFF_S):
     """Phase 3: structured retry/backoff. A transient network hiccup (DNS
     blip, connection reset, a slow TLS handshake) shouldn't permanently give
     up on a URL the same way a real 404 should. Retries only on exceptions —
@@ -1587,6 +1608,15 @@ async def ai_vision_extract(page, url, bank_name):
         screenshots = await capture_carousel_screenshots(page)
         if not screenshots:
             return None
+
+        # Phase 4: extraction_cache — same bank+url+pixel content as a prior
+        # crawl means an identical extraction would result, so skip the LLM call.
+        content_hash = _content_hash(bank_name, url, *screenshots)
+        cached = await _extraction_cache_get(content_hash)
+        if cached is not None:
+            crawl_state["log"].append("    [AI] cache hit — page unchanged since last extraction, skipped LLM call")
+            return cached
+
         if len(screenshots) > 1:
             crawl_state["log"].append(
                 f"    [AI] carousel detected — captured {len(screenshots)} slides")
@@ -1642,6 +1672,7 @@ Critical rules:
             "money_market": float(result["money_market"]) if result.get("money_market") else None,
             "min_balance":  result.get("min_balance"),
         }
+        await _extraction_cache_put(content_hash, bank_name, url, cleaned, "claude-haiku-4-5-20251001")
         return cleaned
 
     except Exception as e:
@@ -1660,7 +1691,7 @@ async def scrape_deposit_accounts(page, bank_name):
         url = f"https://www.depositaccounts.com/banks/{slug}.html"
         try:
             crawl_state["log"].append(f"    [DA] → depositaccounts.com/banks/{slug}")
-            await page.goto(url, timeout=15000, wait_until="domcontentloaded")
+            await _goto_with_retry(page, url, timeout=AGENT_PAGE_LOAD_TIMEOUT_MS)
             await page.wait_for_timeout(1500)
             current_url = page.url
             if "search" in current_url or "404" in current_url:
@@ -1715,7 +1746,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         # Page budget — don't crawl more than 12 pages per bank
         # (priority pages — "View Rates"/"See Details" links found on a page
         #  that already showed a min balance — get 2 bonus slots)
-        if len(visited) >= (14 if priority else 12):
+        if len(visited) >= (PAGE_BUDGET_PER_BANK + PAGE_BUDGET_PRIORITY_BONUS if priority else PAGE_BUDGET_PER_BANK):
             return
         visited.add(url)
         try:
@@ -1729,7 +1760,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             did_expand  = False
 
             # domcontentloaded is much faster than networkidle on JS-heavy bank sites
-            resp = await _goto_with_retry(page, url, timeout=12000)
+            resp = await _goto_with_retry(page, url, timeout=PAGE_LOAD_TIMEOUT_MS)
             # v3.6: dead page — don't wait on it, don't expand it, don't dig it.
             # Most of the ~50 candidate paths 404, and rate-keyword 404s were
             # getting the full deep treatment (2s wait + scroll + accordions).
@@ -2224,6 +2255,11 @@ Return ONLY valid JSON, no explanation:
 {{"checking": <float or null>, "savings": <float or null>, "cd": <float or null>,
   "cd_term": <"12-month" or null>, "money_market": <float or null>, "min_balance": <"$1,000" or null>}}
 Rules: use highest APY shown for each type. If no rates visible return all nulls."""
+        content_hash = _content_hash(bank["bank_name"], url, img_b64)
+        cached = await _extraction_cache_get(content_hash)
+        if cached is not None:
+            crawl_state["log"].append("    [Agent] cache hit — page unchanged since last extraction, skipped LLM call")
+            return cached
         try:
             resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
@@ -2245,6 +2281,7 @@ Rules: use highest APY shown for each type. If no rates visible return all nulls
                 "money_market": float(result["money_market"]) if result.get("money_market") else None,
                 "min_balance":  result.get("min_balance"),
             }
+            await _extraction_cache_put(content_hash, bank["bank_name"], url, cleaned, "claude-haiku-4-5-20251001")
             return cleaned
         except:
             return None
@@ -2259,7 +2296,7 @@ Rules: use highest APY shown for each type. If no rates visible return all nulls
             return
         try:
             crawl_state["log"].append(f"    [Agent] → {url.replace(base,'') or '/'}")
-            await _goto_with_retry(page, url, timeout=15000)
+            await _goto_with_retry(page, url, timeout=AGENT_PAGE_LOAD_TIMEOUT_MS)
             await page.wait_for_timeout(2500)
             # Wait for dynamic content
             try: await page.wait_for_selector("text=APY", timeout=3000)
@@ -2742,13 +2779,12 @@ async def run_crawler(banks):
                 finally:
                     crawl_state["preflight_done"] += 1
 
-            # Batch size 3, 2s between batches — ~4K tokens each → stays well under 50K TPM
-            BATCH_SIZE = 3
-            for i in range(0, len(banks_to_preflight), BATCH_SIZE):
-                batch = banks_to_preflight[i:i + BATCH_SIZE]
+            # ~4K tokens per batched call → stays well under 50K TPM
+            for i in range(0, len(banks_to_preflight), PREFLIGHT_BATCH_SIZE):
+                batch = banks_to_preflight[i:i + PREFLIGHT_BATCH_SIZE]
                 await asyncio.gather(*[do_preflight(b) for b in batch])
-                if i + BATCH_SIZE < len(banks_to_preflight):
-                    await asyncio.sleep(2)  # breathe between batches
+                if i + PREFLIGHT_BATCH_SIZE < len(banks_to_preflight):
+                    await asyncio.sleep(PREFLIGHT_BATCH_GAP_S)  # breathe between batches
 
     crawl_state["phase"] = "crawling"
     crawl_state["log"].append("── Launching browser ──")
@@ -2768,11 +2804,11 @@ async def run_crawler(banks):
         if PROXY_URL:
             launch_kwargs["proxy"] = {"server": PROXY_URL}
         try:
-            browser = await asyncio.wait_for(p.chromium.launch(**launch_kwargs), timeout=45)
+            browser = await asyncio.wait_for(p.chromium.launch(**launch_kwargs), timeout=BROWSER_LAUNCH_TIMEOUT_S)
             crawl_state["log"].append("  ✓ Browser launched")
         except asyncio.TimeoutError:
             crawl_state["log"].append(
-                "  ✗ Browser launch timed out after 45s — likely a sandbox/permissions "
+                f"  ✗ Browser launch timed out after {BROWSER_LAUNCH_TIMEOUT_S}s — likely a sandbox/permissions "
                 "issue in this container. Crawl aborted.")
             crawl_state["running"] = False
             crawl_state["done"] = True
@@ -2820,9 +2856,9 @@ async def run_crawler(banks):
                 "  Continuing with search-only data (Anthropic API preflight) — "
                 "browser results will be empty until connectivity is fixed.")
 
-        semaphore = asyncio.Semaphore(5)
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_BANKS)
         # v3.3: cap concurrent final-pass search calls (Haiku TPM safety)
-        final_search_sem = asyncio.Semaphore(2)
+        final_search_sem = asyncio.Semaphore(MAX_CONCURRENT_SEARCH_RETRIES)
         total = len(banks)
         completed = [0]
 
@@ -3590,6 +3626,68 @@ def _circuit_open(bank):
     if failures < CIRCUIT_BREAKER_THRESHOLD:
         return False
     return failures % CIRCUIT_BREAKER_PROBE_EVERY != 0
+
+
+# Phase 4: extraction_cache — skip a redundant LLM vision call when the exact
+# same (bank, url, screenshot) content was already extracted before. Keyed on
+# content, not a calendar TTL: a bank whose rates page hasn't visually changed
+# keeps hitting cache indefinitely; the moment the page content actually
+# differs, the hash changes and it's a real cache miss, so this can never
+# serve stale data disguised as fresh — it only ever skips work that would
+# have produced the identical answer anyway.
+def _content_hash(bank_name, url, *byte_blobs):
+    h = hashlib.sha256()
+    h.update((bank_name or "").encode("utf-8"))
+    h.update(b"|")
+    h.update((url or "").encode("utf-8"))
+    for blob in byte_blobs:
+        h.update(b"|")
+        h.update(blob if isinstance(blob, bytes) else str(blob).encode("utf-8"))
+    return h.hexdigest()
+
+
+async def _extraction_cache_get(content_hash):
+    """Never raises — a cache-read failure just falls through to a real LLM call."""
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return None
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.get(
+                f"{SUPABASE_URL}/rest/v1/extraction_cache?content_hash=eq.{content_hash}"
+                f"&select=extracted_json",
+                headers=headers, timeout=aiohttp.ClientTimeout(total=8)
+            ) as r:
+                if r.status == 200:
+                    rows = await r.json()
+                    if rows:
+                        return rows[0]["extracted_json"]
+    except Exception:
+        pass
+    return None
+
+
+async def _extraction_cache_put(content_hash, bank_name, page_url, extracted, model_used):
+    """Best-effort write; never raises, never blocks the crawl on failure."""
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return
+    headers = {
+        "apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    row = {"content_hash": content_hash, "bank_name": bank_name, "page_url": page_url,
+           "extracted_json": extracted, "model_used": model_used}
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.post(
+                f"{SUPABASE_URL}/rest/v1/extraction_cache?on_conflict=content_hash",
+                headers=headers, data=json.dumps(row),
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                await resp.read()
+    except Exception:
+        pass
 
 
 async def update_bank_registry(bank, result):

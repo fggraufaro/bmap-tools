@@ -1659,7 +1659,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     visited     = set()
     rate_tags   = {}   # accumulated tags across all pages
     rebrand_hint = bank.get("_rebrand_hint")   # pre-populated from preflight if found
-    extra    = next((urls for k, urls in BANK_EXTRA_URLS.items() if k in base.replace('www.','')), [])
+    bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
+    extra    = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace('www.','')), [])
     # v3.4: ZIP-gate state — max 2 fill attempts per bank, remembers where it fired
     bank_zip = get_bank_zip(bank)
     zip_gate = {"fills": 0, "used_on": None, "recovered": False}
@@ -1899,7 +1900,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     # Full path scan — only if still incomplete after priority + early DA
     count = sum(1 for k in ["checking", "savings", "cd", "money_market"] if best[k] is not None)
     if count < 4:
-        remaining = [p for p in RATE_PATHS if p not in PRIORITY_PATHS]
+        rate_paths_cfg = crawl_state.get("_rate_paths_cfg") or RATE_PATHS
+        remaining = [p for p in rate_paths_cfg if p not in PRIORITY_PATHS]
         for path in remaining:
             await visit(base + path)
 
@@ -2282,8 +2284,9 @@ If no relevant links found return []."""
         except Exception as e:
             crawl_state["log"].append(f"    [Agent] ✗ {e}")
 
-    # Step 1: Check BANK_EXTRA_URLS first
-    extra = next((urls for k, urls in BANK_EXTRA_URLS.items() if k in base.replace("www.","")), [])
+    # Step 1: Check the config-driven bank/URL registry first
+    bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
+    extra = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace("www.","")), [])
     for url in extra:
         await navigate_and_extract(url)
 
@@ -2638,6 +2641,9 @@ async def run_crawler(banks):
     run_started_at = datetime.now()
     # ── Version banner + environment ────────────────────────────────────────
     crawl_state["log"].append("Rate Radar v3.6 — Supabase push + 404-skip fast crawl")
+
+    # ── Phase 2: config-driven bank/URL registry ────────────────────────────
+    crawl_state["_rate_paths_cfg"], crawl_state["_bank_urls_cfg"] = await load_bank_url_config()
     if PROXY_URL:
         crawl_state["log"].append(f"  Proxy: {PROXY_URL} (browser + aiohttp will route through it)")
     else:
@@ -2968,10 +2974,11 @@ async def run_crawler(banks):
                             async with cache_lock:
                                 today_cache[cache_key] = result
                                 _save_today_cache(today_cache)
+                        await update_bank_registry(bank, result)
                 except Exception as e:
                     crawl_state["log"].append(f"  x Error: {e}")
                     if bank["bank_name"].lower() not in crawl_state.get("removed", set()):
-                        crawl_state["results"].append({
+                        error_result = {
                         **bank,
                         "checking_apy": None, "savings_apy": None, "cd_apy": None,
                         "cd_term": None, "money_market_apy": None, "min_balance": None,
@@ -2985,7 +2992,9 @@ async def run_crawler(banks):
                         "prev_cr_total_deposits_m": None, "cr_prev_period": "",
                         "delta_savings_apy": None, "delta_checking_apy": None,
                         "delta_cd_apy": None, "delta_cost_of_deposits": None,
-                        })
+                        }
+                        crawl_state["results"].append(error_result)
+                        await update_bank_registry(bank, error_result)
                 finally:
                     completed[0] += 1
                     await page.close()
@@ -3388,6 +3397,121 @@ async def push_rate_observations(results, run_id):
         return False
 
 
+async def load_bank_url_config():
+    """Phase 2: load generic + bank-specific URL patterns from
+    public.url_pattern_registry, and each bank's learned known-good URLs from
+    public.bank_registry, merged with the hardcoded RATE_PATHS/BANK_EXTRA_URLS
+    lists rather than replacing them — so a Supabase outage or a bank not yet
+    in the registry never leaves the crawler with fewer candidate URLs than
+    before this existed, and a registry row's last_successful_url gets tried
+    first instead of just appended."""
+    generic = list(RATE_PATHS)
+    bank_urls = {k: list(v) for k, v in BANK_EXTRA_URLS.items()}
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return generic, bank_urls
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.get(
+                f"{SUPABASE_URL}/rest/v1/url_pattern_registry?active=eq.true&select=pattern,category,bank_key",
+                headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+            ) as r:
+                if r.status == 200:
+                    for row in await r.json():
+                        if row["category"] == "generic":
+                            if row["pattern"] not in generic:
+                                generic.append(row["pattern"])
+                        elif row.get("bank_key"):
+                            lst = bank_urls.setdefault(row["bank_key"], [])
+                            if row["pattern"] not in lst:
+                                lst.append(row["pattern"])
+            async with s.get(
+                f"{SUPABASE_URL}/rest/v1/bank_registry?select=bank_key,known_rate_urls,last_successful_url",
+                headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+            ) as r:
+                if r.status == 200:
+                    for row in await r.json():
+                        lst = bank_urls.setdefault(row["bank_key"], [])
+                        for u in (row.get("known_rate_urls") or []):
+                            if u not in lst:
+                                lst.append(u)
+                        last_good = row.get("last_successful_url")
+                        if last_good:
+                            if last_good in lst:
+                                lst.remove(last_good)
+                            lst.insert(0, last_good)
+            crawl_state["log"].append(
+                f"  ✓ Loaded bank/URL config: {len(generic)} generic paths, "
+                f"{len(bank_urls)} banks with known URLs")
+    except Exception as e:
+        crawl_state["log"].append(
+            f"  Config load warning: {type(e).__name__}: {e} (using built-in defaults)")
+    return generic, bank_urls
+
+
+async def update_bank_registry(bank, result):
+    """After a crawl attempt, record what worked (or didn't) so the next run
+    can try the known-good URL first instead of re-scanning every path.
+    Success is judged by whether any product's rate actually came from the
+    bank's own site or AI vision (not a search-engine guess) — that's the
+    signal worth remembering, regardless of the run's overall Found/Partial
+    status. Never raises; a registry-write failure must not affect the crawl."""
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return
+    raw_url = (bank.get("bank_url") or "").strip()
+    if not raw_url:
+        return
+    bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url)
+    if not bank_key:
+        return
+    note = result.get("note")
+    verified_url = None
+    for product, specific in [("checking", result.get("source_url_checking")),
+                               ("savings",  result.get("source_url_savings")),
+                               ("cd",       result.get("source_url_cd"))]:
+        if result.get(f"{product}_apy") is None:
+            continue
+        prov = _provenance(specific, result.get("source_url"), note, product)
+        if prov in ("site", "ai_vision") and specific and specific.startswith("http"):
+            verified_url = specific
+            break
+    headers = {
+        "apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.get(
+                f"{SUPABASE_URL}/rest/v1/bank_registry?bank_key=eq.{bank_key}"
+                f"&select=known_rate_urls,consecutive_failures",
+                headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+            ) as r:
+                existing = (await r.json()) if r.status == 200 else []
+            prior = existing[0] if existing else {}
+            row = {"bank_key": bank_key, "bank_name": bank.get("bank_name"), "bank_url": raw_url}
+            if verified_url:
+                known = set(prior.get("known_rate_urls") or [])
+                known.add(verified_url)
+                row.update({
+                    "last_successful_url": verified_url,
+                    "known_rate_urls": sorted(known),
+                    "consecutive_failures": 0,
+                    "needs_review": False,
+                })
+            else:
+                failures = (prior.get("consecutive_failures") or 0) + 1
+                row.update({"consecutive_failures": failures, "needs_review": failures >= 3})
+            upsert_headers = {**headers, "Prefer": "resolution=merge-duplicates,return=minimal"}
+            async with s.post(
+                f"{SUPABASE_URL}/rest/v1/bank_registry?on_conflict=bank_key",
+                headers=upsert_headers, data=json.dumps(row),
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                await resp.read()
+    except Exception:
+        pass
+
+
 async def push_run_summary(run_id, run_date, started_at, banks_found, banks_partial,
                             banks_error, ai_calls, chat_calls,
                             llm_input_tokens=0, llm_output_tokens=0, llm_web_searches=0):
@@ -3510,6 +3634,43 @@ def remove_bank():
     return jsonify({"banks": crawl_state["banks"], "removed": bool(removed)})
 
 
+def sync_upsert_bank_registry(banks):
+    """Best-effort identity upsert into public.bank_registry for CSV/manual bank
+    additions (Phase 2: 'migrate CSV uploads into bank_registry'). Only includes
+    non-empty fields in the payload so a sparse re-upload can't null out richer
+    data (known_rate_urls, last_successful_url, consecutive_failures) the async
+    crawler has already learned for that bank. Never raises."""
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        return
+    rows = []
+    for b in banks:
+        raw_url = (b.get("bank_url") or "").strip()
+        if not raw_url:
+            continue
+        bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url)
+        if not bank_key:
+            continue
+        row = {"bank_key": bank_key, "bank_name": b.get("bank_name"), "bank_url": raw_url}
+        if b.get("RSSDID"):         row["rssdid"] = b["RSSDID"]
+        if b.get("bank_type"):      row["bank_type"] = b["bank_type"]
+        if b.get("branch_address"): row["branch_address"] = b["branch_address"]
+        rows.append(row)
+    if not rows:
+        return
+    url = f"{SUPABASE_URL}/rest/v1/bank_registry?on_conflict=bank_key"
+    headers = {
+        "apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    req = urlreq.Request(url, data=json.dumps(rows).encode("utf-8"), headers=headers, method="POST")
+    try:
+        with urlreq.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except Exception as e:
+        crawl_state["log"].append(f"bank_registry upsert warning: {type(e).__name__}: {e}")
+
+
 @app.route("/add-bank", methods=["POST"])
 def add_bank():
     """Append one manually-picked bank to the current queue without re-uploading a CSV."""
@@ -3529,6 +3690,7 @@ def add_bank():
         return jsonify({"error": f"{name} is already in the list", "banks": crawl_state["banks"]}), 409
     crawl_state["banks"].append(bank)
     crawl_state["log"].append(f"+ Manually added: {name}")
+    sync_upsert_bank_registry([bank])
     return jsonify({"banks": crawl_state["banks"], "count": len(crawl_state["banks"])})
 
 @app.route("/manual-save", methods=["POST"])
@@ -3623,6 +3785,7 @@ def upload():
     if not banks:
         return jsonify({"error": "No banks found — check column names (need bank_name)"}), 400
     crawl_state["banks"] = banks
+    sync_upsert_bank_registry(banks)
     return jsonify({"count": len(banks), "banks": banks})
 
 @app.route("/cr_status")

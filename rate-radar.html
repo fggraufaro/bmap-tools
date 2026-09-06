@@ -63,6 +63,15 @@ td{padding:8px 12px;vertical-align:middle}
 .rate{font-family:'DM Mono',monospace;font-weight:700}
 .rate-h{color:var(--green)}.rate-m{color:#854F0B}.rate-l{color:var(--muted)}
 .rate-sub{font-size:9px;color:var(--muted);display:block;font-weight:400;margin-top:1px}
+.conf-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.conf-dot.conf-high{background:var(--green)}
+.conf-dot.conf-medium{background:var(--amber)}
+.conf-dot.conf-low{background:var(--red)}
+.conf-dot.conf-stale{background:var(--muted)}
+.quality-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:middle}
+.quality-tag.verified{background:var(--lgreen);color:var(--green)}
+.quality-tag.mixed{background:#FFF3E0;color:#854F0B}
+.quality-tag.search-only{background:var(--lred);color:var(--red)}
 .dash{color:#ccc;font-family:'DM Mono',monospace}
 
 .badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;font-family:'DM Mono',monospace}
@@ -281,12 +290,33 @@ function filtered(){
   });
 }
 
-function rateCell(v,sub){
+// Phase 6 — same provenance data the CEO view and Hub Lite panels use,
+// shown here as a small dot instead of a chip border (this table already
+// colors rate TEXT by value magnitude — green/amber/gray for high/mid/low
+// rate — so confidence needs its own separate visual channel, not another
+// use of the same colors for a different meaning).
+const CONF_META={
+  site:['conf-high',"Verified — read directly from the bank's site"],
+  ai_vision:['conf-high',"Verified — read directly from the bank's site (AI vision)"],
+  aggregator:['conf-medium','From a rate-aggregator site, not the bank directly'],
+  search:['conf-low',"Unverified — from a web search, not confirmed on the bank's own site"],
+  last_known_good:['conf-stale','No fresh read today — showing the last confirmed rate'],
+};
+function confDot(prov){
+  const m=CONF_META[prov];
+  return m?`<span class="conf-dot ${m[0]}" title="${m[1]}"></span>`:'';
+}
+function rateCell(v,sub,prov){
   if(!v)return'<span class="dash">—</span>';
   const n=parseFloat(v);
   const cls=n>=4?'rate-h':n>=1.5?'rate-m':'rate-l';
   const sub2=sub&&sub!=='best found'?`<span class="rate-sub">${sub}</span>`:'';
-  return`<span class="rate ${cls}">${n.toFixed(2)}%${sub2}</span>`;
+  return`<span class="rate ${cls}">${confDot(prov)}${n.toFixed(2)}%${sub2}</span>`;
+}
+const QUALITY_META={verified:['Verified','verified'],mixed:['Mixed','mixed'],'search-only':['Unverified','search-only']};
+function qualityTag(q){
+  const m=QUALITY_META[q];
+  return m?`<span class="quality-tag ${m[1]}">${m[0]}</span>`:'';
 }
 function bdg(s){
   if(s==='Found')return'<span class="badge b-found">Found</span>';
@@ -315,12 +345,12 @@ function render(){
   }
   document.getElementById('tbody').innerHTML=rows.map(r=>`
     <tr>
-      <td><div class="bank-name">${r.bank_name}</div>${r.bank_url?`<div class="bank-url"><a href="${r.bank_url}" target="_blank">${r.bank_url.replace(/^https?:\/\//,'')}</a></div>`:''}</td>
+      <td><div class="bank-name">${r.bank_name}${qualityTag(r.data_quality)}</div>${r.bank_url?`<div class="bank-url"><a href="${r.bank_url}" target="_blank">${r.bank_url.replace(/^https?:\/\//,'')}</a></div>`:''}</td>
       <td style="font-family:DM Mono,monospace;font-size:11px">${r.state||'—'}</td>
-      <td>${rateCell(r.cd_apy,r.cd_term)}</td>
-      <td>${rateCell(r.savings_apy,null)}</td>
-      <td>${rateCell(r.money_market_apy,null)}</td>
-      <td>${rateCell(r.checking_apy,null)}</td>
+      <td>${rateCell(r.cd_apy,r.cd_term,r.cd_provenance)}</td>
+      <td>${rateCell(r.savings_apy,null,r.savings_provenance)}</td>
+      <td>${rateCell(r.money_market_apy,null,r.money_market_provenance)}</td>
+      <td>${rateCell(r.checking_apy,null,r.checking_provenance)}</td>
       <td style="font-size:11px;font-family:DM Mono,monospace">${r.min_balance||'—'}</td>
       <td>${bdg(r.status)}</td>
       <td><div class="note-cell">${r.note||''}</div></td>

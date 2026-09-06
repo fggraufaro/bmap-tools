@@ -448,7 +448,7 @@ async function loadBank(ik){
 
   let rrRows=[],fallback=false;
   if(namedComps.length){
-    const rrAll=await api('vw_rate_radar_latest',`select=bank_name,cd_apy,cd_term,cd_provenance,savings_apy,savings_provenance,checking_apy,checking_provenance,money_market_apy,money_market_provenance,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);
+    const rrAll=await api('vw_rate_radar_latest',`select=bank_name,cd_apy,cd_term,cd_provenance,cd_verified,savings_apy,savings_provenance,savings_verified,high_yield_savings_apy,high_yield_savings_provenance,high_yield_savings_verified,checking_apy,checking_provenance,checking_verified,money_market_apy,money_market_provenance,money_market_verified,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);
     const rrByName={};(rrAll||[]).forEach(r=>{const k=norm(r.bank_name);if(!rrByName[k])rrByName[k]=r;}); // most recent first
     rrRows=namedComps.map(c=>({comp:c,live:rrByName[norm(c.target_namefull)]||null}));
   }
@@ -464,9 +464,9 @@ async function loadBank(ik){
     // Phase 6 — per-row confidence/staleness (see bmap_ceo_view.html for the
     // fuller comment): chips are colored by how that rate was sourced, the
     // row gets an overall quality tag, and a relative "Xd ago" freshness tag.
-    const confClass=prov=>(prov==='site'||prov==='ai_vision')?'conf-high':prov==='aggregator'?'conf-medium':prov==='last_known_good'?'conf-stale':prov==='search'?'conf-low':'';
-    const confTitle=prov=>(prov==='site'||prov==='ai_vision')?'Verified — read directly from the bank’s own site':prov==='aggregator'?'From a rate-aggregator site, not the bank directly':prov==='last_known_good'?'No fresh read today — showing the last confirmed rate':prov==='search'?'Unverified — from a web search, not confirmed on the bank’s own site':'';
-    const chip=(label,v,prov,sub)=>v?`<div class="rr-chip ${confClass(prov)}" title="${confTitle(prov)}">${label} <b>${(+v).toFixed(2)}%</b>${sub?` <span style="color:var(--muted)">${sub}</span>`:''}</div>`:'';
+    const confClass=(prov,verified)=>verified?'conf-high':(prov==='site'||prov==='ai_vision')?'conf-high':prov==='aggregator'?'conf-medium':prov==='last_known_good'?'conf-stale':prov==='search'?'conf-low':'';
+    const confTitle=(prov,verified)=>verified?'Manually verified against the bank’s own site':(prov==='site'||prov==='ai_vision')?'Verified — read directly from the bank’s own site':prov==='aggregator'?'From a rate-aggregator site, not the bank directly':prov==='last_known_good'?'No fresh read today — showing the last confirmed rate':prov==='search'?'Unverified — from a web search, not confirmed on the bank’s own site':'';
+    const chip=(label,v,prov,verified,sub)=>v?`<div class="rr-chip ${confClass(prov,verified)}" title="${confTitle(prov,verified)}">${label} <b>${(+v).toFixed(2)}%</b>${sub?` <span style="color:var(--muted)">${sub}</span>`:''}</div>`:'';
     const qualityMeta={verified:['Verified','verified'],mixed:['Mixed','mixed'],'search-only':['Unverified','search-only']};
     const qualityTag=q=>qualityMeta[q]?`<span class="rr-quality ${qualityMeta[q][1]}">${qualityMeta[q][0]}</span>`:'';
     const staleTag=runAt=>{if(!runAt)return '';const days=Math.floor((Date.now()-new Date(runAt).getTime())/86400000);const label=days<=0?'today':days===1?'1d ago':`${days}d ago`;return `<span class="rr-stale-tag"${days>30?' style="color:var(--red)"':''}>${label}</span>`;};
@@ -476,10 +476,11 @@ async function loadBank(ik){
         <div class="rr-row">
           <div class="rr-name">${r.comp.target_namefull}${qualityTag(r.live.data_quality)}${staleTag(r.live.run_at)}${r.live.vulnerability_flag?`<span class="rr-vuln">${r.live.vulnerability_flag}</span>`:''}</div>
           <div class="rr-rates">
-            ${chip('CD',r.live.cd_apy,r.live.cd_provenance,r.live.cd_term?r.live.cd_term+'mo':'')}
-            ${chip('Savings',r.live.savings_apy,r.live.savings_provenance)}
-            ${chip('MMA',r.live.money_market_apy,r.live.money_market_provenance)}
-            ${chip('Checking',r.live.checking_apy,r.live.checking_provenance)}
+            ${chip('CD',r.live.cd_apy,r.live.cd_provenance,r.live.cd_verified,r.live.cd_term?r.live.cd_term+'mo':'')}
+            ${chip('Savings',r.live.savings_apy,r.live.savings_provenance,r.live.savings_verified)}
+            ${chip('HYS',r.live.high_yield_savings_apy,r.live.high_yield_savings_provenance,r.live.high_yield_savings_verified)}
+            ${chip('MMA',r.live.money_market_apy,r.live.money_market_provenance,r.live.money_market_verified)}
+            ${chip('Checking',r.live.checking_apy,r.live.checking_provenance,r.live.checking_verified)}
           </div>
         </div>`:`
         <div class="rr-row">

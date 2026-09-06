@@ -1025,7 +1025,7 @@ async function loadRateRadar(ik) {
   const namedComps = [...new Map((compForRR || []).filter(c => c.target_namefull).map(c => [norm(c.target_namefull), c])).values()];
   if (!namedComps.length) { g('rrBody').innerHTML = '<div class="rr-empty">No named competitors computed for this institution yet.</div>'; return; }
 
-  const rrAll = await api('vw_rate_radar_latest', `select=bank_name,cd_apy,cd_term,cd_provenance,savings_apy,savings_provenance,checking_apy,checking_provenance,money_market_apy,money_market_provenance,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);
+  const rrAll = await api('vw_rate_radar_latest', `select=bank_name,cd_apy,cd_term,cd_provenance,cd_verified,savings_apy,savings_provenance,savings_verified,high_yield_savings_apy,high_yield_savings_provenance,high_yield_savings_verified,checking_apy,checking_provenance,checking_verified,money_market_apy,money_market_provenance,money_market_verified,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);
   const rrByName = {};
   (rrAll || []).forEach(r => { const k = norm(r.bank_name); if (!rrByName[k]) rrByName[k] = r; });
   const rows = namedComps.map(c => ({ comp: c, live: rrByName[norm(c.target_namefull)] || null }));
@@ -1075,15 +1075,20 @@ async function loadRateRadar(ik) {
   // unverified, last_known_good = stale), the row gets an overall quality
   // tag from the same provenance data already computed since Phase 1, and a
   // relative "Xd ago" tag shows how fresh the whole row's crawl actually was.
-  const confClass = prov => (prov === 'site' || prov === 'ai_vision') ? 'conf-high'
+  // A manual verification (done in the Rate Radar admin table) always wins
+  // the display, regardless of how the rate was originally sourced — that's
+  // the whole point of letting a human override an automated guess.
+  const confClass = (prov, verified) => verified ? 'conf-high'
+    : (prov === 'site' || prov === 'ai_vision') ? 'conf-high'
     : prov === 'aggregator' ? 'conf-medium'
     : prov === 'last_known_good' ? 'conf-stale'
     : prov === 'search' ? 'conf-low' : '';
-  const confTitle = prov => (prov === 'site' || prov === 'ai_vision') ? 'Verified — read directly from the bank’s own site'
+  const confTitle = (prov, verified) => verified ? 'Manually verified against the bank’s own site'
+    : (prov === 'site' || prov === 'ai_vision') ? 'Verified — read directly from the bank’s own site'
     : prov === 'aggregator' ? 'From a rate-aggregator site, not the bank directly'
     : prov === 'last_known_good' ? 'No fresh read today — showing the last confirmed rate'
     : prov === 'search' ? 'Unverified — from a web search, not confirmed on the bank’s own site' : '';
-  const chip = (label, v, prov, sub) => v ? `<div class="rr-chip ${confClass(prov)}" title="${confTitle(prov)}">${label} <b>${(+v).toFixed(2)}%</b>${sub ? ` <span style="color:var(--muted)">${sub}</span>` : ''}</div>` : '';
+  const chip = (label, v, prov, verified, sub) => v ? `<div class="rr-chip ${confClass(prov, verified)}" title="${confTitle(prov, verified)}">${label} <b>${(+v).toFixed(2)}%</b>${sub ? ` <span style="color:var(--muted)">${sub}</span>` : ''}</div>` : '';
   const qualityMeta = { verified: ['Verified', 'verified'], mixed: ['Mixed', 'mixed'], 'search-only': ['Unverified', 'search-only'] };
   const qualityTag = q => qualityMeta[q] ? `<span class="rr-quality ${qualityMeta[q][1]}">${qualityMeta[q][0]}</span>` : '';
   const staleTag = runAt => {
@@ -1100,7 +1105,7 @@ async function loadRateRadar(ik) {
     ${rows.map((r, i) => r.live ? `
       <div class="rr-row">
         <div class="rr-name">${r.comp.target_namefull}${qualityTag(r.live.data_quality)}${staleTag(r.live.run_at)}${r.live.vulnerability_flag ? `<span class="rr-vuln">${r.live.vulnerability_flag}</span>` : ''}</div>
-        <div class="rr-rates">${chip('CD', r.live.cd_apy, r.live.cd_provenance, r.live.cd_term ? r.live.cd_term + 'mo' : '')}${chip('Savings', r.live.savings_apy, r.live.savings_provenance)}${chip('MMA', r.live.money_market_apy, r.live.money_market_provenance)}${chip('Checking', r.live.checking_apy, r.live.checking_provenance)}</div>
+        <div class="rr-rates">${chip('CD', r.live.cd_apy, r.live.cd_provenance, r.live.cd_verified, r.live.cd_term ? r.live.cd_term + 'mo' : '')}${chip('Savings', r.live.savings_apy, r.live.savings_provenance, r.live.savings_verified)}${chip('HYS', r.live.high_yield_savings_apy, r.live.high_yield_savings_provenance, r.live.high_yield_savings_verified)}${chip('MMA', r.live.money_market_apy, r.live.money_market_provenance, r.live.money_market_verified)}${chip('Checking', r.live.checking_apy, r.live.checking_provenance, r.live.checking_verified)}</div>
         ${i === 0 ? trendSvg + callout : ''}
       </div>` : `<div class="rr-row"><div class="rr-name">${r.comp.target_namefull}</div><div style="font-size:10.5px;color:var(--muted)">Not yet crawled</div></div>`).join('')}`;
 }

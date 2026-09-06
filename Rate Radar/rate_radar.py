@@ -569,6 +569,25 @@ def parse_json_object(txt):
         raise ValueError("no JSON object in model output")
 
 
+def _clean_cd_ladder(raw):
+    """Phase 5 (part 3): validate an LLM-returned cd_ladder array into a clean
+    [{"term": str_or_None, "apy": float}, ...] list, tolerating malformed or
+    missing entries rather than dropping the whole ladder. Returns None if raw
+    isn't a usable list — never raises."""
+    if not isinstance(raw, list) or not raw:
+        return None
+    cleaned = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            apy = float(entry.get("apy"))
+        except (TypeError, ValueError):
+            continue
+        cleaned.append({"term": entry.get("term"), "apy": apy})
+    return cleaned or None
+
+
 def get_proxy_url():
     """Return the proxy URL from standard env vars, or None."""
     for var in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
@@ -1448,7 +1467,7 @@ def load_call_reports():
 
 def extract_rates(text):
     r = {"checking": None, "savings": None, "high_yield_savings": None,
-         "cd": None, "cd_term": None,
+         "cd": None, "cd_term": None, "cd_ladder": None,
          "money_market": None, "min_balance": None,
          "rate_tags": {}}   # e.g. {"checking": ["conditional"], "savings": ["promo"]}
 
@@ -1506,7 +1525,9 @@ def extract_rates(text):
         if tags:
             r["rate_tags"]["money_market"] = tags
 
-    # CD candidates — require APY label, reject loans, deprioritise jumbos
+    # CD candidates — require APY label, reject loans, deprioritise jumbos.
+    # 5th field is a same-line-vs-next-line priority (0=safe, 1=risky) — see
+    # the cd_ladder comment below for why this matters for the ladder grouping.
     cd_candidates = []
     for m in TABLE_PAT.finditer(text):
         val = float(m.group(3))
@@ -1516,22 +1537,27 @@ def extract_rates(text):
             if LOAN_PAT.search(ctx): continue
             unit = m.group(2).lower()
             term = f"{int(m.group(1))*12}-month" if "year" in unit else f"{m.group(1)}-month"
-            cd_candidates.append((val, term, ctx, m.start()))
+            cd_candidates.append((val, term, ctx, m.start(), 0))
     for m in TERM_APY_PAT.finditer(text):
         val = float(m.group(1))
         if 0.05 <= val <= 15:
             start = max(0, m.start() - 40); end = min(len(text), m.end() + 40)
             ctx = text[start:end]
             if LOAN_PAT.search(ctx): continue
-            cd_candidates.append((val, f"{m.group(2)}-{m.group(3)}", ctx, m.start()))
+            cd_candidates.append((val, f"{m.group(2)}-{m.group(3)}", ctx, m.start(), 0))
     for m in CD_PAT.finditer(text):
         val = float(m.group(1))
         if 0.05 <= val <= 15:
             start = max(0, m.start() - 40); end = min(len(text), m.end() + 40)
             ctx = text[start:end]
             if LOAN_PAT.search(ctx): continue
-            cd_candidates.append((val, None, ctx, m.start()))
-    # v3.4: label-on-one-line / APY-on-the-next (rate tiles, table cells)
+            cd_candidates.append((val, None, ctx, m.start(), 0))
+    # v3.4: label-on-one-line / APY-on-the-next (rate tiles, table cells).
+    # Risky (priority 1): when a page has several complete "label + rate"
+    # lines back to back, these can cross-match a label on one line with the
+    # NEXT line's rate instead of its own — harmless for the single-best pick
+    # (the correctly-labeled same-line match usually ties or wins on value
+    # anyway), but would corrupt a specific term's bucket in the ladder.
     for m in TABLE_PAT_NEXTLN.finditer(text):
         val = float(m.group(3))
         if 0.05 <= val <= 15:
@@ -1540,14 +1566,14 @@ def extract_rates(text):
             if LOAN_PAT.search(ctx): continue
             unit = m.group(2).lower()
             term = f"{int(m.group(1))*12}-month" if "year" in unit else f"{m.group(1)}-month"
-            cd_candidates.append((val, term, ctx, m.start()))
+            cd_candidates.append((val, term, ctx, m.start(), 1))
     for m in CD_PAT_NEXTLN.finditer(text):
         val = float(m.group(1))
         if 0.05 <= val <= 15:
             start = max(0, m.start() - 40); end = min(len(text), m.end() + 40)
             ctx = text[start:end]
             if LOAN_PAT.search(ctx): continue
-            cd_candidates.append((val, None, ctx, m.start()))
+            cd_candidates.append((val, None, ctx, m.start(), 1))
     if cd_candidates:
         def cd_score(c): return c[0] - (2.0 if JUMBO_PAT.search(c[2] or "") else 0.0)
         best_cd = max(cd_candidates, key=cd_score)
@@ -1555,6 +1581,26 @@ def extract_rates(text):
         tags = tag_rate_context(text, best_cd[3])
         if tags:
             r["rate_tags"]["cd"] = tags
+
+        # Phase 5 (part 3): full CD ladder — group candidates by their PARSED
+        # term (so "12-month" and "1-year" land in the same bucket) and keep
+        # the best per term, instead of only the single overall best. Bucket
+        # winner is chosen by priority first (same-line matches beat risky
+        # cross-line ones), THEN score — a wrongly cross-matched "risky"
+        # candidate must never outrank a correctly-labeled "safe" one just
+        # because it happens to have a higher number. The overall best above
+        # is always one of these entries, so nothing is lost —
+        # build_rate_observations() prefers the ladder over the singular
+        # cd/cd_term when both are present.
+        def bucket_key(c): return (-c[4], cd_score(c))   # c[4]=priority, 0=safe beats 1=risky
+        by_term = {}
+        for c in cd_candidates:
+            term_key = _parse_term_months(c[1])
+            if term_key is None:
+                continue   # CD_PAT/CD_PAT_NEXTLN's untermed catch-all isn't a ladder "rung"
+            if term_key not in by_term or bucket_key(c) > bucket_key(by_term[term_key]):
+                by_term[term_key] = c
+        r["cd_ladder"] = [{"term": c[1], "apy": c[0]} for c in by_term.values()] or None
 
     if not any([r["checking"], r["savings"], r["cd"], r["money_market"]]):
         apys = [float(v) for v in APY_PAT.findall(text) if 0.05 <= float(v) <= 15]
@@ -1668,6 +1714,9 @@ Extract the STANDARD deposit rates. Return ONLY JSON, no explanation:
   "high_yield_savings": <a SEPARATE high-yield/premium/elite savings product's APY% float or null, if this page shows one distinct from regular savings>,
   "cd": <highest CD APY% float or null>,
   "cd_term": <term for that CD like "12-month" or null>,
+  "cd_ladder": <array of EVERY distinct CD term/rate shown, e.g.
+   [{{"term": "6-month", "apy": 3.5}}, {{"term": "12-month", "apy": 4.1}}] — include the
+   highest-APY one too (it should match "cd"/"cd_term" above); empty array if only one term shown>,
   "money_market": <money market APY% float or null>,
   "min_balance": <minimum balance string like "$1,000" or null>
 }}
@@ -1679,7 +1728,7 @@ Critical rules:
   one of the two, populate that field and leave the other null — don't force a
   single high-yield product into "savings" just because there's no second one
 - For checking/savings/money_market: use the HIGHEST advertised APY for that product type
-- For CD: use the HIGHEST APY shown, record its term
+- For CD: use the HIGHEST APY shown, record its term — AND list every term you see in cd_ladder
 - If a rate says "up to X%" use X
 - If you only see a promo banner with no rate table, return null for that field
 - Return ONLY the JSON object"""
@@ -1705,6 +1754,7 @@ Critical rules:
             "high_yield_savings": float(result["high_yield_savings"]) if result.get("high_yield_savings") else None,
             "cd":                float(result["cd"])                 if result.get("cd")                else None,
             "cd_term":           result.get("cd_term"),
+            "cd_ladder":         _clean_cd_ladder(result.get("cd_ladder")),
             "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
             "min_balance":       result.get("min_balance"),
         }
@@ -1761,7 +1811,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     if not base.startswith("http"):
         base = "https://" + base
     best = {"checking": None, "savings": None, "high_yield_savings": None,
-            "cd": None, "cd_term": None, "money_market": None, "min_balance": None}
+            "cd": None, "cd_term": None, "cd_ladder": None, "money_market": None, "min_balance": None}
     found_on    = None
     source_urls = {}
     visited     = set()
@@ -1999,7 +2049,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
               else await scrape_deposit_accounts(page, bank["bank_name"]))
         if da:
             stale_flag = da.get("_stale_flag", "")
-            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
+            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "cd_ladder", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
                     best[k] = da[k]
                     if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
@@ -2043,7 +2093,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
               else await scrape_deposit_accounts(page, bank["bank_name"]))
         if da:
             stale_flag = da.get("_stale_flag", "")
-            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
+            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "cd_ladder", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
                     best[k] = da[k]
                     if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
@@ -2105,7 +2155,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                     ai_result = await ai_vision_extract(page, v_url, bank["bank_name"])
                     if ai_result:
                         filled = 0
-                        for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
+                        for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "cd_ladder", "money_market", "min_balance"]:
                             if ai_result.get(k) is not None and best.get(k) is None:
                                 best[k] = ai_result[k]
                                 filled += 1
@@ -2209,6 +2259,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         "high_yield_savings_apy":    best["high_yield_savings"],
         "cd_apy":                    best["cd"],
         "cd_term":                   best["cd_term"],
+        "cd_ladder":                 best["cd_ladder"],
         "money_market_apy":          best["money_market"],
         "min_balance":               best["min_balance"],
         "status":                    status,
@@ -2266,7 +2317,7 @@ async def ai_agent_crawl(page, bank):
         base = "https://" + base
 
     best = {"checking": None, "savings": None, "high_yield_savings": None,
-            "cd": None, "cd_term": None, "money_market": None, "min_balance": None}
+            "cd": None, "cd_term": None, "cd_ladder": None, "money_market": None, "min_balance": None}
     source_urls = {}
     visited = set()
     client  = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -2302,10 +2353,13 @@ Return ONLY valid JSON, no explanation:
 {{"checking": <float or null>, "savings": <REGULAR savings float or null, not high-yield>,
   "high_yield_savings": <a SEPARATE high-yield/premium savings product's float or null, only if
    distinct from regular savings>, "cd": <float or null>,
-  "cd_term": <"12-month" or null>, "money_market": <float or null>, "min_balance": <"$1,000" or null>}}
+  "cd_term": <"12-month" or null>,
+  "cd_ladder": <array of EVERY distinct CD term/rate shown, e.g.
+   [{{"term": "6-month", "apy": 3.5}}, {{"term": "12-month", "apy": 4.1}}], empty array if only one term>,
+  "money_market": <float or null>, "min_balance": <"$1,000" or null>}}
 Rules: use highest APY shown for each type. If only one savings-type product exists, put it in
 whichever field actually describes it (savings vs high_yield_savings), leave the other null.
-If no rates visible return all nulls."""
+List every CD term you see in cd_ladder, not just the highest. If no rates visible return all nulls."""
         content_hash = _content_hash(bank["bank_name"], url, img_b64)
         cached = await _extraction_cache_get(content_hash)
         if cached is not None:
@@ -2314,7 +2368,7 @@ If no rates visible return all nulls."""
         try:
             resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=200,
+                max_tokens=300,
                 messages=[{"role": "user", "content": [
                     {"type": "image", "source": {"type": "base64",
                      "media_type": "image/png", "data": img_b64}},
@@ -2330,6 +2384,7 @@ If no rates visible return all nulls."""
                 "high_yield_savings": float(result["high_yield_savings"]) if result.get("high_yield_savings") else None,
                 "cd":                float(result["cd"])                 if result.get("cd")                else None,
                 "cd_term":           result.get("cd_term"),
+                "cd_ladder":         _clean_cd_ladder(result.get("cd_ladder")),
                 "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
                 "min_balance":       result.get("min_balance"),
             }
@@ -2369,7 +2424,7 @@ If no rates visible return all nulls."""
             rates = await extract_rates_ai(img_b64, url)
             if rates:
                 filled = False
-                for k in ["checking","savings","high_yield_savings","cd","cd_term","money_market","min_balance"]:
+                for k in ["checking","savings","high_yield_savings","cd","cd_term", "cd_ladder","money_market","min_balance"]:
                     if rates.get(k) is not None and best.get(k) is None:
                         best[k] = rates[k]
                         filled  = True
@@ -2430,7 +2485,7 @@ If no relevant links found return []."""
     if c < 3:
         da = await scrape_deposit_accounts(page, bank["bank_name"])
         if da:
-            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
+            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "cd_ladder", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
                     best[k] = da[k]
                     if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
@@ -2487,6 +2542,7 @@ If no relevant links found return []."""
         "high_yield_savings_apy":   best["high_yield_savings"],
         "cd_apy":                   best["cd"],
         "cd_term":                  best["cd_term"],
+        "cd_ladder":                best["cd_ladder"],
         "money_market_apy":         best["money_market"],
         "min_balance":              best["min_balance"],
         "status":                   status,
@@ -3555,9 +3611,18 @@ def build_rate_observations(results, run_id):
             ("checking",     r.get("checking_apy"),    r.get("source_url_checking"), None),
             ("savings",      r.get("savings_apy"),      r.get("source_url_savings"),  None),
             ("high_yield_savings", hys_apy,             r.get("source_url_high_yield_savings"), None),
-            ("cd",           r.get("cd_apy"),           r.get("source_url_cd"), r.get("cd_term")),
             ("money_market", r.get("money_market_apy"), None, None),
         ]
+        # Phase 5 (part 3): a full CD ladder means one row per distinct term
+        # instead of only the single highest rate — the ladder always includes
+        # that same best entry, so use it INSTEAD of cd_apy/cd_term, never
+        # both (that would double-count the same rate under one term).
+        cd_ladder = r.get("cd_ladder")
+        if cd_ladder:
+            for entry in cd_ladder:
+                products.append(("cd", entry.get("apy"), r.get("source_url_cd"), entry.get("term")))
+        else:
+            products.append(("cd", r.get("cd_apy"), r.get("source_url_cd"), r.get("cd_term")))
         for product_type, apy, specific_url, cd_term in products:
             if apy in ("", None):
                 continue

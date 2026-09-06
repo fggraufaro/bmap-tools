@@ -369,6 +369,16 @@ SAVINGS_PAT_NEXTLN = re.compile(
 # Wider gap — handles 2-3 blank/short lines between label and rate value
 SAVINGS_PAT_WIDEGAP = re.compile(
     r'(?:savings|high.yield\s+savings)[^\n]*\n(?:[^\n]{0,30}\n){0,3}\s*(\d+\.\d+)\s*%\s*APY', re.I)
+# Phase 5: SAVINGS_PAT's alternation already matches both plain "savings" and
+# "high yield savings" labels (picking whichever has the higher rate) — this
+# classifies which one a given match actually was, so the two can be reported
+# as separate products instead of collapsed into one. A match always starts
+# exactly at the label alternative that matched, so checking its own leading
+# text is precise (no separate label-search window needed).
+# No leading ^ anchor: Pattern.match(text, pos) already only tries to match
+# starting exactly at pos — a literal "^" would (surprisingly) still require
+# the true start of the whole string, not pos, and silently never match here.
+HYS_LABEL_PAT = re.compile(r'high[\s-]?yield', re.I)
 
 # Fix 3: checking — catches iChecking, eChecking, Rewards Checking, Interest Checking
 CHECKING_PAT        = re.compile(
@@ -1038,7 +1048,9 @@ Query: {query}{focus_note}
 From the search results, extract deposit rates. Return ONLY valid JSON:
 {{
   "checking": <float APY% or null>,
-  "savings": <float APY% or null>,
+  "savings": <REGULAR savings float APY% or null, not high-yield>,
+  "high_yield_savings": <a SEPARATE high-yield/premium savings product's float APY% or null,
+   only if distinct from regular savings>,
   "cd": <float APY% or null>,
   "cd_term": <"12-month" or null>,
   "money_market": <float APY% or null>,
@@ -1049,6 +1061,7 @@ From the search results, extract deposit rates. Return ONLY valid JSON:
 Rules:
 - Only extract rates from official bank websites or well-known aggregators (Bankrate, DA, NerdWallet)
 - DO NOT cross-assign rates between product types
+- If only one savings-type product exists, put it in whichever field describes it, leave the other null
 - If no rates found return all nulls with confidence "low"
 - Return ONLY the JSON"""
 
@@ -1075,17 +1088,18 @@ Rules:
             return None
         result = json.loads(m.group(0))
         cleaned = {
-            "checking":     float(result["checking"])     if result.get("checking")     else None,
-            "savings":      float(result["savings"])      if result.get("savings")      else None,
-            "cd":           float(result["cd"])           if result.get("cd")           else None,
-            "cd_term":      result.get("cd_term"),
-            "money_market": float(result["money_market"]) if result.get("money_market") else None,
-            "_confidence":  result.get("confidence", "low"),
-            "_source_note": result.get("source_note", ""),
-            "_rebrand_hint": result.get("rebrand_hint"),
+            "checking":          float(result["checking"])          if result.get("checking")          else None,
+            "savings":           float(result["savings"])            if result.get("savings")           else None,
+            "high_yield_savings": float(result["high_yield_savings"]) if result.get("high_yield_savings") else None,
+            "cd":                float(result["cd"])                 if result.get("cd")                else None,
+            "cd_term":           result.get("cd_term"),
+            "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
+            "_confidence":       result.get("confidence", "low"),
+            "_source_note":      result.get("source_note", ""),
+            "_rebrand_hint":     result.get("rebrand_hint"),
         }
         # Only return if at least one rate found
-        if any(cleaned.get(k) for k in ["checking", "savings", "cd", "money_market"]):
+        if any(cleaned.get(k) for k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]):
             return cleaned
     except Exception as e:
         crawl_state["log"].append(f"    [Search] preflight error: {e}")
@@ -1433,23 +1447,34 @@ def load_call_reports():
 # ── Rate extraction ───────────────────────────────────────────────────────────
 
 def extract_rates(text):
-    r = {"checking": None, "savings": None, "cd": None, "cd_term": None,
+    r = {"checking": None, "savings": None, "high_yield_savings": None,
+         "cd": None, "cd_term": None,
          "money_market": None, "min_balance": None,
          "rate_tags": {}}   # e.g. {"checking": ["conditional"], "savings": ["promo"]}
 
-    # Savings — collect ALL matches with positions, take the highest
-    sav_matches = [(float(m.group(1)), m.start()) for m in SAVINGS_PAT.finditer(text)
-                   if 0.05 <= float(m.group(1)) <= 15]
-    sav_matches += [(float(m.group(1)), m.start()) for m in SAVINGS_PAT_NEXTLN.finditer(text)
-                    if 0.05 <= float(m.group(1)) <= 15]
-    sav_matches += [(float(m.group(1)), m.start()) for m in SAVINGS_PAT_WIDEGAP.finditer(text)
-                    if 0.05 <= float(m.group(1)) <= 15]
+    # Savings — collect ALL matches with positions, then split into plain
+    # "savings" vs "high yield savings" by what the match's own label text
+    # says (Phase 5). A page with both a low plain-savings rate and a
+    # separate high-yield product reports both instead of only the higher one.
+    all_sav_matches = [m for m in SAVINGS_PAT.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
+    all_sav_matches += [m for m in SAVINGS_PAT_NEXTLN.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
+    all_sav_matches += [m for m in SAVINGS_PAT_WIDEGAP.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
+    sav_matches, hys_matches = [], []
+    for m in all_sav_matches:
+        bucket = hys_matches if HYS_LABEL_PAT.match(text, m.start()) else sav_matches
+        bucket.append((float(m.group(1)), m.start()))
     if sav_matches:
         best_sav = max(sav_matches, key=lambda x: x[0])
         r["savings"] = best_sav[0]
         tags = tag_rate_context(text, best_sav[1])
         if tags:
             r["rate_tags"]["savings"] = tags
+    if hys_matches:
+        best_hys = max(hys_matches, key=lambda x: x[0])
+        r["high_yield_savings"] = best_hys[0]
+        tags = tag_rate_context(text, best_hys[1])
+        if tags:
+            r["rate_tags"]["high_yield_savings"] = tags
 
     # Checking — collect ALL matches with positions, take highest
     chk_matches = [(float(m.group(1)), m.start()) for m in CHECKING_PAT.finditer(text)
@@ -1639,7 +1664,8 @@ async def ai_vision_extract(page, url, bank_name):
 Extract the STANDARD deposit rates. Return ONLY JSON, no explanation:
 {{
   "checking": <standard checking APY% float or null>,
-  "savings": <standard savings or high-yield savings APY% float or null>,
+  "savings": <REGULAR/basic savings APY% float or null — NOT the high-yield product>,
+  "high_yield_savings": <a SEPARATE high-yield/premium/elite savings product's APY% float or null, if this page shows one distinct from regular savings>,
   "cd": <highest CD APY% float or null>,
   "cd_term": <term for that CD like "12-month" or null>,
   "money_market": <money market APY% float or null>,
@@ -1647,6 +1673,11 @@ Extract the STANDARD deposit rates. Return ONLY JSON, no explanation:
 }}
 Critical rules:
 - DO NOT cross-assign rates between product types (a CD rate is never savings)
+- Label each savings-type product by what it actually is: a plain/basic/statement
+  savings account goes in "savings"; a product explicitly branded high-yield,
+  premium, or elite savings goes in "high_yield_savings". If the page shows only
+  one of the two, populate that field and leave the other null — don't force a
+  single high-yield product into "savings" just because there's no second one
 - For checking/savings/money_market: use the HIGHEST advertised APY for that product type
 - For CD: use the HIGHEST APY shown, record its term
 - If a rate says "up to X%" use X
@@ -1669,12 +1700,13 @@ Critical rules:
 
         # Validate and clean
         cleaned = {
-            "checking":     float(result["checking"])     if result.get("checking")     else None,
-            "savings":      float(result["savings"])      if result.get("savings")      else None,
-            "cd":           float(result["cd"])           if result.get("cd")           else None,
-            "cd_term":      result.get("cd_term"),
-            "money_market": float(result["money_market"]) if result.get("money_market") else None,
-            "min_balance":  result.get("min_balance"),
+            "checking":          float(result["checking"])          if result.get("checking")          else None,
+            "savings":           float(result["savings"])            if result.get("savings")           else None,
+            "high_yield_savings": float(result["high_yield_savings"]) if result.get("high_yield_savings") else None,
+            "cd":                float(result["cd"])                 if result.get("cd")                else None,
+            "cd_term":           result.get("cd_term"),
+            "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
+            "min_balance":       result.get("min_balance"),
         }
         await _extraction_cache_put(content_hash, bank_name, url, cleaned, "claude-haiku-4-5-20251001")
         return cleaned
@@ -1728,8 +1760,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     base = bank["bank_url"].rstrip("/")
     if not base.startswith("http"):
         base = "https://" + base
-    best = {"checking": None, "savings": None, "cd": None, "cd_term": None,
-            "money_market": None, "min_balance": None}
+    best = {"checking": None, "savings": None, "high_yield_savings": None,
+            "cd": None, "cd_term": None, "money_market": None, "min_balance": None}
     found_on    = None
     source_urls = {}
     visited     = set()
@@ -1921,7 +1953,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                 if r.get(k) is not None:
                     if best[k] is None or (isinstance(r[k], float) and r[k] > best[k]):
                         best[k] = r[k]
-                        if k in ["checking", "savings", "cd", "money_market"]:
+                        if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                             source_urls[k] = url
             if r.get("cd_term") and not best["cd_term"]:
                 best["cd_term"] = r["cd_term"]
@@ -1967,10 +1999,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
               else await scrape_deposit_accounts(page, bank["bank_name"]))
         if da:
             stale_flag = da.get("_stale_flag", "")
-            for k in ["checking", "savings", "cd", "cd_term", "money_market", "min_balance"]:
+            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
                     best[k] = da[k]
-                    if k in ["checking", "savings", "cd", "money_market"]:
+                    if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                         source_urls[k] = da.get("_source", "depositaccounts.com") + stale_flag
 
     # Full path scan — only if still incomplete after priority + early DA
@@ -2011,10 +2043,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
               else await scrape_deposit_accounts(page, bank["bank_name"]))
         if da:
             stale_flag = da.get("_stale_flag", "")
-            for k in ["checking", "savings", "cd", "cd_term", "money_market", "min_balance"]:
+            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
                     best[k] = da[k]
-                    if k in ["checking", "savings", "cd", "money_market"]:
+                    if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                         source_urls[k] = da.get("_source", "depositaccounts.com") + stale_flag
 
     # ── AI Vision fallback for empty/partial results ────────────────────────
@@ -2073,11 +2105,11 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                     ai_result = await ai_vision_extract(page, v_url, bank["bank_name"])
                     if ai_result:
                         filled = 0
-                        for k in ["checking", "savings", "cd", "cd_term", "money_market", "min_balance"]:
+                        for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
                             if ai_result.get(k) is not None and best.get(k) is None:
                                 best[k] = ai_result[k]
                                 filled += 1
-                                if k in ["checking", "savings", "cd", "money_market"]:
+                                if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                                     source_urls[k] = f"[AI] {v_url}"
                         crawl_state["ai_calls"] = crawl_state.get("ai_calls", 0) + 1
                         crawl_state["log"].append(f"    [AI] ✓ {v_url.split('/')[-1] or 'home'}: sav={ai_result.get('savings')} cd={ai_result.get('cd')} chk={ai_result.get('checking')}")
@@ -2115,6 +2147,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     lbl = rate_label("CD", "cd")
     if lbl: rate_parts.append(lbl + (f" ({best['cd_term']})" if best.get('cd_term') else ''))
     lbl = rate_label("Savings", "savings")
+    if lbl: rate_parts.append(lbl)
+    lbl = rate_label("High-Yield Savings", "high_yield_savings")
     if lbl: rate_parts.append(lbl)
     lbl = rate_label("Checking", "checking")
     if lbl: rate_parts.append(lbl)
@@ -2168,7 +2202,11 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     return {
         **bank,
         "checking_apy":              best["checking"],
-        "savings_apy":               best["savings"],
+        # Wide-table backward compat: falls back to the HYS rate when that's
+        # the only savings-type product found, same as pre-split behavior —
+        # the genuine split lives in high_yield_savings_apy for the tidy table.
+        "savings_apy":               best["savings"] if best["savings"] is not None else best["high_yield_savings"],
+        "high_yield_savings_apy":    best["high_yield_savings"],
         "cd_apy":                    best["cd"],
         "cd_term":                   best["cd_term"],
         "money_market_apy":          best["money_market"],
@@ -2177,7 +2215,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         "note":                      " | ".join(parts) + source_note,
         "source_url":                unique_sources[0] if unique_sources else "",
         "source_url_checking":       source_urls.get("checking", ""),
-        "source_url_savings":        source_urls.get("savings", ""),
+        "source_url_high_yield_savings": source_urls.get("high_yield_savings", ""),
+        "source_url_savings":        source_urls.get("savings") or source_urls.get("high_yield_savings", ""),
         "source_url_cd":             source_urls.get("cd", ""),
         "crawled_at":                datetime.now().strftime("%Y-%m-%d %H:%M"),
         # Phase 5: structured conditional/promo tags per product, from
@@ -2226,8 +2265,8 @@ async def ai_agent_crawl(page, bank):
     if not base.startswith("http"):
         base = "https://" + base
 
-    best = {"checking": None, "savings": None, "cd": None, "cd_term": None,
-            "money_market": None, "min_balance": None}
+    best = {"checking": None, "savings": None, "high_yield_savings": None,
+            "cd": None, "cd_term": None, "money_market": None, "min_balance": None}
     source_urls = {}
     visited = set()
     client  = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -2260,9 +2299,13 @@ async def ai_agent_crawl(page, bank):
         """Ask Claude to extract all rates from a screenshot."""
         prompt = f"""Extract ALL deposit rates from this bank rates page for {bank['bank_name']}.
 Return ONLY valid JSON, no explanation:
-{{"checking": <float or null>, "savings": <float or null>, "cd": <float or null>,
+{{"checking": <float or null>, "savings": <REGULAR savings float or null, not high-yield>,
+  "high_yield_savings": <a SEPARATE high-yield/premium savings product's float or null, only if
+   distinct from regular savings>, "cd": <float or null>,
   "cd_term": <"12-month" or null>, "money_market": <float or null>, "min_balance": <"$1,000" or null>}}
-Rules: use highest APY shown for each type. If no rates visible return all nulls."""
+Rules: use highest APY shown for each type. If only one savings-type product exists, put it in
+whichever field actually describes it (savings vs high_yield_savings), leave the other null.
+If no rates visible return all nulls."""
         content_hash = _content_hash(bank["bank_name"], url, img_b64)
         cached = await _extraction_cache_get(content_hash)
         if cached is not None:
@@ -2282,12 +2325,13 @@ Rules: use highest APY shown for each type. If no rates visible return all nulls
             txt = resp.content[0].text.strip()
             result = parse_json_object(txt)   # v3.5: tolerate non-JSON preamble
             cleaned = {
-                "checking":     float(result["checking"])     if result.get("checking")     else None,
-                "savings":      float(result["savings"])      if result.get("savings")      else None,
-                "cd":           float(result["cd"])           if result.get("cd")           else None,
-                "cd_term":      result.get("cd_term"),
-                "money_market": float(result["money_market"]) if result.get("money_market") else None,
-                "min_balance":  result.get("min_balance"),
+                "checking":          float(result["checking"])          if result.get("checking")          else None,
+                "savings":           float(result["savings"])            if result.get("savings")           else None,
+                "high_yield_savings": float(result["high_yield_savings"]) if result.get("high_yield_savings") else None,
+                "cd":                float(result["cd"])                 if result.get("cd")                else None,
+                "cd_term":           result.get("cd_term"),
+                "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
+                "min_balance":       result.get("min_balance"),
             }
             await _extraction_cache_put(content_hash, bank["bank_name"], url, cleaned, "claude-haiku-4-5-20251001")
             return cleaned
@@ -2325,11 +2369,11 @@ Rules: use highest APY shown for each type. If no rates visible return all nulls
             rates = await extract_rates_ai(img_b64, url)
             if rates:
                 filled = False
-                for k in ["checking","savings","cd","cd_term","money_market","min_balance"]:
+                for k in ["checking","savings","high_yield_savings","cd","cd_term","money_market","min_balance"]:
                     if rates.get(k) is not None and best.get(k) is None:
                         best[k] = rates[k]
                         filled  = True
-                        if k in ["checking","savings","cd","money_market"]:
+                        if k in ["checking","savings","high_yield_savings","cd","money_market"]:
                             source_urls[k] = url
                 if filled:
                     c = sum(1 for k in ["checking","savings","cd"] if best[k] is not None)
@@ -2386,20 +2430,21 @@ If no relevant links found return []."""
     if c < 3:
         da = await scrape_deposit_accounts(page, bank["bank_name"])
         if da:
-            for k in ["checking", "savings", "cd", "cd_term", "money_market", "min_balance"]:
+            for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
                     best[k] = da[k]
-                    if k in ["checking", "savings", "cd", "money_market"]:
+                    if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                         source_urls[k] = da.get("_source", "depositaccounts.com")
 
     # Build result
     count  = sum(1 for k in ["checking","savings","cd"] if best[k] is not None)
-    status = "Found" if count == 3 else "Partial" if count > 0 else "Not public"
+    status = _classify_status(count)
     parts  = []
     if any(best[k] for k in ["checking","savings","cd","money_market"]):
         rate_parts = []
         if best["cd"]:           rate_parts.append(f"CD {best['cd']:.2f}%{' ('+best['cd_term']+')' if best['cd_term'] else ''}")
         if best["savings"]:      rate_parts.append(f"Savings {best['savings']:.2f}%")
+        if best["high_yield_savings"]: rate_parts.append(f"High-Yield Savings {best['high_yield_savings']:.2f}%")
         if best["checking"]:     rate_parts.append(f"Checking {best['checking']:.2f}%")
         if best["money_market"]: rate_parts.append(f"Money Mkt {best['money_market']:.2f}%")
         if rate_parts: parts.append(", ".join(rate_parts))
@@ -2436,7 +2481,10 @@ If no relevant links found return []."""
     return {
         **bank,
         "checking_apy":             best["checking"],
-        "savings_apy":              best["savings"],
+        # Wide-table backward compat: falls back to the HYS rate when that's
+        # the only savings-type product found — see crawl_bank's return dict.
+        "savings_apy":              best["savings"] if best["savings"] is not None else best["high_yield_savings"],
+        "high_yield_savings_apy":   best["high_yield_savings"],
         "cd_apy":                   best["cd"],
         "cd_term":                  best["cd_term"],
         "money_market_apy":         best["money_market"],
@@ -2445,7 +2493,8 @@ If no relevant links found return []."""
         "note":                     " | ".join(parts) + source_note,
         "source_url":               unique_sources[0] if unique_sources else "",
         "source_url_checking":      source_urls.get("checking",""),
-        "source_url_savings":       source_urls.get("savings",""),
+        "source_url_savings":       source_urls.get("savings") or source_urls.get("high_yield_savings",""),
+        "source_url_high_yield_savings": source_urls.get("high_yield_savings",""),
         "source_url_cd":            source_urls.get("cd",""),
         "crawled_at":               datetime.now().strftime("%Y-%m-%d %H:%M"),
         "bank_type":                bank.get("bank_type",""),
@@ -2671,7 +2720,9 @@ async def chat_crawl(page, bank):
 Extract any deposit rates mentioned. Return ONLY valid JSON:
 {{
   "checking": <float APY% or null>,
-  "savings": <float APY% or null>,
+  "savings": <REGULAR savings float APY% or null, not high-yield>,
+  "high_yield_savings": <a SEPARATE high-yield/premium savings product's float APY% or null,
+   only if distinct from regular savings>,
   "cd": <float APY% or null>,
   "cd_term": <"12-month" or null>,
   "money_market": <float APY% or null>,
@@ -2698,13 +2749,14 @@ Use null if not mentioned. Only extract rates clearly stated by the bank."""
             result = parse_json_object(txt)
 
             extracted = {
-                "checking":     float(result["checking"])     if result.get("checking")     else None,
-                "savings":      float(result["savings"])      if result.get("savings")      else None,
-                "cd":           float(result["cd"])           if result.get("cd")           else None,
-                "cd_term":      result.get("cd_term"),
-                "money_market": float(result["money_market"]) if result.get("money_market") else None,
-                "min_balance":  result.get("min_balance"),
-                "promo_note":   result.get("promo_note"),
+                "checking":          float(result["checking"])          if result.get("checking")          else None,
+                "savings":           float(result["savings"])            if result.get("savings")           else None,
+                "high_yield_savings": float(result["high_yield_savings"]) if result.get("high_yield_savings") else None,
+                "cd":                float(result["cd"])                 if result.get("cd")                else None,
+                "cd_term":           result.get("cd_term"),
+                "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
+                "min_balance":       result.get("min_balance"),
+                "promo_note":        result.get("promo_note"),
             }
 
             found = sum(1 for k in ["checking","savings","cd"] if extracted.get(k))
@@ -2977,6 +3029,7 @@ async def run_crawler(banks):
                                 chat_result = await chat_crawl(page2, bank)
                                 if chat_result:
                                     for k, rk in [("checking","checking_apy"),("savings","savings_apy"),
+                                                   ("high_yield_savings","high_yield_savings_apy"),
                                                    ("cd","cd_apy"),("cd_term","cd_term"),
                                                    ("money_market","money_market_apy"),("min_balance","min_balance")]:
                                         if chat_result.get(k) is not None and not result.get(rk):
@@ -2994,6 +3047,7 @@ async def run_crawler(banks):
                     # Merge any preflight data into gaps left by browser crawl
                     if pre:
                         for k, rk in [("checking","checking_apy"),("savings","savings_apy"),
+                                       ("high_yield_savings","high_yield_savings_apy"),
                                        ("cd","cd_apy"),("cd_term","cd_term"),
                                        ("money_market","money_market_apy")]:
                             if pre.get(k) is not None and not result.get(rk):
@@ -3034,6 +3088,7 @@ async def run_crawler(banks):
                         if retry:
                             filled = []
                             for k, rk in [("checking","checking_apy"),("savings","savings_apy"),
+                                           ("high_yield_savings","high_yield_savings_apy"),
                                            ("cd","cd_apy"),("cd_term","cd_term"),
                                            ("money_market","money_market_apy")]:
                                 if retry.get(k) is not None and not result.get(rk):
@@ -3218,6 +3273,7 @@ def _build_result_from_preflight(bank, pre):
     rate_parts = []
     if pre.get("cd"):      rate_parts.append(f"CD {pre['cd']:.2f}%{' ('+pre['cd_term']+')' if pre.get('cd_term') else ''}")
     if pre.get("savings"): rate_parts.append(f"Savings {pre['savings']:.2f}%")
+    if pre.get("high_yield_savings"): rate_parts.append(f"High-Yield Savings {pre['high_yield_savings']:.2f}%")
     if pre.get("checking"):rate_parts.append(f"Checking {pre['checking']:.2f}%")
     if rate_parts: parts.append(", ".join(rate_parts))
     if not parts: parts.append("Rates not publicly listed")
@@ -3233,7 +3289,10 @@ def _build_result_from_preflight(bank, pre):
     return {
         **bank,
         "checking_apy":              pre.get("checking"),
-        "savings_apy":               pre.get("savings"),
+        # Wide-table backward compat: falls back to the HYS rate when that's
+        # the only savings-type product found.
+        "savings_apy":               pre.get("savings") if pre.get("savings") is not None else pre.get("high_yield_savings"),
+        "high_yield_savings_apy":    pre.get("high_yield_savings"),
         "cd_apy":                    pre.get("cd"),
         "cd_term":                   pre.get("cd_term"),
         "money_market_apy":          pre.get("money_market"),
@@ -3242,7 +3301,8 @@ def _build_result_from_preflight(bank, pre):
         "note":                      " | ".join(parts) + f" | Source: [Search] {src}",
         "source_url":                f"[Search] {src}",
         "source_url_checking":       f"[Search] {src}" if pre.get("checking") else "",
-        "source_url_savings":        f"[Search] {src}" if pre.get("savings") else "",
+        "source_url_savings":        f"[Search] {src}" if (pre.get("savings") or pre.get("high_yield_savings")) else "",
+        "source_url_high_yield_savings": f"[Search] {src}" if pre.get("high_yield_savings") else "",
         "source_url_cd":             f"[Search] {src}" if pre.get("cd") else "",
         "crawled_at":                datetime.now().strftime("%Y-%m-%d %H:%M"),
         "bank_type":                 bank.get("bank_type",""),
@@ -3490,14 +3550,22 @@ def build_rate_observations(results, run_id):
         note       = r.get("note")
         source_url = r.get("source_url")
         rate_tags  = r.get("rate_tags") or {}   # Phase 5: {"savings": ["promo"], ...} from tag_rate_context()
+        hys_apy    = r.get("high_yield_savings_apy")
         products = [
             ("checking",     r.get("checking_apy"),    r.get("source_url_checking"), None),
             ("savings",      r.get("savings_apy"),      r.get("source_url_savings"),  None),
+            ("high_yield_savings", hys_apy,             r.get("source_url_high_yield_savings"), None),
             ("cd",           r.get("cd_apy"),           r.get("source_url_cd"), r.get("cd_term")),
             ("money_market", r.get("money_market_apy"), None, None),
         ]
         for product_type, apy, specific_url, cd_term in products:
             if apy in ("", None):
+                continue
+            # Wide-table backward compat put the HYS rate into savings_apy when
+            # that was the only savings-type product found (see crawl_bank's
+            # return dict) — that's the same rate as the high_yield_savings row
+            # below, not a genuinely separate plain-savings observation.
+            if product_type == "savings" and hys_apy is not None and apy == hys_apy:
                 continue
             try:
                 apy_val = float(str(apy).replace("%", "").replace(",", ""))

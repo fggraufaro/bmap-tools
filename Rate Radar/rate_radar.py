@@ -210,6 +210,30 @@ crawl_state = {
     "cr_quarters":    [],     # all available quarter labels
 }
 
+
+# Phase 3: fixed status enum. "Skipped" is new — the circuit breaker uses it
+# to mean "we deliberately didn't attempt a full crawl this run", distinct
+# from "Not public" ("we looked and found nothing"). Mirrored by a CHECK
+# constraint on raw.raw_rate_radar.status so a typo'd literal can't silently
+# create a 5th value the rest of the system doesn't know how to handle.
+STATUS_FOUND     = "Found"
+STATUS_PARTIAL   = "Partial"
+STATUS_NOT_PUBLIC = "Not public"
+STATUS_ERROR     = "Error"
+STATUS_SKIPPED   = "Skipped"
+STATUS_VALUES    = (STATUS_FOUND, STATUS_PARTIAL, STATUS_NOT_PUBLIC, STATUS_ERROR, STATUS_SKIPPED)
+
+def _classify_status(core_rate_count, of=3):
+    """Found/Partial/Not public from how many of the core rates (checking,
+    savings, cd) came back — the same rule applied at every re-evaluation
+    point (preflight, search-retry, chat fallback, history fallback)."""
+    if core_rate_count >= of:
+        return STATUS_FOUND
+    if core_rate_count > 0:
+        return STATUS_PARTIAL
+    return STATUS_NOT_PUBLIC
+
+
 def _track_llm_usage(resp):
     """Accumulate Anthropic token/web-search usage from a messages.create() response
     into crawl_state. Never raises — usage tracking must not break the crawl."""
@@ -470,6 +494,23 @@ def detect_rebrand(text, bank_name):
 def extract_domain(url):
     m = re.match(r'https?://([^/]+)', url)
     return m.group(1).replace('www.', '') if m else ''
+
+
+async def _goto_with_retry(page, url, timeout=12000, retries=1, backoff=0.6):
+    """Phase 3: structured retry/backoff. A transient network hiccup (DNS
+    blip, connection reset, a slow TLS handshake) shouldn't permanently give
+    up on a URL the same way a real 404 should. Retries only on exceptions —
+    a normal response, even a 4xx/5xx, is returned as-is and never retried,
+    since that's a real answer, not a failure."""
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            return await page.goto(url, timeout=timeout, wait_until="domcontentloaded")
+        except Exception as e:
+            last_exc = e
+            if attempt < retries:
+                await asyncio.sleep(backoff * (attempt + 1))
+    raise last_exc
 
 
 # ── v3.2: proxy support ───────────────────────────────────────────────────────
@@ -1688,7 +1729,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             did_expand  = False
 
             # domcontentloaded is much faster than networkidle on JS-heavy bank sites
-            resp = await page.goto(url, timeout=12000, wait_until="domcontentloaded")
+            resp = await _goto_with_retry(page, url, timeout=12000)
             # v3.6: dead page — don't wait on it, don't expand it, don't dig it.
             # Most of the ~50 candidate paths 404, and rate-keyword 404s were
             # getting the full deep treatment (2s wait + scroll + accordions).
@@ -2218,7 +2259,7 @@ Rules: use highest APY shown for each type. If no rates visible return all nulls
             return
         try:
             crawl_state["log"].append(f"    [Agent] → {url.replace(base,'') or '/'}")
-            await page.goto(url, timeout=15000, wait_until="domcontentloaded")
+            await _goto_with_retry(page, url, timeout=15000)
             await page.wait_for_timeout(2500)
             # Wait for dynamic content
             try: await page.wait_for_selector("text=APY", timeout=3000)
@@ -2643,7 +2684,8 @@ async def run_crawler(banks):
     crawl_state["log"].append("Rate Radar v3.6 — Supabase push + 404-skip fast crawl")
 
     # ── Phase 2: config-driven bank/URL registry ────────────────────────────
-    crawl_state["_rate_paths_cfg"], crawl_state["_bank_urls_cfg"] = await load_bank_url_config()
+    crawl_state["_rate_paths_cfg"], crawl_state["_bank_urls_cfg"], crawl_state["_bank_health_cfg"] = \
+        await load_bank_url_config()
     if PROXY_URL:
         crawl_state["log"].append(f"  Proxy: {PROXY_URL} (browser + aiohttp will route through it)")
     else:
@@ -2827,12 +2869,51 @@ async def run_crawler(banks):
                         # Build minimal result from preflight data
                         result = _build_result_from_preflight(bank, pre)
                         crawl_state["results"].append(result)
-                        if result.get("status") in ("Found","Partial","Not public"):
+                        if result.get("status") in (STATUS_FOUND, STATUS_PARTIAL, STATUS_NOT_PUBLIC):
                             async with cache_lock:
                                 today_cache[cache_key] = result
                                 _save_today_cache(today_cache)
                         completed[0] += 1
                         return
+
+                # ── Phase 3: circuit breaker ─────────────────────────────────
+                # A bank with enough consecutive site-crawl failures skips the
+                # expensive browser step this run (but still gets whatever the
+                # cheap preflight search found) — except every PROBE_EVERY-th
+                # failure, where we still attempt a real crawl to catch recovery.
+                if _circuit_open(bank):
+                    failures = _bank_health(bank)["consecutive_failures"]
+                    if pre:
+                        result = _build_result_from_preflight(bank, pre)
+                        result["note"] = (result.get("note","") +
+                            f" | ⊘ Circuit breaker: {failures} consecutive site-crawl failures — "
+                            f"skipped full browser crawl to save cost (needs manual review)").strip(" |")
+                    else:
+                        result = {
+                            **bank,
+                            "checking_apy": None, "savings_apy": None, "cd_apy": None,
+                            "cd_term": None, "money_market_apy": None, "min_balance": None,
+                            "status": STATUS_SKIPPED,
+                            "note": f"⊘ Circuit breaker: {failures} consecutive failures — needs "
+                                    f"manual review. Skipped full crawl (no preflight data either).",
+                            "crawled_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            "cr_savings_apy": None, "cr_checking_apy": None,
+                            "cr_cd_apy": None, "cr_cost_of_deposits": None,
+                            "cr_total_deposits_m": None, "cr_period": "",
+                            "prev_cr_savings_apy": None, "prev_cr_checking_apy": None,
+                            "prev_cr_cd_apy": None, "prev_cr_cost_of_deposits": None,
+                            "prev_cr_total_deposits_m": None, "cr_prev_period": "",
+                            "delta_savings_apy": None, "delta_checking_apy": None,
+                            "delta_cd_apy": None, "delta_cost_of_deposits": None,
+                        }
+                    next_probe = ((failures // CIRCUIT_BREAKER_PROBE_EVERY) + 1) * CIRCUIT_BREAKER_PROBE_EVERY
+                    crawl_state["log"].append(
+                        f"  ⊘ Circuit breaker open ({failures} consecutive failures) — "
+                        f"{'using preflight data, ' if pre else ''}skipping full browser crawl "
+                        f"(will probe again at {next_probe} failures)")
+                    crawl_state["results"].append(result)
+                    completed[0] += 1
+                    return
 
                 ctx  = await browser.new_context(
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
@@ -2859,7 +2940,7 @@ async def run_crawler(banks):
                                     if chat_result.get("promo_note"):
                                         result["note"] = (result.get("note","") + " | 💬 Chat: " + chat_result["promo_note"]).strip(" |")
                                     new_count = sum(1 for k in ["checking_apy","savings_apy","cd_apy"] if result.get(k))
-                                    result["status"] = "Found" if new_count==3 else "Partial" if new_count>0 else "Not public"
+                                    result["status"] = _classify_status(new_count)
                                     result["source_url"] = result.get("source_url","") or "Live chat"
                             finally:
                                 await page2.close()
@@ -2877,7 +2958,7 @@ async def run_crawler(banks):
                                     f" | {k} from search: {pre[k]}").strip(" |")
                         # Re-evaluate status
                         new_count = sum(1 for k in ["checking_apy","savings_apy","cd_apy"] if result.get(k))
-                        result["status"] = "Found" if new_count==3 else "Partial" if new_count>0 else "Not public"
+                        result["status"] = _classify_status(new_count)
 
                     # ── v3.3: final API-search pass ──────────────────────────
                     # The Haiku preflight search is non-deterministic — the
@@ -2927,8 +3008,7 @@ async def run_crawler(banks):
                                 crawl_state["log"].append("    [Search-retry] no new rates found")
                             new_count = sum(1 for k in ["checking_apy","savings_apy","cd_apy"]
                                             if result.get(k))
-                            result["status"] = ("Found" if new_count==3
-                                                else "Partial" if new_count>0 else "Not public")
+                            result["status"] = _classify_status(new_count)
 
                     # ── Last-resort: today found nothing — check history ────
                     # Doesn't touch any bank that found at least one rate today;
@@ -2954,12 +3034,12 @@ async def run_crawler(banks):
                                     f"confirmed rate from {as_of} | " +
                                     (result.get("note","") or "")
                                 ).strip(" |")
-                                result["status"] = "Partial"
+                                result["status"] = STATUS_PARTIAL
                                 crawl_state["log"].append(
                                     f"    [History] \u21bb recovered {', '.join(filled)} "
                                     f"from {as_of} (today's search found nothing)")
 
-                    icon = "✓" if result["status"] == "Found" else "~" if result["status"] == "Partial" else "○"
+                    icon = "✓" if result["status"] == STATUS_FOUND else "~" if result["status"] == STATUS_PARTIAL else "⊘" if result["status"] == STATUS_SKIPPED else "○"
                     chk  = f"{result['checking_apy']:.2f}%" if result["checking_apy"] else "—"
                     sav  = f"{result['savings_apy']:.2f}%"  if result["savings_apy"]  else "—"
                     cd   = f"{result['cd_apy']:.2f}%"       if result["cd_apy"]       else "—"
@@ -2974,7 +3054,12 @@ async def run_crawler(banks):
                             async with cache_lock:
                                 today_cache[cache_key] = result
                                 _save_today_cache(today_cache)
-                        await update_bank_registry(bank, result)
+                        failures = await update_bank_registry(bank, result)
+                        if failures == CIRCUIT_BREAKER_THRESHOLD:
+                            crawl_state["log"].append(
+                                f"  ⚠️ ALERT: {bank['bank_name']} just crossed {failures} "
+                                f"consecutive failures — flagged needs_review")
+                            crawl_state.setdefault("_newly_flagged", []).append(bank["bank_name"])
                 except Exception as e:
                     crawl_state["log"].append(f"  x Error: {e}")
                     if bank["bank_name"].lower() not in crawl_state.get("removed", set()):
@@ -2982,7 +3067,7 @@ async def run_crawler(banks):
                         **bank,
                         "checking_apy": None, "savings_apy": None, "cd_apy": None,
                         "cd_term": None, "money_market_apy": None, "min_balance": None,
-                        "status": "Error", "note": str(e),
+                        "status": STATUS_ERROR, "note": str(e),
                         "crawled_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "cr_savings_apy": None, "cr_checking_apy": None,
                         "cr_cd_apy": None, "cr_cost_of_deposits": None,
@@ -2994,7 +3079,12 @@ async def run_crawler(banks):
                         "delta_cd_apy": None, "delta_cost_of_deposits": None,
                         }
                         crawl_state["results"].append(error_result)
-                        await update_bank_registry(bank, error_result)
+                        failures = await update_bank_registry(bank, error_result)
+                        if failures == CIRCUIT_BREAKER_THRESHOLD:
+                            crawl_state["log"].append(
+                                f"  ⚠️ ALERT: {bank['bank_name']} just crossed {failures} "
+                                f"consecutive failures — flagged needs_review")
+                            crawl_state.setdefault("_newly_flagged", []).append(bank["bank_name"])
                 finally:
                     completed[0] += 1
                     await page.close()
@@ -3039,6 +3129,27 @@ async def run_crawler(banks):
         f"Done — {found} full, {partial} partial, "
         f"{len(crawl_state['results'])-found-partial} not public{ai_note}{chat_note}{cost_note}"
     )
+
+    # ── Phase 3: run-completion alerting (surfaced in-app, no external channel) ──
+    attempted = len(crawl_state["results"])
+    errored   = sum(1 for r in crawl_state["results"] if r["status"] == STATUS_ERROR)
+    skipped   = sum(1 for r in crawl_state["results"] if r["status"] == STATUS_SKIPPED)
+    newly_flagged = crawl_state.get("_newly_flagged", [])
+    alert_lines = []
+    if attempted >= 5 and (found / attempted) < 0.2:
+        alert_lines.append(
+            f"Only {found}/{attempted} banks fully found this run ({found/attempted:.0%}) — "
+            f"unusually low, worth a manual look.")
+    if newly_flagged:
+        alert_lines.append(
+            f"{len(newly_flagged)} bank(s) newly flagged needs_review "
+            f"({CIRCUIT_BREAKER_THRESHOLD} consecutive failures): {', '.join(newly_flagged)}.")
+    if errored:
+        alert_lines.append(f"{errored} bank(s) errored (crashed) rather than just finding no data.")
+    if alert_lines:
+        crawl_state["log"].append("⚠️ RUN ALERT — " + " ".join(alert_lines))
+    run_notes = " ".join(alert_lines) if alert_lines else None
+
     saved = auto_save(crawl_state["results"])
     if saved and saved[0]:
         await push_to_supabase(crawl_state["results"], saved[0], saved[1])
@@ -3047,18 +3158,19 @@ async def run_crawler(banks):
         not_public = len(crawl_state["results"]) - found - partial
         await push_run_summary(saved[0], saved[1], run_started_at,
                                 found, partial, not_public, ai_calls, chat_calls,
-                                llm_input_tokens, llm_output_tokens, llm_web_searches)
+                                llm_input_tokens, llm_output_tokens, llm_web_searches,
+                                notes=run_notes)
         await push_rate_observations(crawl_state["results"], saved[0])
 
 
 def _build_result_from_preflight(bank, pre):
     """Build a minimal result dict from preflight search data (no browser needed)."""
     count  = sum(1 for k in ["checking","savings","cd"] if pre.get(k))
-    status = "Found" if count == 3 else "Partial" if count > 0 else "Not public"
+    status = _classify_status(count)
     parts  = []
     if pre.get("rebrand_hint"):
         parts.append(f"⚠️ REBRAND: {pre['rebrand_hint']}")
-        status = "Partial"
+        status = STATUS_PARTIAL
     rate_parts = []
     if pre.get("cd"):      rate_parts.append(f"CD {pre['cd']:.2f}%{' ('+pre['cd_term']+')' if pre.get('cd_term') else ''}")
     if pre.get("savings"): rate_parts.append(f"Savings {pre['savings']:.2f}%")
@@ -3407,8 +3519,9 @@ async def load_bank_url_config():
     first instead of just appended."""
     generic = list(RATE_PATHS)
     bank_urls = {k: list(v) for k, v in BANK_EXTRA_URLS.items()}
+    health = {}   # Phase 3: bank_key -> {"consecutive_failures": int, "needs_review": bool}
     if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
-        return generic, bank_urls
+        return generic, bank_urls, health
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         async with aiohttp.ClientSession(trust_env=True) as s:
@@ -3426,7 +3539,8 @@ async def load_bank_url_config():
                             if row["pattern"] not in lst:
                                 lst.append(row["pattern"])
             async with s.get(
-                f"{SUPABASE_URL}/rest/v1/bank_registry?select=bank_key,known_rate_urls,last_successful_url",
+                f"{SUPABASE_URL}/rest/v1/bank_registry?select=bank_key,known_rate_urls,"
+                f"last_successful_url,consecutive_failures,needs_review",
                 headers=headers, timeout=aiohttp.ClientTimeout(total=10)
             ) as r:
                 if r.status == 200:
@@ -3440,13 +3554,42 @@ async def load_bank_url_config():
                             if last_good in lst:
                                 lst.remove(last_good)
                             lst.insert(0, last_good)
+                        health[row["bank_key"]] = {
+                            "consecutive_failures": row.get("consecutive_failures") or 0,
+                            "needs_review": bool(row.get("needs_review")),
+                        }
             crawl_state["log"].append(
                 f"  ✓ Loaded bank/URL config: {len(generic)} generic paths, "
-                f"{len(bank_urls)} banks with known URLs")
+                f"{len(bank_urls)} banks with known URLs, "
+                f"{sum(1 for h in health.values() if h['needs_review'])} flagged needs_review")
     except Exception as e:
         crawl_state["log"].append(
             f"  Config load warning: {type(e).__name__}: {e} (using built-in defaults)")
-    return generic, bank_urls
+    return generic, bank_urls, health
+
+
+# Phase 3: circuit breaker. A bank with enough consecutive site-crawl failures
+# skips the expensive browser crawl this run — but still probes with a real
+# attempt every PROBE_EVERY-th failure, so a fixed site eventually gets
+# noticed instead of being blacklisted forever.
+CIRCUIT_BREAKER_THRESHOLD   = 3
+CIRCUIT_BREAKER_PROBE_EVERY = 4
+
+def _bank_health(bank):
+    raw_url = (bank.get("bank_url") or "").strip()
+    if not raw_url:
+        return None
+    bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url).lower()
+    return (crawl_state.get("_bank_health_cfg") or {}).get(bank_key)
+
+def _circuit_open(bank):
+    health = _bank_health(bank)
+    if not health:
+        return False
+    failures = health.get("consecutive_failures", 0)
+    if failures < CIRCUIT_BREAKER_THRESHOLD:
+        return False
+    return failures % CIRCUIT_BREAKER_PROBE_EVERY != 0
 
 
 async def update_bank_registry(bank, result):
@@ -3520,7 +3663,8 @@ async def update_bank_registry(bank, result):
                 })
             else:
                 failures = (prior.get("consecutive_failures") or 0) + 1
-                row.update({"consecutive_failures": failures, "needs_review": failures >= 3})
+                row.update({"consecutive_failures": failures,
+                            "needs_review": failures >= CIRCUIT_BREAKER_THRESHOLD})
             upsert_headers = {**headers, "Prefer": "resolution=merge-duplicates,return=minimal"}
             async with s.post(
                 f"{SUPABASE_URL}/rest/v1/bank_registry?on_conflict=bank_key",
@@ -3530,13 +3674,19 @@ async def update_bank_registry(bank, result):
                 if resp.status not in (200, 201, 204):
                     body = (await resp.text())[:300]
                     crawl_state["log"].append(f"bank_registry write-back failed ({resp.status}): {body}")
+                    return None
+                # Report back whether this write just crossed the circuit-breaker
+                # threshold for the first time, so the caller can surface an alert.
+                return None if verified_url else row["consecutive_failures"]
     except Exception as e:
         crawl_state["log"].append(f"bank_registry write-back error: {type(e).__name__}: {e}")
+        return None
 
 
 async def push_run_summary(run_id, run_date, started_at, banks_found, banks_partial,
                             banks_error, ai_calls, chat_calls,
-                            llm_input_tokens=0, llm_output_tokens=0, llm_web_searches=0):
+                            llm_input_tokens=0, llm_output_tokens=0, llm_web_searches=0,
+                            notes=None):
     """One row per crawl run in public.rate_radar_runs — Phase 0's run-level
     observability. Must complete before push_rate_observations (FK parent).
     Never blocks the crawl."""
@@ -3558,6 +3708,8 @@ async def push_run_summary(run_id, run_date, started_at, banks_found, banks_part
         "llm_web_searches":   llm_web_searches,
         "estimated_cost_usd": _estimate_cost_usd(llm_input_tokens, llm_output_tokens, llm_web_searches),
     }
+    if notes:
+        row["notes"] = notes
     url = f"{SUPABASE_URL}/rest/v1/rate_radar_runs?on_conflict=run_id"
     headers = {
         "apikey": SUPABASE_KEY,
@@ -3880,7 +4032,7 @@ def start():
                         "ai_calls": 0, "chat_calls": 0, "crawl_mode": mode, "force_refresh": force_refresh,
                         "preflight_total": 0, "preflight_done": 0, "phase": "starting",
                         "removed": set(), "llm_input_tokens": 0, "llm_output_tokens": 0,
-                        "llm_web_searches": 0})
+                        "llm_web_searches": 0, "_newly_flagged": []})
     crawl_state["log"].append(f"Mode: {mode.upper()}" + (" · AI Vision ON" if ANTHROPIC_OK else " · No API key"))
     start_crawl_thread(crawl_state["banks"])
     return jsonify({"ok": True, "mode": mode})

@@ -799,6 +799,86 @@ async def find_rates_via_search_engine(page, domain):
     return []
 
 
+# A search icon/button that must be clicked to reveal the actual input —
+# common on bank sites where the search box is hidden until opened.
+SITE_SEARCH_TRIGGER_SELECTORS = [
+    'button[aria-label*="search" i]', 'a[aria-label*="search" i]',
+    'button[class*="search" i]', 'a[class*="search" i]',
+    '[class*="search-icon" i]', '[class*="search-toggle" i]',
+    '[data-testid*="search" i]',
+]
+SITE_SEARCH_INPUT_SELECTORS = [
+    'input[type="search"]', 'input[name*="search" i]',
+    'input[placeholder*="search" i]', 'input[aria-label*="search" i]',
+]
+
+async def find_rates_via_site_search(page, base_url, query="rates"):
+    """
+    Many bank sites don't link their rates page from the nav at all, but
+    their own on-site search reliably finds it when asked directly — often
+    more precise than an external search engine, since it queries the
+    site's own indexed content instead of relying on how well an external
+    engine has crawled/ranked a small community bank (the technique behind
+    this: Modern Bank's real CD-rates page was found this way after every
+    guessed path and the external search-engine rescue both came up empty).
+    Returns up to 3 candidate URLs on the bank's own domain, or []."""
+    domain = extract_domain(base_url)
+    try:
+        await page.goto(base_url, timeout=PAGE_LOAD_TIMEOUT_MS, wait_until="domcontentloaded")
+    except Exception:
+        return []
+
+    for sel in SITE_SEARCH_TRIGGER_SELECTORS:
+        try:
+            el = await page.query_selector(sel)
+            if el and await el.is_visible():
+                await el.click()
+                await page.wait_for_timeout(400)
+                break
+        except Exception:
+            continue
+
+    inp = None
+    for sel in SITE_SEARCH_INPUT_SELECTORS:
+        try:
+            el = await page.query_selector(sel)
+            if el and await el.is_visible():
+                inp = el
+                break
+        except Exception:
+            continue
+    if not inp:
+        return []
+
+    try:
+        await inp.click()
+        await inp.fill(query)
+        await inp.press("Enter")
+        await page.wait_for_timeout(1500)
+    except Exception:
+        return []
+
+    try:
+        hrefs = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)")
+    except Exception:
+        return []
+
+    candidates = []
+    for h in hrefs:
+        if not isinstance(h, str) or not h.startswith("http"):
+            continue
+        if domain not in extract_domain(h):
+            continue
+        if not re.search(r"rate|apy|cd\b|savings|checking|deposit|certificate", h, re.I):
+            continue
+        if h not in candidates:
+            candidates.append(h)
+        if len(candidates) >= 3:
+            break
+    return candidates
+
+
 # ── v3.4 ZIP-gate helpers ────────────────────────────────────────────────────
 # Big banks (TD, Fifth Third, 1st Source) publish rates per market, behind a
 # "enter your ZIP" prompt. The branch_address column in the input CSV carries
@@ -2063,11 +2143,34 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         for path in remaining:
             await visit(base + path)
 
+    # ── Site-search rescue ────────────────────────────────────────────────────
+    # Path list exhausted and we have NOTHING — before asking an external
+    # search engine, try the bank's OWN on-site search for "rates" first.
+    # Often more precise than an external engine, since it queries the site's
+    # own indexed content instead of relying on how well it's ranked
+    # externally (this is how Modern Bank's real CD-rates page was found,
+    # after every guessed path and the external rescue both came up empty).
+    count = sum(1 for k in ["checking", "savings", "cd"] if best[k] is not None)
+    if count == 0:
+        crawl_state["log"].append(
+            f"    [Site-search] path list exhausted with 0/3 — trying {base}'s own search for \"rates\"")
+        try:
+            site_search_candidates = await find_rates_via_site_search(page, base)
+            if site_search_candidates:
+                crawl_state["log"].append(
+                    f"    [Site-search] {len(site_search_candidates)} result(s), "
+                    f"top: {site_search_candidates[0]}")
+                for u in site_search_candidates:
+                    await visit(u, priority=True)
+            else:
+                crawl_state["log"].append("    [Site-search] no usable search box or results found")
+        except Exception as e:
+            crawl_state["log"].append(f"    [Site-search] error: {e}")
+
     # ── Fix 2: search-engine rescue ──────────────────────────────────────────
-    # Path list exhausted and we have NOTHING — before marking "Not public",
-    # ask a search engine for `site:<domain> rates APY` and crawl the top
-    # on-domain results (Fifth Third, Citizens, Santander etc. publish rates
-    # on paths no static list will ever guess).
+    # Still nothing — ask an external search engine for `site:<domain> rates
+    # APY` and crawl the top on-domain results (Fifth Third, Citizens,
+    # Santander etc. publish rates on paths no static list will ever guess).
     search_candidates = []
     count = sum(1 for k in ["checking", "savings", "cd"] if best[k] is not None)
     if count == 0:

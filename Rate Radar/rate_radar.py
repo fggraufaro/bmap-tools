@@ -252,6 +252,10 @@ PAGE_BUDGET_PRIORITY_BONUS   = 2   # extra slots for links found via a priority 
 BROWSER_LAUNCH_TIMEOUT_S     = 45
 GOTO_RETRY_COUNT             = 1   # extra attempts on a transient page.goto failure
 GOTO_RETRY_BACKOFF_S         = 0.6
+# Registry/cache calls run once per bank inside the same MAX_CONCURRENT_BANKS
+# window, so up to 5 of these can be in flight against Supabase at once —
+# a live run showed 10s wasn't always enough headroom under that load.
+SUPABASE_CALL_TIMEOUT_S      = 15
 
 
 def _track_llm_usage(resp):
@@ -3563,7 +3567,7 @@ async def load_bank_url_config():
         async with aiohttp.ClientSession(trust_env=True) as s:
             async with s.get(
                 f"{SUPABASE_URL}/rest/v1/url_pattern_registry?active=eq.true&select=pattern,category,bank_key",
-                headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as r:
                 if r.status == 200:
                     for row in await r.json():
@@ -3577,7 +3581,7 @@ async def load_bank_url_config():
             async with s.get(
                 f"{SUPABASE_URL}/rest/v1/bank_registry?select=bank_key,known_rate_urls,"
                 f"last_successful_url,consecutive_failures,needs_review",
-                headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as r:
                 if r.status == 200:
                     for row in await r.json():
@@ -3656,7 +3660,7 @@ async def _extraction_cache_get(content_hash):
             async with s.get(
                 f"{SUPABASE_URL}/rest/v1/extraction_cache?content_hash=eq.{content_hash}"
                 f"&select=extracted_json",
-                headers=headers, timeout=aiohttp.ClientTimeout(total=8)
+                headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as r:
                 if r.status == 200:
                     rows = await r.json()
@@ -3683,7 +3687,7 @@ async def _extraction_cache_put(content_hash, bank_name, page_url, extracted, mo
             async with s.post(
                 f"{SUPABASE_URL}/rest/v1/extraction_cache?on_conflict=content_hash",
                 headers=headers, data=json.dumps(row),
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as resp:
                 await resp.read()
     except Exception:
@@ -3744,7 +3748,7 @@ async def update_bank_registry(bank, result):
             async with s.get(
                 f"{SUPABASE_URL}/rest/v1/bank_registry?bank_key=eq.{bank_key}"
                 f"&select=known_rate_urls,consecutive_failures",
-                headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as r:
                 existing = (await r.json()) if r.status == 200 else []
             prior = existing[0] if existing else {}
@@ -3767,7 +3771,7 @@ async def update_bank_registry(bank, result):
             async with s.post(
                 f"{SUPABASE_URL}/rest/v1/bank_registry?on_conflict=bank_key",
                 headers=upsert_headers, data=json.dumps(row),
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as resp:
                 if resp.status not in (200, 201, 204):
                     body = (await resp.text())[:300]

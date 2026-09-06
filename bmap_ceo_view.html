@@ -102,8 +102,17 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .rr-name{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px}
 .rr-vuln{background:var(--lred);color:var(--red);font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
 .rr-rates{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.rr-chip{background:var(--gray);border-radius:6px;padding:4px 8px;font-size:10.5px}
+.rr-chip{background:var(--gray);border-radius:6px;padding:4px 8px;font-size:10.5px;border-left:3px solid transparent}
 .rr-chip b{color:var(--navy)}
+.rr-chip.conf-high{border-left-color:var(--green)}
+.rr-chip.conf-medium{border-left-color:var(--amber)}
+.rr-chip.conf-low{border-left-color:var(--red)}
+.rr-chip.conf-stale{border-left-color:var(--muted)}
+.rr-quality{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+.rr-quality.verified{background:var(--lgreen);color:#1E7A4C}
+.rr-quality.mixed{background:#FBF6DD;color:#7A6A00}
+.rr-quality.search-only{background:var(--lred);color:var(--red)}
+.rr-stale-tag{font-size:9.5px;color:var(--muted);font-weight:400}
 .rr-callout{font-size:11.5px;color:var(--navy);background:var(--lblue);border-radius:6px;padding:8px 10px;margin-top:8px;line-height:1.4}
 .rr-trend{margin-top:8px}
 .rr-empty{text-align:center;padding:24px 10px;color:var(--muted);font-size:11.5px}
@@ -1016,7 +1025,7 @@ async function loadRateRadar(ik) {
   const namedComps = [...new Map((compForRR || []).filter(c => c.target_namefull).map(c => [norm(c.target_namefull), c])).values()];
   if (!namedComps.length) { g('rrBody').innerHTML = '<div class="rr-empty">No named competitors computed for this institution yet.</div>'; return; }
 
-  const rrAll = await api('vw_rate_radar_latest', `select=bank_name,cd_apy,cd_term,savings_apy,checking_apy,money_market_apy,vulnerability_flag,run_at&order=run_at.desc&limit=2000`);
+  const rrAll = await api('vw_rate_radar_latest', `select=bank_name,cd_apy,cd_term,cd_provenance,savings_apy,savings_provenance,checking_apy,checking_provenance,money_market_apy,money_market_provenance,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);
   const rrByName = {};
   (rrAll || []).forEach(r => { const k = norm(r.bank_name); if (!rrByName[k]) rrByName[k] = r; });
   const rows = namedComps.map(c => ({ comp: c, live: rrByName[norm(c.target_namefull)] || null }));
@@ -1060,7 +1069,29 @@ async function loadRateRadar(ik) {
       <span style="font-size:10px;color:var(--muted);margin-left:6px">CD rate, last ${pts.length} readings — ${vals[0].toFixed(2)}% → ${vals[vals.length-1].toFixed(2)}%</span></div>`;
   }
 
-  const chip = (label, v, sub) => v ? `<div class="rr-chip">${label} <b>${(+v).toFixed(2)}%</b>${sub ? ` <span style="color:var(--muted)">${sub}</span>` : ''}</div>` : '';
+  // Phase 6 — per-row confidence/staleness, replacing the old "trust it or
+  // don't" blanket approach: each chip is colored by how that specific rate
+  // was sourced (site/ai_vision = verified, aggregator = medium, search =
+  // unverified, last_known_good = stale), the row gets an overall quality
+  // tag from the same provenance data already computed since Phase 1, and a
+  // relative "Xd ago" tag shows how fresh the whole row's crawl actually was.
+  const confClass = prov => (prov === 'site' || prov === 'ai_vision') ? 'conf-high'
+    : prov === 'aggregator' ? 'conf-medium'
+    : prov === 'last_known_good' ? 'conf-stale'
+    : prov === 'search' ? 'conf-low' : '';
+  const confTitle = prov => (prov === 'site' || prov === 'ai_vision') ? 'Verified — read directly from the bank’s own site'
+    : prov === 'aggregator' ? 'From a rate-aggregator site, not the bank directly'
+    : prov === 'last_known_good' ? 'No fresh read today — showing the last confirmed rate'
+    : prov === 'search' ? 'Unverified — from a web search, not confirmed on the bank’s own site' : '';
+  const chip = (label, v, prov, sub) => v ? `<div class="rr-chip ${confClass(prov)}" title="${confTitle(prov)}">${label} <b>${(+v).toFixed(2)}%</b>${sub ? ` <span style="color:var(--muted)">${sub}</span>` : ''}</div>` : '';
+  const qualityMeta = { verified: ['Verified', 'verified'], mixed: ['Mixed', 'mixed'], 'search-only': ['Unverified', 'search-only'] };
+  const qualityTag = q => qualityMeta[q] ? `<span class="rr-quality ${qualityMeta[q][1]}">${qualityMeta[q][0]}</span>` : '';
+  const staleTag = runAt => {
+    if (!runAt) return '';
+    const days = Math.floor((Date.now() - new Date(runAt).getTime()) / 86400000);
+    const label = days <= 0 ? 'today' : days === 1 ? '1d ago' : `${days}d ago`;
+    return `<span class="rr-stale-tag"${days > 30 ? ' style="color:var(--red)"' : ''}>${label}</span>`;
+  };
   const trendDir = pts.length >= 2 ? (+pts[pts.length - 1].cd_apy > +pts[0].cd_apy ? 'raised' : (+pts[pts.length - 1].cd_apy < +pts[0].cd_apy ? 'lowered' : 'held')) : null;
   const callout = trendDir ? `<div class="rr-callout">${topComp.comp.target_namefull} has ${trendDir} CD rates over its last ${pts.length} tracked changes — worth watching if you're competing for the same deposits.</div>` : '';
 
@@ -1068,8 +1099,8 @@ async function loadRateRadar(ik) {
     <div class="rr-source">Live · matched to named target competitors by institution name</div>
     ${rows.map((r, i) => r.live ? `
       <div class="rr-row">
-        <div class="rr-name">${r.comp.target_namefull}${r.live.vulnerability_flag ? `<span class="rr-vuln">${r.live.vulnerability_flag}</span>` : ''}</div>
-        <div class="rr-rates">${chip('CD', r.live.cd_apy, r.live.cd_term ? r.live.cd_term + 'mo' : '')}${chip('Savings', r.live.savings_apy)}${chip('MMA', r.live.money_market_apy)}${chip('Checking', r.live.checking_apy)}</div>
+        <div class="rr-name">${r.comp.target_namefull}${qualityTag(r.live.data_quality)}${staleTag(r.live.run_at)}${r.live.vulnerability_flag ? `<span class="rr-vuln">${r.live.vulnerability_flag}</span>` : ''}</div>
+        <div class="rr-rates">${chip('CD', r.live.cd_apy, r.live.cd_provenance, r.live.cd_term ? r.live.cd_term + 'mo' : '')}${chip('Savings', r.live.savings_apy, r.live.savings_provenance)}${chip('MMA', r.live.money_market_apy, r.live.money_market_provenance)}${chip('Checking', r.live.checking_apy, r.live.checking_provenance)}</div>
         ${i === 0 ? trendSvg + callout : ''}
       </div>` : `<div class="rr-row"><div class="rr-name">${r.comp.target_namefull}</div><div style="font-size:10.5px;color:var(--muted)">Not yet crawled</div></div>`).join('')}`;
 }

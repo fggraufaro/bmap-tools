@@ -3,39 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BMAP Rate Radar</title>
+<title>Rate Radar · Verlocity</title>
+<link rel="icon" type="image/png" href="https://fggraufaro.github.io/bmap-tools/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
+/* Brand palette — verbatim from Verlocity_Brand_Guidelines_R2.pdf, same
+   tokens as bmap_ceo_view.html ("Command Center") and bmap_hub_lite.html
+   ("the Hub"), so this page reads as the same product, not a separate tool. */
 :root{
-  --navy:#1a2332;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;
-  --blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;
-  --gray:#F5F5F2;--border:#E0DED8;--text:#1a2332;--muted:#777;--white:#fff;
+  --navy:#083D5F;--amber:#CDD61A;--green:#66CC99;--lgreen:#EAF7F0;
+  --blue:#02A7C2;--lblue:#E3F6F9;--red:#B84A3E;--lred:#FBEEEC;
+  --gray:#F5F5F2;--border:#E0DED8;--text:#213141;--muted:#5C6B75;--white:#fff;
 }
-html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color:var(--text);font-size:14px}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;background:var(--gray);color:var(--text);font-size:14px;font-variant-numeric:tabular-nums}
 
 .header{background:var(--navy);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
-.logo-text{color:#fff;font-size:14px;font-weight:700;letter-spacing:.02em}
-.logo-sub{color:rgba(255,255,255,.35);font-size:10px;font-family:'DM Mono',monospace}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-plate{background:#fff;border-radius:8px;padding:5px 10px;display:flex;align-items:center;flex-shrink:0}
+.logo-text{color:#fff;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.logo-sub{color:rgba(255,255,255,.5);font-size:10.5px;margin-top:1px}
 .hdr-right{display:flex;align-items:center;gap:10px}
-.live-badge{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.3);color:var(--amber);font-size:10px;font-family:'DM Mono',monospace;padding:3px 9px;border-radius:12px}
-.run-info{color:rgba(255,255,255,.4);font-size:10px;font-family:'DM Mono',monospace}
+.live-badge{background:rgba(205,214,26,.15);border:1px solid rgba(205,214,26,.3);color:var(--amber);font-size:10px;padding:3px 9px;border-radius:12px;font-weight:500}
+.run-info{color:rgba(255,255,255,.55);font-size:10.5px}
 
 .wrap{max-width:1000px;margin:0 auto;padding:18px 16px}
 
 .toolbar{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.inp{border:1.5px solid var(--border);border-radius:7px;padding:8px 12px;font-family:'Syne',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;background:var(--white)}
+.inp{border:1.5px solid var(--border);border-radius:7px;padding:8px 12px;font-family:'Inter',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;background:var(--white)}
 .inp:focus{border-color:var(--navy)}
 .inp-s{width:220px}
 .inp-sel{cursor:pointer}
-.btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;white-space:nowrap}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:8px 16px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s;white-space:nowrap}
 .btn:hover{opacity:.85}
 .btn-amber{background:var(--amber);color:var(--navy)}
 .sep{flex:1}
-.result-count{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)}
+.result-count{font-size:11px;color:var(--muted)}
 
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 .metric{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
@@ -48,7 +52,7 @@ html,body{height:100%;font-family:'Syne',sans-serif;background:var(--gray);color
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{background:var(--navy);color:#fff;padding:9px 12px;text-align:left;font-weight:700;font-size:10px;letter-spacing:.04em;white-space:nowrap;cursor:pointer;user-select:none}
-thead th:hover{background:#243042}
+thead th:hover{background:#0A4D75}
 thead th.sort-asc::after{content:' ↑'}
 thead th.sort-desc::after{content:' ↓'}
 tbody tr{border-bottom:1px solid #f0f0ee;transition:background .1s}
@@ -61,7 +65,7 @@ td{padding:8px 12px;vertical-align:middle}
 .bank-url a:hover{text-decoration:underline}
 
 .rate{font-family:'DM Mono',monospace;font-weight:700}
-.rate-h{color:var(--green)}.rate-m{color:#854F0B}.rate-l{color:var(--muted)}
+.rate-h{color:#1E7A4C}.rate-m{color:#7A6A00}.rate-l{color:var(--muted)}
 .rate-sub{font-size:9px;color:var(--muted);display:block;font-weight:400;margin-top:1px}
 .conf-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle;cursor:pointer}
 .conf-dot:hover{outline:2px solid var(--border);outline-offset:1px}
@@ -72,14 +76,14 @@ td{padding:8px 12px;vertical-align:middle}
 .conf-dot.conf-none{background:#ddd}
 .conf-dot.conf-verified{background:var(--green);box-shadow:0 0 0 2px var(--lgreen)}
 .quality-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:middle}
-.quality-tag.verified{background:var(--lgreen);color:var(--green)}
-.quality-tag.mixed{background:#FFF3E0;color:#854F0B}
+.quality-tag.verified{background:var(--lgreen);color:#1E7A4C}
+.quality-tag.mixed{background:#FBF6DD;color:#7A6A00}
 .quality-tag.search-only{background:var(--lred);color:var(--red)}
 .dash{color:#ccc;font-family:'DM Mono',monospace}
 
 .badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;font-family:'DM Mono',monospace}
-.b-found{background:var(--lgreen);color:var(--green)}
-.b-partial{background:#FFF3E0;color:#854F0B}
+.b-found{background:var(--lgreen);color:#1E7A4C}
+.b-partial{background:#FBF6DD;color:#7A6A00}
 .b-np{background:var(--gray);color:var(--muted);border:1px solid var(--border)}
 
 .note-cell{font-size:10px;color:var(--muted);line-height:1.4;max-width:200px}
@@ -115,10 +119,12 @@ td{padding:8px 12px;vertical-align:middle}
 <div id="appWrap" style="display:none">
 <div class="header">
   <div class="logo">
-    <div class="logo-dot"></div>
+    <div class="logo-plate">
+      <img src="https://fggraufaro.github.io/bmap-tools/favicon.png" alt="Verlocity" style="height:22px;width:auto;display:block;object-fit:contain;flex-shrink:0">
+    </div>
     <div>
-      <div class="logo-text">BMAP Rate Radar</div>
-      <div class="logo-sub">Faro Solutions · Advertised deposit rates</div>
+      <div class="logo-text">Rate Radar</div>
+      <div class="logo-sub">Advertised deposit rates</div>
     </div>
   </div>
   <div class="hdr-right">

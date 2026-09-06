@@ -1660,7 +1660,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     rate_tags   = {}   # accumulated tags across all pages
     rebrand_hint = bank.get("_rebrand_hint")   # pre-populated from preflight if found
     bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
-    extra    = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace('www.','')), [])
+    extra    = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace('www.','').lower()), [])
     # v3.4: ZIP-gate state — max 2 fill attempts per bank, remembers where it fired
     bank_zip = get_bank_zip(bank)
     zip_gate = {"fills": 0, "used_on": None, "recovered": False}
@@ -2286,7 +2286,7 @@ If no relevant links found return []."""
 
     # Step 1: Check the config-driven bank/URL registry first
     bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
-    extra = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace("www.","")), [])
+    extra = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace("www.","").lower()), [])
     for url in extra:
         await navigate_and_extract(url)
 
@@ -3461,20 +3461,39 @@ async def update_bank_registry(bank, result):
     raw_url = (bank.get("bank_url") or "").strip()
     if not raw_url:
         return
-    bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url)
+    bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url).lower()
     if not bank_key:
         return
+
+    def _clean_url(u):
+        # Strip the "[AI] "/"[Search] " display prefixes used throughout this
+        # file's source_url fields so a genuinely-verified URL is navigable,
+        # not a tagged display string.
+        if not u:
+            return None
+        u = u.strip()
+        for prefix in ("[AI] ", "[Search] "):
+            if u.startswith(prefix):
+                u = u[len(prefix):].strip()
+        return u if u.startswith("http") else None
+
     note = result.get("note")
+    general_url = result.get("source_url")
     verified_url = None
     for product, specific in [("checking", result.get("source_url_checking")),
                                ("savings",  result.get("source_url_savings")),
                                ("cd",       result.get("source_url_cd"))]:
         if result.get(f"{product}_apy") is None:
             continue
-        prov = _provenance(specific, result.get("source_url"), note, product)
-        if prov in ("site", "ai_vision") and specific and specific.startswith("http"):
-            verified_url = specific
-            break
+        prov = _provenance(specific, general_url, note, product)
+        if prov in ("site", "ai_vision"):
+            # AI-vision hits often only populate the general source_url, not
+            # the per-product specific one — fall back to it, same as
+            # build_rate_observations does for the stored source_url.
+            cleaned = _clean_url(specific) or _clean_url(general_url)
+            if cleaned:
+                verified_url = cleaned
+                break
     headers = {
         "apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
         "Content-Type": "application/json",
@@ -3488,7 +3507,8 @@ async def update_bank_registry(bank, result):
             ) as r:
                 existing = (await r.json()) if r.status == 200 else []
             prior = existing[0] if existing else {}
-            row = {"bank_key": bank_key, "bank_name": bank.get("bank_name"), "bank_url": raw_url}
+            row = {"bank_key": bank_key, "bank_name": bank.get("bank_name"), "bank_url": raw_url,
+                   "updated_at": datetime.now().isoformat()}
             if verified_url:
                 known = set(prior.get("known_rate_urls") or [])
                 known.add(verified_url)
@@ -3507,9 +3527,11 @@ async def update_bank_registry(bank, result):
                 headers=upsert_headers, data=json.dumps(row),
                 timeout=aiohttp.ClientTimeout(total=10)
             ) as resp:
-                await resp.read()
-    except Exception:
-        pass
+                if resp.status not in (200, 201, 204):
+                    body = (await resp.text())[:300]
+                    crawl_state["log"].append(f"bank_registry write-back failed ({resp.status}): {body}")
+    except Exception as e:
+        crawl_state["log"].append(f"bank_registry write-back error: {type(e).__name__}: {e}")
 
 
 async def push_run_summary(run_id, run_date, started_at, banks_found, banks_partial,
@@ -3647,7 +3669,7 @@ def sync_upsert_bank_registry(banks):
         raw_url = (b.get("bank_url") or "").strip()
         if not raw_url:
             continue
-        bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url)
+        bank_key = extract_domain(raw_url if raw_url.startswith("http") else "https://" + raw_url).lower()
         if not bank_key:
             continue
         row = {"bank_key": bank_key, "bank_name": b.get("bank_name"), "bank_url": raw_url}

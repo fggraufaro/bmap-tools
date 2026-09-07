@@ -1046,8 +1046,12 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     rebrand_hint = bank.get("_rebrand_hint")   # pre-populated from preflight if found
     bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
     extra    = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace('www.','').lower()), [])
-    # v3.4: ZIP-gate state — max 2 fill attempts per bank, remembers where it fired
-    bank_zip = get_bank_zip(bank)
+    # v3.4: ZIP-gate state — max 2 fill attempts per bank, remembers where it fired.
+    # Prefer a ZIP this bank is already known (from bank_registry) to pass the
+    # gate with — cheaper and more reliable than re-deriving from
+    # branch_address/DEFAULT_ZIP every run, which is only a fallback now.
+    _health = _bank_health(bank) or {}
+    bank_zip = _health.get("zip_gate_zip") or get_bank_zip(bank)
     zip_gate = {"fills": 0, "used_on": None, "recovered": False}
 
     async def visit(url, priority=False):
@@ -1173,8 +1177,14 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             # extraction (DOM extraction wins where both found a value)
             if sniffed_json_rates:
                 merge_into_r(sniffed_json_rates)
-                if any(r.get(k) for k in core_keys):
-                    zip_gate["recovered"] = True
+
+            # Did the gate we just filled on THIS page actually pay off? Judge
+            # by the page's own extraction (r), not only the XHR sniff — the
+            # gated content usually re-renders into the DOM too, so a gate that
+            # worked but wasn't JSON-sniffable would otherwise never register
+            # as "recovered" and bank_zip would never get learned.
+            if zip_gate["used_on"] == url and any(r.get(k) for k in core_keys):
+                zip_gate["recovered"] = True
 
             # Fix: also try DOM table extraction when inner_text misses structure
             if not any(r.get(k) for k in core_keys):
@@ -1411,6 +1421,9 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                                 filled += 1
                                 if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                                     source_urls[k] = f"[AI] {v_url}"
+                        if zip_gate["used_on"] == v_url and any(
+                                ai_result.get(k) for k in ("checking", "savings", "cd", "money_market")):
+                            zip_gate["recovered"] = True
                         crawl_state["ai_calls"] = crawl_state.get("ai_calls", 0) + 1
                         crawl_state["log"].append(f"    [AI] ✓ {v_url.split('/')[-1] or 'home'}: sav={ai_result.get('savings')} cd={ai_result.get('cd')} chk={ai_result.get('checking')}")
                         # Stop if we have all 4 tracked rates
@@ -1548,6 +1561,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         "delta_checking_apy":        delta("cr_checking_apy"),
         "delta_cd_apy":              delta("cr_cd_apy"),
         "delta_cost_of_deposits":    delta("cr_cost_of_deposits"),
+        # Not a Supabase column — read by update_bank_registry() to learn a
+        # working ZIP for this bank's gate, only set when it actually recovered
+        # a rate (never written when the gate was tried but yielded nothing).
+        "_zip_gate_zip":             bank_zip if zip_gate["recovered"] else None,
     }
 
 

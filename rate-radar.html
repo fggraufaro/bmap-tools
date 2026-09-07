@@ -81,6 +81,7 @@ td{padding:8px 12px;vertical-align:middle}
 .quality-tag.verified{background:var(--lgreen);color:#1E7A4C}
 .quality-tag.mixed{background:#FBF6DD;color:#7A6A00}
 .quality-tag.search-only{background:var(--lred);color:var(--red)}
+.zip-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:middle;background:var(--lblue);color:var(--blue)}
 .dash{color:#ccc;font-family:'DM Mono',monospace}
 
 .badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;font-family:'DM Mono',monospace}
@@ -393,6 +394,15 @@ function qualityTag(q){
   const m=QUALITY_META[q];
   return m?`<span class="quality-tag ${m[1]}">${m[0]}</span>`:'';
 }
+// The crawler already records ZIP-gated results in the note text
+// ("ZIP-gated: rates for 10001 (...)") — surfaced here as its own badge next
+// to the bank name instead of leaving it buried in the note column, since a
+// ZIP-gated rate is market-specific, not company-wide, and that's easy to miss.
+const ZIP_TAG_PAT=/ZIP-gated: rates for (\d{5})/;
+function zipTag(note){
+  const m=ZIP_TAG_PAT.exec(note||'');
+  return m?`<span class="zip-tag" title="Rates shown are for ZIP ${m[1]}, not company-wide">ZIP ${m[1]}</span>`:'';
+}
 function bdg(s){
   if(s==='Found')return'<span class="badge b-found">Found</span>';
   if(s==='Partial')return'<span class="badge b-partial">Partial</span>';
@@ -420,7 +430,7 @@ function render(){
   }
   document.getElementById('tbody').innerHTML=rows.map(r=>`
     <tr>
-      <td><div class="bank-name">${r.bank_name}${qualityTag(r.data_quality)}</div>${r.bank_url?`<div class="bank-url"><a href="${r.bank_url}" target="_blank">${r.bank_url.replace(/^https?:\/\//,'')}</a></div>`:''}</td>
+      <td><div class="bank-name">${r.bank_name}${qualityTag(r.data_quality)}${zipTag(r.note)}</div>${r.bank_url?`<div class="bank-url"><a href="${r.bank_url}" target="_blank">${r.bank_url.replace(/^https?:\/\//,'')}</a></div>`:''}</td>
       <td style="font-family:DM Mono,monospace;font-size:11px">${r.state||'—'}</td>
       <td>${rateCell(r.cd_apy,r.cd_term,r.cd_provenance,r.cd_verified,r.bank_name,r.run_id,'cd',r.run_at)}</td>
       <td>${rateCell(r.savings_apy,null,r.savings_provenance,r.savings_verified,r.bank_name,r.run_id,'savings',r.run_at)}</td>

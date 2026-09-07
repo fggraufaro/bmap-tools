@@ -296,7 +296,7 @@ async def load_bank_url_config():
                                 lst.append(row["pattern"])
             async with s.get(
                 f"{SUPABASE_URL}/rest/v1/bank_registry?select=bank_key,known_rate_urls,"
-                f"last_successful_url,consecutive_failures,needs_review",
+                f"last_successful_url,consecutive_failures,needs_review,zip_gate_zip",
                 headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)
             ) as r:
                 if r.status == 200:
@@ -313,6 +313,7 @@ async def load_bank_url_config():
                         health[row["bank_key"]] = {
                             "consecutive_failures": row.get("consecutive_failures") or 0,
                             "needs_review": bool(row.get("needs_review")),
+                            "zip_gate_zip": row.get("zip_gate_zip"),
                         }
             crawl_state["log"].append(
                 f"  ✓ Loaded bank/URL config: {len(generic)} generic paths, "
@@ -464,6 +465,12 @@ async def update_bank_registry(bank, result):
             prior = existing[0] if existing else {}
             row = {"bank_key": bank_key, "bank_name": bank.get("bank_name"), "bank_url": raw_url,
                    "updated_at": datetime.now().isoformat()}
+            # ZIP-gate learning: only ever write a NEW value when this crawl actually
+            # recovered a rate through the gate — never overwrite a previously-learned
+            # working ZIP just because this run didn't happen to need/re-hit the gate.
+            zip_gate_zip = result.get("_zip_gate_zip")
+            if zip_gate_zip:
+                row["zip_gate_zip"] = zip_gate_zip
             if verified_url:
                 known = set(prior.get("known_rate_urls") or [])
                 known.add(verified_url)

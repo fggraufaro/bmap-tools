@@ -339,7 +339,17 @@ def _extract_header_table_cd_rows(text):
         term = f"{int(n)*12}-month" if unit.lower().startswith("y") else f"{n}-month"
         candidates.append((val, term, ctx, offset, 0))
 
-    header_idxs = [i for i, line in enumerate(lines) if TABLE_HEADER_APY_PAT.search(line)]
+    # A real column header is short, even a whole tab-separated header row
+    # naming every column (Haven Savings Bank's is 119 chars: "Account Type
+    # \tInterest Rate\tAnnual Percentage Yield (APY*)\t..."). A multi-sentence
+    # disclosure/footnote paragraph that happens to mention "Annual
+    # Percentage Yield" (confirmed on Fulton Bank: a ~700-char footnote about
+    # an unrelated "4 Month, 7 Month, and 25 Month Promotional CD" that was
+    # never itself found as a real table) is not a header and must not
+    # anchor a scan. 200 chars comfortably clears every real header seen so
+    # far while still excluding disclosure-length prose.
+    header_idxs = [i for i, line in enumerate(lines)
+                   if len(line) < 200 and TABLE_HEADER_APY_PAT.search(line)]
     for h in header_idxs:
         i = h + 1
         # Wide enough to cover a full CD ladder even in the sparsest shape

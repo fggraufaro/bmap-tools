@@ -90,6 +90,37 @@ JUMBO_PAT    = re.compile(r'jumbo|special\s+rate|limited\s+time|promo|\$\s*(?:10
 # Reject loan/mortgage/APR matches bleeding into CD patterns
 LOAN_PAT     = re.compile(r'(?:loan|mortgage|auto|home\s+equity|heloc|apr\b)', re.I)
 
+# Header-labeled tables: a real, common rate-table shape where "APY" is only
+# spelled out once, in a column header ("Interest Rate | Annual Percentage
+# Yield (APY*)"), and every data row below is bare numbers with no "APY" text
+# next to them at all (confirmed on both Haven Savings Bank and Fulton Bank's
+# real, live CD tables — every same-line/next-line pattern above requires the
+# literal word "APY" adjacent to each value, so none of them can ever match a
+# table shaped this way, no matter how clean the page is).
+# Header cue: bare "APY"/"Annual Percentage Yield" not immediately touching a
+# rate value (a value right next to it is already the *_PAT/TABLE_PAT's job).
+TABLE_HEADER_APY_PAT = re.compile(r'\bAPY\b|Annual\s+Percentage\s+Yield', re.I)
+# A data row: leads with a CD term, then (after any qualifier words like "No
+# Penalty" or "IRA CD") a short run of 1-4 bare percentages with nothing but
+# whitespace between them — e.g. "3 Month CD 3.44% 3.50%" or "9-Month No
+# Penalty 3.30% 3.35%". When a header established two rate columns
+# ("Interest Rate" then "APY"), convention is nominal-rate-first, so the LAST
+# percentage in the run is the APY; when only one is present, it's the APY.
+TABLE_ROW_TERM_PAT = re.compile(
+    r'(?<!\d)(\d{1,3})\s*[-]?\s*(month|mo|year|yr)s?\b'
+    r'.{0,40}?'
+    r'((?:\d+\.\d+\s*%\s*){1,4})',
+    re.I)
+# Some sites (Fulton Bank confirmed) render each cell of a row on its own
+# line instead — the term sits completely alone on its line, with the rate
+# and APY values each on their own line a few lines further down, blank
+# lines in between. This matches a line that is *only* a term (optionally
+# followed by a couple of qualifier words, e.g. "9-Month No Penalty") and
+# nothing else — no percentage on the same line at all.
+TABLE_ROW_TERM_ONLY_PAT = re.compile(
+    r'^\s*(\d{1,3})\s*[-]?\s*(month|mo|year|yr)s?\b(?:\s+[A-Za-z]+){0,3}\s*$',
+    re.I)
+
 # ── New v3 accuracy patterns ───────────────────────────────────────────────────
 
 # Conditional rate detection — Kasasa, qualification-based, min-balance gated
@@ -280,6 +311,97 @@ def extract_rates_from_json(data):
     return found
 
 
+def _extract_header_table_cd_rows(text):
+    """
+    Recover CD-ladder rows from a table where "APY" is only stated once, in a
+    column header, rather than repeated next to every value (see
+    TABLE_HEADER_APY_PAT's comment for why every other pattern misses these).
+    Scans the ~30 lines following each header cue for term rows, and returns
+    candidates in the same (val, term, ctx, pos, priority) shape as the other
+    cd_candidates in extract_rates(), so they merge into the same ladder.
+    """
+    candidates = []
+    lines = text.split('\n')
+    # Absolute character offset of the start of each line, for tag_rate_context.
+    offsets = []
+    pos = 0
+    for line in lines:
+        offsets.append(pos)
+        pos += len(line) + 1
+
+    def add_candidate(num_groups, pct_values, ctx, offset):
+        if not pct_values:
+            return
+        val = pct_values[-1]   # nominal-rate-then-APY convention: last is APY
+        if not (0.05 <= val <= 15):
+            return
+        n, unit = num_groups
+        term = f"{int(n)*12}-month" if unit.lower().startswith("y") else f"{n}-month"
+        candidates.append((val, term, ctx, offset, 0))
+
+    header_idxs = [i for i, line in enumerate(lines) if TABLE_HEADER_APY_PAT.search(line)]
+    for h in header_idxs:
+        i = h + 1
+        # Wide enough to cover a full CD ladder even in the sparsest shape
+        # seen (Fulton Bank: ~9 lines per row — term, 2 value-lines, several
+        # blank layout lines — for up to 14 terms).
+        limit = min(h + 250, len(lines))
+        while i < limit:
+            line = lines[i]
+            # Shape A: term and its value(s) all on one line (Haven Savings Bank).
+            m = TABLE_ROW_TERM_PAT.search(line)
+            if m and not LOAN_PAT.search(line):
+                pct_values = [float(v) for v in re.findall(r'\d+\.\d+', m.group(3))]
+                add_candidate((m.group(1), m.group(2)), pct_values, line, offsets[i])
+                i += 1
+                continue
+            # Shape B: term alone on its line; rate/APY values each on their
+            # own line a few lines further down, blanks in between (Fulton
+            # Bank). Collect every percentage up to the next term line, a
+            # blank run that looks like the row ended, or the window cap.
+            m = TABLE_ROW_TERM_ONLY_PAT.match(line)
+            if m and not LOAN_PAT.search(line):
+                pct_values = []
+                ctx_lines = [line]
+                j = i + 1
+                blank_streak = 0
+                while j < limit and j < i + 8:
+                    nxt = lines[j]
+                    ctx_lines.append(nxt)
+                    if not nxt.strip():
+                        blank_streak += 1
+                        if blank_streak >= 3 and pct_values:
+                            break
+                        j += 1
+                        continue
+                    blank_streak = 0
+                    if TABLE_ROW_TERM_ONLY_PAT.match(nxt) or TABLE_ROW_TERM_PAT.search(nxt):
+                        break   # next row started — stop collecting for this one
+                    bare = re.fullmatch(r'\s*(\d+\.\d+)\s*%\s*', nxt)
+                    if not bare:
+                        # Anything else (a different product's line, a
+                        # footnote, "Learn More", ...) means this row's data
+                        # has ended — stop rather than risk picking up an
+                        # unrelated number from further down the page.
+                        break
+                    pct_values.append(float(bare.group(1)))
+                    j += 1
+                    # A real rate/APY row has at most 2 numeric columns (a
+                    # nominal rate, then the APY) — without this cap, a row
+                    # with no blank-line gap before the *next* section (e.g.
+                    # this table butts straight up against a Checking or
+                    # Money Market rate with no 3-blank-line gap) would keep
+                    # consuming lines and silently pick up an unrelated
+                    # product's rate as this row's "last value wins" APY.
+                    if len(pct_values) >= 2:
+                        break
+                add_candidate((m.group(1), m.group(2)), pct_values, "\n".join(ctx_lines), offsets[i])
+                i = j
+                continue
+            i += 1
+    return candidates
+
+
 def _parse_term_months(cd_term):
     """'12-month' -> 12, '1-year' -> 12, 'best found' / None -> None."""
     if not cd_term or cd_term == "best found":
@@ -401,6 +523,9 @@ def extract_rates(text):
             ctx = text[start:end]
             if LOAN_PAT.search(ctx): continue
             cd_candidates.append((val, None, ctx, m.start(), 1))
+    # Header-labeled tables ("APY" stated once, in the header, not per row) —
+    # see _extract_header_table_cd_rows()'s docstring.
+    cd_candidates.extend(_extract_header_table_cd_rows(text))
     if cd_candidates:
         def cd_score(c): return c[0] - (2.0 if JUMBO_PAT.search(c[2] or "") else 0.0)
         best_cd = max(cd_candidates, key=cd_score)

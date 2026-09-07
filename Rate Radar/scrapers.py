@@ -277,46 +277,6 @@ async def expand_page_content(page):
                 await page.wait_for_timeout(120)
             except Exception:
                 continue
-
-    # "Check rates" style CTAs — some large banks (Regions confirmed) gate
-    # rates behind a link/button with no accordion class or ARIA state and
-    # href="#" (a JS click handler opens a rate modal, often itself ZIP-
-    # gated). These have a real href-based counterpart handled by
-    # collect_rate_detail_links() for normal navigable links, but href="#"
-    # ones go nowhere to navigate to — they only ever reveal content if
-    # clicked in place, exactly like an accordion, so they belong here.
-    # Only the first one is clicked: a ZIP-gate modal on this kind of page
-    # typically shows rates for every product tier at once, and clicking
-    # several such triggers in a row risks stacking modals instead of
-    # revealing more.
-    if expanded < 25:
-        try:
-            cta_els = await page.query_selector_all("a, button")
-        except Exception:
-            cta_els = []
-        for el in cta_els[:200]:
-            try:
-                href = (await el.get_attribute("href")) or ""
-                if href and not href.startswith(("#", "javascript:")):
-                    continue   # real destination — collect_rate_detail_links() handles it
-                txt = ((await el.inner_text()) or "").strip()
-                if not txt or not VIEW_RATES_LINK_PAT.search(txt):
-                    continue
-                if not await el.is_visible():
-                    continue
-                in_nav = await el.evaluate(
-                    "el => !!el.closest(\"nav, header, footer, "
-                    "[role='navigation'], [class*='nav' i], [class*='menu' i], "
-                    "[class*='search' i], [id*='menu' i]\")")
-                if in_nav:
-                    continue
-                await el.click(timeout=800)
-                expanded += 1
-                await page.wait_for_timeout(300)
-                break
-            except Exception:
-                continue
-
     if expanded:
         await page.wait_for_timeout(700)
     try:
@@ -325,6 +285,57 @@ async def expand_page_content(page):
     except Exception:
         pass
     return expanded
+
+
+async def click_rate_cta(page):
+    """
+    "Check rates" style CTAs — some large banks (Regions confirmed) gate
+    rates behind a link/button with no accordion class or ARIA state and
+    href="#" (a JS click handler opens a rate modal, often itself ZIP-
+    gated). These have a real href-based counterpart handled by
+    collect_rate_detail_links() for normal navigable links, but href="#"
+    ones go nowhere to navigate to — they only ever reveal content if
+    clicked in place, exactly like an accordion.
+
+    Deliberately NOT folded into expand_page_content(): that runs
+    unconditionally on every rate-flagged page before extraction is even
+    attempted, and scanning every a/button on the page for this pattern adds
+    real per-page latency that showed up as extra bank timeouts when it ran
+    on every page regardless of need. This is only worth that cost once
+    normal extraction has already come up empty, so callers should only
+    reach for it from that fallback path — never unconditionally.
+
+    Only the first match is clicked: a modal opened this way typically shows
+    rates for every product tier at once, and clicking several such triggers
+    in a row risks stacking modals instead of revealing more. Returns True
+    if something was clicked.
+    """
+    try:
+        cta_els = await page.query_selector_all("a, button")
+    except Exception:
+        return False
+    for el in cta_els[:200]:
+        try:
+            href = (await el.get_attribute("href")) or ""
+            if href and not href.startswith(("#", "javascript:")):
+                continue   # real destination — collect_rate_detail_links() handles it
+            txt = ((await el.inner_text()) or "").strip()
+            if not txt or not VIEW_RATES_LINK_PAT.search(txt):
+                continue
+            if not await el.is_visible():
+                continue
+            in_nav = await el.evaluate(
+                "el => !!el.closest(\"nav, header, footer, "
+                "[role='navigation'], [class*='nav' i], [class*='menu' i], "
+                "[class*='search' i], [id*='menu' i]\")")
+            if in_nav:
+                continue
+            await el.click(timeout=800)
+            await page.wait_for_timeout(300)
+            return True
+        except Exception:
+            continue
+    return False
 
 
 async def harvest_hidden_text(page):
@@ -1286,6 +1297,29 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                     merge_into_r(extract_rates(await page.inner_text("body")))
                 except Exception:
                     pass
+                # Pass 1.5: click a "Check rates" style CTA (only reached here,
+                # once accordion-expand + re-read already came up empty — see
+                # click_rate_cta()'s docstring for why it isn't unconditional).
+                # A modal opened this way is often itself ZIP-gated, so give
+                # find_zip_gate/fill_zip_gate one more shot at it too.
+                if not any(r.get(k) for k in core_keys):
+                    if await click_rate_cta(page):
+                        if bank_zip and zip_gate["fills"] < 2:
+                            gate_el = await find_zip_gate(page)
+                            if gate_el:
+                                zip_gate["fills"] += 1
+                                crawl_state["log"].append(
+                                    f"    [ZIP-gate] {path_part or '/'}: "
+                                    f"found after CTA click — filling {bank_zip}")
+                                if await fill_zip_gate(page, gate_el, bank_zip):
+                                    zip_gate["used_on"] = url
+                                    await page.wait_for_timeout(800)
+                        try:
+                            merge_into_r(extract_rates(await page.inner_text("body")))
+                        except Exception:
+                            pass
+                        if zip_gate["used_on"] == url and any(r.get(k) for k in core_keys):
+                            zip_gate["recovered"] = True
                 # Pass 2: harvest hidden text (collapsed panels via textContent)
                 if not any(r.get(k) for k in core_keys):
                     hidden = await harvest_hidden_text(page)

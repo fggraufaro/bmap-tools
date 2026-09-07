@@ -2618,7 +2618,14 @@ async def run_crawler(banks):
                     await page.close()
                     await ctx.close()
 
-        BANK_TIMEOUT_SECONDS = 150  # hard ceiling per bank — a stuck site can't hang the batch
+        # Hard ceiling per bank — a stuck site can't hang the batch. Was 150s;
+        # raised to 200s after observing borderline-slow banks (no easy win on
+        # the first path guess, forced through the full search-rescue/site-
+        # search/AI-vision/final-search-retry chain under concurrent load)
+        # timing out before reaching the paid fallback stages at all — a hard
+        # skip with zero data, worse than the modest extra cost of letting
+        # them actually finish.
+        BANK_TIMEOUT_SECONDS = 200
 
         async def process_bank_guarded(i, bank, http_session):
             try:

@@ -277,6 +277,46 @@ async def expand_page_content(page):
                 await page.wait_for_timeout(120)
             except Exception:
                 continue
+
+    # "Check rates" style CTAs — some large banks (Regions confirmed) gate
+    # rates behind a link/button with no accordion class or ARIA state and
+    # href="#" (a JS click handler opens a rate modal, often itself ZIP-
+    # gated). These have a real href-based counterpart handled by
+    # collect_rate_detail_links() for normal navigable links, but href="#"
+    # ones go nowhere to navigate to — they only ever reveal content if
+    # clicked in place, exactly like an accordion, so they belong here.
+    # Only the first one is clicked: a ZIP-gate modal on this kind of page
+    # typically shows rates for every product tier at once, and clicking
+    # several such triggers in a row risks stacking modals instead of
+    # revealing more.
+    if expanded < 25:
+        try:
+            cta_els = await page.query_selector_all("a, button")
+        except Exception:
+            cta_els = []
+        for el in cta_els[:200]:
+            try:
+                href = (await el.get_attribute("href")) or ""
+                if href and not href.startswith(("#", "javascript:")):
+                    continue   # real destination — collect_rate_detail_links() handles it
+                txt = ((await el.inner_text()) or "").strip()
+                if not txt or not VIEW_RATES_LINK_PAT.search(txt):
+                    continue
+                if not await el.is_visible():
+                    continue
+                in_nav = await el.evaluate(
+                    "el => !!el.closest(\"nav, header, footer, "
+                    "[role='navigation'], [class*='nav' i], [class*='menu' i], "
+                    "[class*='search' i], [id*='menu' i]\")")
+                if in_nav:
+                    continue
+                await el.click(timeout=800)
+                expanded += 1
+                await page.wait_for_timeout(300)
+                break
+            except Exception:
+                continue
+
     if expanded:
         await page.wait_for_timeout(700)
     try:
@@ -516,13 +556,45 @@ async def find_zip_gate(page):
     try:
         els = await page.query_selector_all(ZIP_INPUT_SELECTOR)
     except Exception:
-        return None
+        els = []
     for el in els[:6]:
         try:
             if await el.is_visible():
                 return el
         except Exception:
             continue
+    # Fallback: some gates (Regions' rate-check modal confirmed) render a
+    # plain <input> with no identifying name/id/placeholder/aria-label at
+    # all — the only "this is a ZIP field" signal is an associated <label>
+    # (via for="id" or wrapping the input), which a CSS attribute selector
+    # can't express. Only tried when the attribute-based pass above finds
+    # nothing, so it can't change behavior on sites that already work.
+    try:
+        handle = await page.evaluate_handle("""() => {
+            const isZip = t => /\\bzip\\b|\\bpostal\\b/i.test(t || '');
+            const inputs = document.querySelectorAll(
+                'input[type="text"], input:not([type])');
+            for (const el of inputs) {
+                if (el.offsetParent === null) continue;
+                let labelText = '';
+                if (el.id) {
+                    const lbl = document.querySelector(
+                        `label[for="${CSS.escape(el.id)}"]`);
+                    if (lbl) labelText = lbl.innerText;
+                }
+                if (!labelText) {
+                    const wrap = el.closest('label');
+                    if (wrap) labelText = wrap.innerText;
+                }
+                if (isZip(labelText)) return el;
+            }
+            return null;
+        }""")
+        el = handle.as_element()
+        if el and await el.is_visible():
+            return el
+    except Exception:
+        pass
     return None
 
 

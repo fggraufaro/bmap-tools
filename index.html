@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verlocity Launchpad</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#083D5F;
+    --navy-ink:#062C46;
+    --amber:#CDD61A;
+    --amber-ink:#5C5F0A;
+    --green:#3E9E6F;
+    --green-soft:#EAF7F0;
+    --green-ink:#1E7A4C;
+    --blue:#02A7C2;
+    --blue-soft:#E3F6F9;
+    --paper:#F5F5F2;
+    --card:#FFFFFF;
+    --border:#E0DED8;
+    --text:#213141;
+    --muted:#5C6B75;
+    --action:#083D5F;
+    --shadow:0 1px 2px rgba(8,61,95,.07);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --navy:#0A2E47;
+      --navy-ink:#061D2E;
+      --amber:#D9E23D;
+      --amber-ink:#F4F7C9;
+      --green:#4FBE8A;
+      --green-soft:#123226;
+      --green-ink:#8FE0B8;
+      --blue:#28C4E0;
+      --blue-soft:#0E2E36;
+      --paper:#0D1720;
+      --card:#152531;
+      --border:#25384A;
+      --text:#E8EDF1;
+      --muted:#93A5B3;
+      --action:#28C4E0;
+      --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --navy:#0A2E47;
+    --navy-ink:#061D2E;
+    --amber:#D9E23D;
+    --amber-ink:#F4F7C9;
+    --green:#4FBE8A;
+    --green-soft:#123226;
+    --green-ink:#8FE0B8;
+    --blue:#28C4E0;
+    --blue-soft:#0E2E36;
+    --paper:#0D1720;
+    --card:#152531;
+    --border:#25384A;
+    --text:#E8EDF1;
+    --muted:#93A5B3;
+    --action:#28C4E0;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--paper);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;}
+  a{color:inherit;}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
+
+  .header{background:var(--navy);padding:22px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
+  .brand{display:flex;align-items:center;gap:16px;}
+  .logo-plate{background:#fff;border-radius:9px;padding:8px 14px;display:flex;align-items:center;flex-shrink:0;}
+  .logo-plate img{height:22px;display:block;}
+  .brand-text h1{color:#fff;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin:0;}
+  .brand-text p{color:rgba(255,255,255,.55);font-size:11.5px;margin:2px 0 0;}
+  .code-note{color:rgba(255,255,255,.6);font-size:12px;text-align:right;line-height:1.5;}
+  .code-note b{color:#fff;font-weight:700;}
+
+  main{max-width:1080px;margin:0 auto;padding:40px 28px 64px;}
+  .intro{margin-bottom:32px;max-width:64ch;}
+  .intro .eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;}
+  .intro h2{font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-.01em;text-wrap:balance;}
+  .intro p{color:var(--muted);font-size:14.5px;line-height:1.55;margin:0;}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:transform .12s ease, box-shadow .12s ease;}
+  .card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(8,61,95,.12);}
+  .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .card-mark{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0;}
+  .status-pill{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:100px;background:var(--green-soft);color:var(--green-ink);white-space:nowrap;}
+  .card h3{font-size:17px;font-weight:800;margin:0;letter-spacing:-.01em;}
+  .card .desc{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0;flex-grow:1;}
+  .card .open{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--action);}
+  .card:hover .open{gap:9px;}
+  .arrow{transition:transform .12s ease;}
+  .card:hover .arrow{transform:translateX(2px);}
+
+  footer{max-width:1080px;margin:0 auto;padding:0 28px 40px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+  @media (max-width:680px){
+    .grid{grid-template-columns:1fr;}
+    .code-note{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand">
+    <div class="logo-plate"><img src="Verlocity-Logo.png" alt="Verlocity"></div>
+    <div class="brand-text">
+      <h1>Launchpad</h1>
+      <p>One door into the growth stack</p>
+    </div>
+  </div>
+  <div class="code-note">Every tool below shares <b>one access code</b><br>— enter it once you open a link</div>
+</div>
+
+<main>
+  <div class="intro">
+    <div class="eyebrow">Growth stack · 4 tools</div>
+    <h2>Where everything actually lives</h2>
+    <p>Each tile opens the real, hosted tool — nothing here is a copy or a mockup. Pick where you need to be.</p>
+  </div>
+
+  <div class="grid">
+
+    <a class="card" href="https://fggraufaro.github.io/bmap-tools/bmap_hub_lite.html" target="_blank" rel="noopener">
+      <div class="card-top">
+        <div class="card-mark" style="background:var(--navy);">H</div>
+        <span class="status-pill">Live</span>
+      </div>
+      <h3>Intelligence Hub</h3>
+      <p class="desc">The full internal workspace — branch scoring, deliverable generation, and the shared data layer everything else pulls from.</p>
+      <span class="open">Open Hub <span class="arrow">→</span></span>
+    </a>
+
+    <a class="card" href="https://fggraufaro.github.io/bmap-tools/bmap_ceo_view.html" target="_blank" rel="noopener">
+      <div class="card-top">
+        <div class="card-mark" style="background:var(--blue);">C</div>
+        <span class="status-pill">Live</span>
+      </div>
+      <h3>Command Center</h3>
+      <p class="desc">The bank-facing view — branch actions, the market map, and a deposit-goal-to-CAC prediction per branch. Built for CEO pitches.</p>
+      <span class="open">Open Command Center <span class="arrow">→</span></span>
+    </a>
+
+    <a class="card" href="https://fggraufaro.github.io/bmap-tools/rate-radar.html" target="_blank" rel="noopener">
+      <div class="card-top">
+        <div class="card-mark" style="background:var(--green);">R</div>
+        <span class="status-pill">Live</span>
+      </div>
+      <h3>Rate Radar</h3>
+      <p class="desc">Advertised deposit rates across every tracked institution — verified vs. unverified, searchable by bank and state, one row per crawl.</p>
+      <span class="open">Open Rate Radar <span class="arrow">→</span></span>
+    </a>
+
+    <a class="card" href="https://fggraufaro.github.io/bmap-tools/market-map.html" target="_blank" rel="noopener">
+      <div class="card-top">
+        <div class="card-mark" style="background:var(--amber);color:var(--amber-ink);">M</div>
+        <span class="status-pill">Live</span>
+      </div>
+      <h3>BMAP Growth Map</h3>
+      <p class="desc">The branch-level opportunity map — every market plotted, invest/defend/analyze/justify at a glance.</p>
+      <span class="open">Open Growth Map <span class="arrow">→</span></span>
+    </a>
+
+  </div>
+</main>
+
+<footer>
+  <span>Verlocity · internal tool directory</span>
+  <span>Not a public page — don't share this link outside the team.</span>
+</footer>
+</body>
+</html>

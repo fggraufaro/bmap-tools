@@ -86,12 +86,13 @@
   .intro h2{font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-.01em;text-wrap:balance;}
   .intro p{color:var(--muted);font-size:14.5px;line-height:1.55;margin:0;}
 
-  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
   .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:transform .12s ease, box-shadow .12s ease;}
   .card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(8,61,95,.12);}
   .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
   .card-mark{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0;}
   .status-pill{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:100px;background:var(--green-soft);color:var(--green-ink);white-space:nowrap;}
+  .status-pill.warn{background:var(--amber);color:var(--amber-ink);}
   .card h3{font-size:17px;font-weight:800;margin:0;letter-spacing:-.01em;}
   .card .desc{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0;flex-grow:1;}
   .card .open{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--action);}
@@ -101,6 +102,9 @@
 
   footer{max-width:1080px;margin:0 auto;padding:0 28px 40px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 
+  @media (max-width:900px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+  }
   @media (max-width:680px){
     .grid{grid-template-columns:1fr;}
     .code-note{text-align:left;}
@@ -116,12 +120,12 @@
       <p>One door into the growth stack</p>
     </div>
   </div>
-  <div class="code-note">Every tool below shares <b>one access code</b><br>— enter it once you open a link</div>
+  <div class="code-note">Four tools share <b>one access code</b> — Rate Radar itself has none<br>enter the code once you open a gated link</div>
 </div>
 
 <main>
   <div class="intro">
-    <div class="eyebrow">Growth stack · 4 tools</div>
+    <div class="eyebrow">Growth stack · 5 tools</div>
     <h2>Where everything actually lives</h2>
     <p>Each tile opens the real, hosted tool — nothing here is a copy or a mockup. Pick where you need to be.</p>
   </div>
@@ -148,14 +152,24 @@
       <span class="open">Open Command Center <span class="arrow">→</span></span>
     </a>
 
-    <a class="card" href="https://fggraufaro.github.io/bmap-tools/rate-radar.html" target="_blank" rel="noopener">
+    <a class="card" href="https://bmap-tools-production.up.railway.app" target="_blank" rel="noopener">
       <div class="card-top">
         <div class="card-mark" style="background:var(--green);">R</div>
-        <span class="status-pill">Live</span>
+        <span class="status-pill warn">No login</span>
       </div>
       <h3>Rate Radar</h3>
-      <p class="desc">Advertised deposit rates across every tracked institution — verified vs. unverified, searchable by bank and state, one row per crawl.</p>
+      <p class="desc">The crawler itself — load a bank CSV, re-crawl, correct values, save to Supabase. Open access, no password gate — handle the link accordingly.</p>
       <span class="open">Open Rate Radar <span class="arrow">→</span></span>
+    </a>
+
+    <a class="card" href="https://fggraufaro.github.io/bmap-tools/rate-radar.html" target="_blank" rel="noopener">
+      <div class="card-top">
+        <div class="card-mark" style="background:var(--green);">V</div>
+        <span class="status-pill">Live</span>
+      </div>
+      <h3>Rate Radar Validator</h3>
+      <p class="desc">Read-only view of what the crawler found — verified vs. unverified, searchable by bank and state, sorted newest scrape first.</p>
+      <span class="open">Open Validator <span class="arrow">→</span></span>
     </a>
 
     <a class="card" href="https://fggraufaro.github.io/bmap-tools/market-map.html" target="_blank" rel="noopener">

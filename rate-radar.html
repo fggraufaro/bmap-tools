@@ -28,7 +28,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;b
 .live-badge{background:rgba(205,214,26,.15);border:1px solid rgba(205,214,26,.3);color:var(--amber);font-size:10px;padding:3px 9px;border-radius:12px;font-weight:500}
 .run-info{color:rgba(255,255,255,.55);font-size:10.5px}
 
-.wrap{max-width:1000px;margin:0 auto;padding:18px 16px}
+.wrap{max-width:1600px;margin:0 auto;padding:18px 16px}
 
 .toolbar{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .inp{border:1.5px solid var(--border);border-radius:7px;padding:8px 12px;font-family:'Inter',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;background:var(--white)}
@@ -168,17 +168,17 @@ td{padding:8px 12px;vertical-align:middle}
       <table>
         <thead>
           <tr>
-            <th onclick="sort('bank_name')">Bank</th>
-            <th onclick="sort('state')">State</th>
-            <th onclick="sort('cd_apy')">CD APY</th>
-            <th onclick="sort('savings_apy')">Savings APY</th>
-            <th onclick="sort('high_yield_savings_apy')">HYS APY</th>
-            <th onclick="sort('money_market_apy')">Money Mkt</th>
-            <th onclick="sort('checking_apy')">Checking APY</th>
+            <th data-field="bank_name" onclick="sort('bank_name')">Bank</th>
+            <th data-field="state" onclick="sort('state')">State</th>
+            <th data-field="cd_apy" onclick="sort('cd_apy')">CD APY</th>
+            <th data-field="savings_apy" onclick="sort('savings_apy')">Savings APY</th>
+            <th data-field="high_yield_savings_apy" onclick="sort('high_yield_savings_apy')">HYS APY</th>
+            <th data-field="money_market_apy" onclick="sort('money_market_apy')">Money Mkt</th>
+            <th data-field="checking_apy" onclick="sort('checking_apy')">Checking APY</th>
             <th>Min Balance</th>
-            <th onclick="sort('status')">Status</th>
+            <th data-field="status" onclick="sort('status')">Status</th>
             <th>Note</th>
-            <th onclick="sort('run_at')">Last Scraped</th>
+            <th data-field="run_at" onclick="sort('run_at')">Last Scraped</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -196,7 +196,7 @@ td{padding:8px 12px;vertical-align:middle}
 // call goes through secure_proxy.py instead of hitting Supabase directly.
 const HUB_API='https://bmap-snapshot-production.up.railway.app';
 const g=id=>document.getElementById(id);
-let all=[],sortField=null,sortDir=1;
+let all=[],sortField='run_at',sortDir=-1;
 
 async function checkAccess(){
   const input=g('tokenInput').value.trim();
@@ -413,6 +413,12 @@ function fdate(d){
   return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
 }
 
+function syncSortHeaders(){
+  document.querySelectorAll('thead th').forEach(th=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if(th.dataset.field===sortField)th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+  });
+}
 function render(){
   let rows=filtered();
   if(sortField){
@@ -423,6 +429,7 @@ function render(){
       return((+a[sortField]||0)-(+b[sortField]||0))*sortDir;
     });
   }
+  syncSortHeaders();
   document.getElementById('rc').textContent=`${rows.length} institutions`;
   if(!rows.length){
     document.getElementById('tbody').innerHTML='<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--muted);font-size:12px">No results match your filters</td></tr>';
@@ -446,8 +453,6 @@ function render(){
 
 function sort(f){
   if(sortField===f)sortDir*=-1;else{sortField=f;sortDir=1;}
-  document.querySelectorAll('thead th').forEach(th=>{th.classList.remove('sort-asc','sort-desc')});
-  event.target.classList.add(sortDir===1?'sort-asc':'sort-desc');
   render();
 }
 

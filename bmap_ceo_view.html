@@ -137,6 +137,18 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .status-btn.off{background:var(--gray);border-color:var(--border);color:var(--muted)}
 .status-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px}
 .status-badge.in-progress{background:var(--lgreen);color:#1E7A4C}
+
+/* ── Capture-potential table: top-3 vulnerable competitors × 1/3/7% (req: Command Center) ── */
+.capture-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:11.5px}
+.capture-table th{text-align:right;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:9.5px;padding:4px 6px;border-bottom:1px solid var(--border)}
+.capture-table th:first-child{text-align:left}
+.capture-table td{padding:6px;border-bottom:1px solid var(--border);text-align:right;color:var(--text)}
+.capture-table td:first-child{text-align:left;font-weight:600;color:var(--navy)}
+.capture-table tr:last-child td{border-bottom:none}
+.capture-table .cap-rank{display:inline-block;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:50%;background:var(--lblue);color:var(--blue);font-size:9.5px;font-weight:800;margin-right:6px}
+.capture-table td.hi{font-weight:800;color:var(--navy)}
+.capture-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:11.5px}
+.capture-total b{color:var(--navy);font-size:13px}
 .status-badge.dismissed{background:var(--gray);color:var(--muted)}
 .section-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px}
 .next-steps{display:flex;flex-direction:column}
@@ -395,6 +407,20 @@ async function api(table, params) {
   } catch (e) { console.error(e); return []; }
 }
 
+async function rpc(fnName, body) {
+  try {
+    const token = sessionStorage.getItem('hub_token');
+    const r = await fetch(`${HUB_API}/api/rpc/${fnName}`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.status === 401) { sessionStorage.removeItem('hub_token'); location.reload(); return []; }
+    if (!r.ok) { console.error(fnName, r.status, await r.text()); return []; }
+    return r.json();
+  } catch (e) { console.error(e); return []; }
+}
+
 async function callAI(system, userMsg, max_tokens = 1400, model = 'claude-sonnet-4-5') {
   const resp = await fetch(AI_PROXY, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -587,17 +613,30 @@ async function renderInlineROI(branch) {
   box.innerHTML = `<div class="action-card" style="margin-top:14px"><span class="spin"></span> Loading projected ROI for ${branch.namebr}…</div>`;
 
   const rows = await api('branch_target_competitors',
-    `my_branch_id=eq.${branch.uninumbr}&select=target_namefull,target_dep_m&order=target_rank.asc&limit=1`);
-  const target = Array.isArray(rows) && rows.length ? rows[0] : null;
+    `my_branch_id=eq.${branch.uninumbr}&select=target_namefull,target_dep_m&order=target_rank.asc&limit=3`);
+  const targets = (Array.isArray(rows) ? rows : []).filter(r => r.target_dep_m);
 
-  let goal, sourceLine;
-  if (target && target.target_dep_m) {
-    goal = (+target.target_dep_m) * 1e6 * 0.03; // 3% capture, same default tier as the full calculator
-    sourceLine = `3% capture of ${target.target_namefull}'s deposit base — same math as the full BMAP assessment.`;
+  let tableHtml, totalsLine, sourceLine;
+  const totals = { p1: 0, p3: 0, p7: 0 };
+  if (targets.length) {
+    tableHtml = `<table class="capture-table"><thead><tr><th>Vulnerable competitor</th><th>Deposits</th><th>1%</th><th>3%</th><th>7%</th></tr></thead><tbody>` +
+      targets.map((t, i) => {
+        const pool = (+t.target_dep_m) * 1e6;
+        const p1 = pool * 0.01, p3 = pool * 0.03, p7 = pool * 0.07;
+        totals.p1 += p1; totals.p3 += p3; totals.p7 += p7;
+        return `<tr><td><span class="cap-rank">${i + 1}</span>${t.target_namefull}</td><td>${fmtMoneyM(pool)}</td><td>${fmtMoney(p1)}</td><td class="hi">${fmtMoney(p3)}</td><td>${fmtMoney(p7)}</td></tr>`;
+      }).join('') + `</tbody></table>`;
+    totalsLine = `<div class="capture-total">Combined across top ${targets.length}: <b>${fmtMoney(totals.p1)} – ${fmtMoney(totals.p7)}</b>&nbsp;(1%–7% capture)</div>`;
+    sourceLine = `Top ${targets.length} by vulnerability rank, same table/math as the full BMAP assessment.`;
   } else {
-    goal = MEDIAPREDICT_DEFAULTS ? 2000000 : 2000000;
-    sourceLine = `No ranked competitor found yet for this branch — showing a generic $2M scenario instead.`;
+    tableHtml = '';
+    totalsLine = '';
+    sourceLine = `No ranked competitors found yet for this branch.`;
   }
+
+  // Narrative CAC line keyed off the combined top-3 pool's 3% tier, same
+  // number as "Medium (3%)" in the branch preview / full ROI modal.
+  const goal = targets.length ? totals.p3 : 2000000;
   const fundedAccounts = goal / MEDIAPREDICT_DEFAULTS.avgBalance;
   const appStarts = fundedAccounts / MEDIAPREDICT_DEFAULTS.convRate;
   const lpVisitors = appStarts / MEDIAPREDICT_DEFAULTS.lpRate;
@@ -608,7 +647,9 @@ async function renderInlineROI(branch) {
   box.innerHTML = `<div class="action-card pri-top" style="margin-top:14px">
     <div class="action-tier">Selected on map</div>
     <div class="action-branch">${branchLabel}</div>
-    <div class="action-why">Illustrative goal: ${fmtMoneyM(goal)} in new deposits → ~${Math.round(fundedAccounts)} funded accounts, ~${fmtMoney(spend)} estimated media spend, ~${fmtMoney(cac)} CAC/account.</div>
+    ${tableHtml}
+    ${totalsLine}
+    <div class="action-why" style="margin-top:8px">At the combined 3% tier: ~${Math.round(fundedAccounts)} funded accounts, ~${fmtMoney(spend)} estimated media spend, ~${fmtMoney(cac)} CAC/account.</div>
     <div class="action-move" style="border-top:1px dashed var(--border)"><b>Source:</b> ${sourceLine}<br>
     <a href="javascript:void(0)" onclick="openROI('${branchLabel.replace(/'/g, "\\'")}','${branch.uninumbr}')" style="color:var(--blue);font-weight:700;font-size:11.5px">Open full ROI calculator →</a></div>
   </div>`;
@@ -616,8 +657,8 @@ async function renderInlineROI(branch) {
 
 async function loadROIForBranch(branchName, uninumbr) {
   const rows = await api('branch_target_competitors',
-    `my_branch_id=eq.${uninumbr}&select=target_namefull,target_dep_m&order=target_rank.asc&limit=1`);
-  const target = Array.isArray(rows) && rows.length ? rows[0] : null;
+    `my_branch_id=eq.${uninumbr}&select=target_namefull,target_dep_m&order=target_rank.asc&limit=3`);
+  const targets = (Array.isArray(rows) ? rows : []).filter(r => r.target_dep_m);
 
   const g = id => document.getElementById(id);
   g('roiAvgBalance').value = MEDIAPREDICT_DEFAULTS.avgBalance;
@@ -630,11 +671,12 @@ async function loadROIForBranch(branchName, uninumbr) {
   const scenBar = document.getElementById('roiScenarios');
   const goalNote = document.getElementById('roiGoalNote');
 
-  if (target && target.target_dep_m) {
-    const capturePool = (+target.target_dep_m) * 1e6;
+  if (targets.length) {
+    const capturePool = targets.reduce((sum, t) => sum + (+t.target_dep_m) * 1e6, 0);
     ROI_SCENARIOS = { '1% capture': capturePool * 0.01, '3% capture': capturePool * 0.03, '7% capture': capturePool * 0.07 };
     roiScenario = '3% capture';
-    if (goalNote) goalNote.textContent = `Based on this branch's #1 named competitor — ${target.target_namefull} — same capture-pool math as the full BMAP assessment. Not this bank's own realized rate.`;
+    const names = targets.map(t => t.target_namefull).join(', ');
+    if (goalNote) goalNote.textContent = `Based on this branch's top ${targets.length} vulnerability-ranked competitors — ${names} — combined deposit pool, same math as the full BMAP assessment / branch preview. Not this bank's own realized rate.`;
   } else {
     ROI_SCENARIOS = { Low: 1000000, Mid: 2000000, High: 4000000 };
     roiScenario = 'Mid';
@@ -801,21 +843,23 @@ async function onBranchClick(branch) {
   renderInlineROI(branch); // "What's next" section reflects whichever branch is selected on the map
 
   const maxR = Math.max(...RADIUS_MILES);
-  const compLinks = await api('branch_competitors_10mi_v2', `my_branch_id=eq.${branch.uninumbr}&distance_miles=lte.${maxR}&select=competitor_branch_uninumbr,competitor_bank_id,competitor_institution_type,distance_miles`);
-  if (!Array.isArray(compLinks)) { g('radiusCardBody').innerHTML = '<div style="padding:14px;color:var(--red);font-size:12px">Could not load competitor data.</div>'; return; }
 
-  const compUninumbrs = [...new Set(compLinks.map(c => c.competitor_branch_uninumbr))];
-  const branchInfoMap = {};
-  for (let i = 0; i < compUninumbrs.length; i += 400) {
-    const chunk = compUninumbrs.slice(i, i + 400);
-    const rows = await api('branch_opportunity_base', `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits,sims_latitude,sims_longitude`);
-    (Array.isArray(rows) ? rows : []).forEach(r => branchInfoMap[r.uninumbr] = r);
-  }
-  const enriched = compLinks.map(c => ({ ...c, info: branchInfoMap[c.competitor_branch_uninumbr] })).filter(c => c.info && c.info.sims_latitude && c.info.sims_longitude);
+  // Live geospatial query (branches_within_radius, PostGIS) — same source as
+  // Context-Generator's branch matrix. Replaces the old geo.branch_competitors_10mi_v2
+  // lookup, which turned out to carry quantized/imprecise distances and could
+  // include branches actually outside the claimed radius (verified 2026-09-09:
+  // it overstated 1mi competitor deposits by ~25% for a real branch, pulling
+  // in branches that were 0.69mi flagged when really >1mi away).
+  const locLookup = await api('branch_opportunity_base', `uninumbr=eq.${branch.uninumbr}&select=inst_key&limit=1`);
+  const excludeBankId = parseInt(String(locLookup?.[0]?.inst_key || '').replace(/^(bank_|cu_)/, ''), 10) || null;
+  const raw = await rpc('branches_within_radius', {
+    p_lat: +lat, p_lon: +lon, p_radius_miles: maxR, p_exclude_bank_id: excludeBankId,
+  });
+  const enriched = (Array.isArray(raw) ? raw : []).filter(c => c.lat && c.lon);
 
-  // This bank's own OTHER branches nearby — branch_competitors_10mi_v2 only
-  // tracks competitors relative to my_branch_id, not this institution's own
-  // sibling branches, so that's computed client-side from currentBranches.
+  // This bank's own OTHER branches nearby — the RPC excludes this bank
+  // entirely (p_exclude_bank_id), so sibling branches are computed
+  // client-side from currentBranches, same as before.
   const myNearby = currentBranches
     .map(b => ({ ...b, dist: haversineMiles(lat, lon, b.sims_latitude, b.sims_longitude) }))
     .filter(b => b.sims_latitude && b.sims_longitude && b.dist <= maxR);
@@ -844,15 +888,15 @@ function renderRadius() {
   const mineInRadius = myNearby.filter(b => b.dist <= mi);
 
   if (compInRadius.length) {
-    const rScale = depositRadiusScale(compInRadius.map(c => c.info.latest_dep), 8, 22);
+    const rScale = depositRadiusScale(compInRadius.map(c => c.deposits), 8, 22);
     compInRadius.forEach(c => {
-      const m = L.marker([c.info.sims_latitude, c.info.sims_longitude], { icon: diamondIcon(rScale(c.info.latest_dep) * 2, ZONE_COLOR[c.info.opportunity_zone] || '#B84A3E') });
-      m.bindPopup(`<div class="pop-t">${c.info.namefull}</div><div class="pop-r">Deposits: $${((+c.info.latest_dep || 0) / 1e6).toFixed(1)}M · YoY: ${((+c.info.yoy_deposits || 0) * 100).toFixed(1)}%</div><div class="pop-r">Distance: ${(+c.distance_miles).toFixed(1)} mi</div>`);
+      const m = L.marker([c.lat, c.lon], { icon: diamondIcon(rScale(c.deposits) * 2, ZONE_COLOR[c.opportunity_zone] || '#B84A3E') });
+      m.bindPopup(`<div class="pop-t">${c.bank_name}</div><div class="pop-r">Deposits: $${((+c.deposits || 0) / 1e6).toFixed(1)}M · YoY: ${c.yoy_deposits != null ? ((+c.yoy_deposits) * 100).toFixed(1) + '%' : '—'}</div><div class="pop-r">Distance: ${(+c.distance_miles).toFixed(1)} mi</div>`);
       m.addTo(radiusLayer);
     });
   }
 
-  const compTotal = compInRadius.reduce((a, c) => a + (+c.info.latest_dep || 0), 0);
+  const compTotal = compInRadius.reduce((a, c) => a + (+c.deposits || 0), 0);
   const mineTotal = mineInRadius.reduce((a, b) => a + (+b.latest_dep || 0), 0);
   const total = compTotal + mineTotal;
   const sharePct = total > 0 ? (mineTotal / total * 100) : null;
@@ -860,10 +904,10 @@ function renderRadius() {
 
   const compGroups = {};
   compInRadius.forEach(c => {
-    const key = c.competitor_bank_id;
-    if (!compGroups[key]) compGroups[key] = { type: c.competitor_institution_type, name: c.info.namefull, deposits: 0, yoyVals: [] };
-    compGroups[key].deposits += (+c.info.latest_dep || 0);
-    if (c.info.yoy_deposits != null) compGroups[key].yoyVals.push(+c.info.yoy_deposits);
+    const key = c.bank_id;
+    if (!compGroups[key]) compGroups[key] = { type: c.institution_type, name: c.bank_name, deposits: 0, yoyVals: [] };
+    compGroups[key].deposits += (+c.deposits || 0);
+    if (c.yoy_deposits != null) compGroups[key].yoyVals.push(+c.yoy_deposits);
   });
   const compList = Object.values(compGroups).sort((a, b) => b.deposits - a.deposits);
   const fmtM = v => '$' + (v / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';

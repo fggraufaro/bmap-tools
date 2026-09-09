@@ -171,13 +171,25 @@ def _confidence(provenance):
 
 
 def build_rate_observations(results, run_id):
-    """Explode wide result dicts into tidy public.rate_observations rows."""
+    """Explode wide result dicts into tidy public.rate_observations rows.
+
+    A row with _edited=True (set by the verify UI's manual-save path — see
+    rate_radar.py's manual_save()) means a person confirmed that value
+    against the bank's own source, not that the crawler happened to read it
+    off the bank's site — so it's forced to extraction_method='site' /
+    confidence='high' / manually_verified=True here instead of running
+    through the automated _provenance() heuristic, which only recognizes
+    "site" when source_url_* itself already starts with http and would
+    otherwise misclassify a hand-typed confirmation (e.g. "confirmed by
+    phone") as low-confidence search data.
+    """
     now_iso = datetime.now().isoformat()
     rows = []
     for r in results:
         bank_name = r.get("bank_name")
         if not bank_name:
             continue
+        edited     = bool(r.get("_edited"))
         note       = r.get("note")
         source_url = r.get("source_url")
         rate_tags  = r.get("rate_tags") or {}   # Phase 5: {"savings": ["promo"], ...} from tag_rate_context()
@@ -211,7 +223,7 @@ def build_rate_observations(results, run_id):
                 apy_val = float(str(apy).replace("%", "").replace(",", ""))
             except (ValueError, TypeError):
                 continue
-            provenance = _provenance(specific_url, source_url, note, product_type)
+            provenance = "site" if edited else _provenance(specific_url, source_url, note, product_type)
             tags = rate_tags.get(product_type, [])
             rows.append({
                 "run_id":            run_id,
@@ -223,10 +235,13 @@ def build_rate_observations(results, run_id):
                 "min_balance":       str(r["min_balance"]) if r.get("min_balance") not in ("", None) else None,
                 "source_url":        str(specific_url or source_url) if (specific_url or source_url) else None,
                 "extraction_method": provenance,
-                "confidence":        _confidence(provenance),
+                "confidence":        "high" if edited else _confidence(provenance),
                 "is_conditional":    "conditional" in tags,
                 "is_promo":          "promo" in tags,
                 "observed_at":       now_iso,
+                "manually_verified": edited,
+                "verified_by":       "rate-radar.html (manual save)" if edited else None,
+                "verified_at":       now_iso if edited else None,
             })
     return rows
 

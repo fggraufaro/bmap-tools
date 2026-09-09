@@ -294,7 +294,16 @@ def add_bank():
 def manual_save():
     """Persist the on-screen table (crawled + any hand-edited cells) to Supabase
     as its own run, timestamped, so manual overrides are tracked over time
-    alongside crawled runs rather than silently overwriting them."""
+    alongside crawled runs rather than silently overwriting them.
+
+    Dual-writes to raw.raw_rate_radar (legacy wide table, audit trail) AND
+    public.rate_radar_runs/rate_observations — the same tidy tables the
+    automated crawl path writes via push_run_summary/push_rate_observations.
+    vw_rate_radar_latest (what Command Center and the Hub actually read)
+    pulls its rate values from rate_observations, not raw_rate_radar, so
+    without this second write a manual verification here would silently
+    never show up anywhere a customer-facing view can see it — found and
+    fixed 2026-09-09."""
     body = request.get_json(force=True, silent=True) or {}
     rows_in = body.get("results") or []
     if not rows_in:
@@ -304,7 +313,10 @@ def manual_save():
 
     run_id   = f"manual-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_date = datetime.now().strftime("%Y-%m-%d")
+    now      = datetime.now()
     for r in rows_in:
+        if not r.get("crawled_at"):
+            r["crawled_at"] = now.strftime("%Y-%m-%d %H:%M")
         if r.get("_edited"):
             note = (r.get("note") or "").strip()
             r["note"] = (note + " | Manually verified/edited").strip(" |")
@@ -326,10 +338,25 @@ def manual_save():
         with urlreq.urlopen(req, timeout=30) as resp:
             crawl_state["log"].append(
                 f"Manual save: ✓ pushed {len(rows)} rows to raw.raw_rate_radar (run {run_id})")
-            return jsonify({"saved": len(rows), "run_id": run_id})
     except Exception as e:
         crawl_state["log"].append(f"Manual save failed: {e}")
         return jsonify({"error": str(e)}), 500
+
+    edited_count = sum(1 for r in rows_in if r.get("_edited"))
+    tidy_ok = False
+    try:
+        async def _push_tidy():
+            await push_run_summary(
+                run_id, run_date, now,
+                banks_found=0, banks_partial=len(rows_in), banks_error=0,
+                ai_calls=0, chat_calls=0,
+                notes=f"Manual save from the verify UI — {edited_count} row(s) hand-edited/verified.")
+            return await push_rate_observations(rows_in, run_id)
+        tidy_ok = asyncio.run(_push_tidy())
+    except Exception as e:
+        crawl_state["log"].append(f"Manual save: rate_observations dual-write failed: {e}")
+
+    return jsonify({"saved": len(rows), "run_id": run_id, "rate_observations_saved": tidy_ok})
 
 
 @app.route("/current-state")

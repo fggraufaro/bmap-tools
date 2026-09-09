@@ -586,7 +586,10 @@ let ROI_SCENARIOS = { Low: 1000000, Mid: 2000000, High: 4000000 }; // default fa
 let roiScenario = 'Mid';
 
 function fmtMoney(n) { return '$' + Math.round(n).toLocaleString(); }
-function fmtMoneyM(n) { return '$' + (n / 1e6).toFixed(2) + 'M'; }
+function fmtMoneyM(n) {
+  const m = n / 1e6;
+  return Math.abs(m) >= 1000 ? '$' + (m / 1000).toFixed(2) + 'B' : '$' + m.toFixed(2) + 'M';
+}
 
 function openROI(branchName, uninumbr) {
   document.getElementById('roiTitle').textContent = `${branchName} — Projected ROI`;
@@ -910,7 +913,10 @@ function renderRadius() {
     if (c.yoy_deposits != null) compGroups[key].yoyVals.push(+c.yoy_deposits);
   });
   const compList = Object.values(compGroups).sort((a, b) => b.deposits - a.deposits);
-  const fmtM = v => '$' + (v / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';
+  const fmtM = v => {
+    const m = v / 1e6;
+    return Math.abs(m) >= 1000 ? '$' + (m / 1000).toFixed(2) + 'B' : '$' + m.toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';
+  };
 
   g('radiusCardBody').innerHTML = `
     <div class="radius-tabs">${RADIUS_MILES.map(m => `<button class="radius-tab ${m === mi ? 'active' : ''}" onclick="setRadiusMi(${m})">${m} mi</button>`).join('')}</div>

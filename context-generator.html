@@ -1073,6 +1073,14 @@ async function loadBank(ik){
   // ── TILE MATRIX ─────────────────────────────────────────────────────────────
   let _selTile = null;
 
+  // Deposit figures in this view are computed in millions; once a sum
+  // crosses $1,000M it reads far clearer as billions (e.g. $24.57B, not
+  // $24570M) — switches unit at that threshold, same precision either side.
+  const fmtDepM = (m) => {
+    const v = +m || 0;
+    return Math.abs(v) >= 1000 ? '$' + (v / 1000).toFixed(2) + 'B' : '$' + v.toFixed(v < 10 ? 1 : 0) + 'M';
+  };
+
   const showBrDetail = async (b) => {
     const yoy = ((+b.yoy_deposits||0)*100).toFixed(1);
     const cYoy = ((+b.avg_comp_yoy||0)*100).toFixed(1);
@@ -1155,7 +1163,7 @@ async function loadBank(ik){
       const shareP = totalDepM > 0 ? (depM / totalDepM * 100) : 0;
       g('brRadiusStats').innerHTML = `
         <div><div style="font-size:16px;font-weight:800;color:var(--navy)">${compCount}</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitors</div></div>
-        <div><div style="font-size:16px;font-weight:800;color:var(--navy)">$${compDepM.toFixed(0)}M</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitor deposits</div></div>
+        <div><div style="font-size:16px;font-weight:800;color:var(--navy)">${fmtDepM(compDepM)}</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Competitor deposits</div></div>
         <div><div style="font-size:16px;font-weight:800;color:var(--teal)">${shareP.toFixed(1)}%</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Market share</div></div>`;
 
       // Top 3 by deposits within the currently selected radius. Each row's
@@ -1176,7 +1184,7 @@ async function loadBank(ik){
           const cShare = totalDepM > 0 ? (c.dep_m / totalDepM * 100) : 0;
           return `<tr>
             <td style="padding:4px 0;font-size:10.5px;color:var(--text)">${c.bank_name}</td>
-            <td style="padding:4px 0;font-size:10.5px;color:var(--navy);font-weight:700;text-align:right">$${c.dep_m.toFixed(0)}M</td>
+            <td style="padding:4px 0;font-size:10.5px;color:var(--navy);font-weight:700;text-align:right">${fmtDepM(c.dep_m)}</td>
             <td style="padding:4px 0;font-size:10.5px;color:var(--teal);font-weight:700;text-align:right">${cShare.toFixed(1)}%</td>
           </tr>`;
         }).join('');
@@ -1225,7 +1233,7 @@ async function loadBank(ik){
           totals.p1 += p1; totals.p3 += p3; totals.p7 += p7;
           return `<tr>
             <td style="padding:4px 0;font-size:10.5px;color:var(--navy);font-weight:600">${i + 1}. ${t.target_namefull}</td>
-            <td style="padding:4px 0;font-size:10.5px;color:var(--text);text-align:right">$${(pool / 1e6).toFixed(1)}M</td>
+            <td style="padding:4px 0;font-size:10.5px;color:var(--text);text-align:right">${fmtDepM(pool / 1e6)}</td>
             <td style="padding:4px 0;font-size:10.5px;color:var(--text);text-align:right">$${Math.round(p1).toLocaleString()}</td>
             <td style="padding:4px 0;font-size:10.5px;color:var(--navy);font-weight:700;text-align:right">$${Math.round(p3).toLocaleString()}</td>
             <td style="padding:4px 0;font-size:10.5px;color:var(--text);text-align:right">$${Math.round(p7).toLocaleString()}</td>

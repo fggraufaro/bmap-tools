@@ -224,6 +224,13 @@
   .sprint-range{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--ink-faint);}
   .sprint-focus{font-size:13px;color:var(--ink-soft);font-style:italic;text-align:right;}
   .sprint-body{display:grid;grid-template-columns:repeat(3,1fr);}
+  /* A planned (not-yet-run) sprint has nothing to report in Shipped/Found/Open
+     yet — reusing those columns for committed-but-undone work would read as
+     false progress. One column, neutral grey dot, plain "Committed" label. */
+  .sprint-body.single-col{display:block;}
+  .sprint-body.single-col .sprint-col{border-left:none;}
+  .sprint-col.planned .dot{background:var(--ink-faint);}
+  .sprint-col.planned .sprint-col-t{color:var(--ink-soft);}
   .sprint-col{padding:16px 20px;border-left:1px solid var(--line);}
   .sprint-col:first-child{border-left:none;}
   .sprint-col-t{display:flex;align-items:center;gap:7px;font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin-bottom:11px;}
@@ -364,7 +371,7 @@
       <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Feeds</span></div>
       <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Branch-level deposit-opportunity scoring; bank-facing dashboard prototype (Command Center) already exists, gated by the shared Hub password</span><span class="segment">Both products</span></div>
       <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Competitor rate scraping; caller covers what bots can't reach</span><span class="segment">Both products</span></div>
-      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Proven live on a real campaign (Trustmark) — Cortex brief → 3 audiences → schema + seed data now in Supabase. Automation job is the remaining work; check Resonate's ToS before scheduling it</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Proven live on a real campaign (Trustmark) — Cortex brief → 3 audiences → schema + seed data now in Supabase (tuiiywphoynbmkxpoyps, the real project). Automation job is the remaining work; check Resonate's ToS before scheduling it</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Its ROI math is already live in Command Center — deposit goal → funded accounts → spend → CAC, grounded in real BMAP competitor data. Full Excel-based 5-step workflow still separate</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Microsite generator; build vs. buy still undecided</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Kohl Analytics' tool — third-party, unscoped, unintegrated</span><span class="segment">Product B</span></div>
@@ -528,9 +535,90 @@
     <div class="section-head">
       <span class="tag">Running record, sprint by sprint</span>
       <h2>Sprint log</h2>
-      <div class="sub">One card per sprint, newest first — what shipped, what we found, what's still open. Action items live in the tracker above, not here.</div>
+      <div class="sub">One card per sprint, newest first — what shipped, what we found, what's still open. Action items live in the tracker above, not here. A planned sprint shows what's committed, not outcomes — those don't exist yet.</div>
     </div>
     <div class="sprint-list">
+
+      <div class="sprint-card planned">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 4</span>
+            <span class="sprint-range num">Planned · next up</span>
+          </div>
+          <div class="sprint-focus">Prove the predictive signal, close the current sales motion</div>
+        </div>
+        <div class="sprint-body single-col">
+          <div class="sprint-col planned">
+            <div class="sprint-col-t"><span class="dot"></span>Committed</div>
+            <ul>
+              <li>Run the deposit-flight backtest — costs nothing (data already collected), gates the predictive-model idea, and BlastPoint just took funding to chase the same signal into community banking. Cheapest, most time-sensitive item on the board.</li>
+              <li>Finalize the BMAP/Rate Radar Bank Assessment doc — sales-closing asset, not new build.</li>
+              <li>Rate Radar trend analysis — extends already-validated data; likely feeds the backtest directly rather than running as separate work.</li>
+              <li>3 standing decisions, one ask each: Analytics 360 terms (<b>Tom</b>), Omnibranch build-vs-buy sign-off (<b>Brock</b>), Kohl Analytics scoping call (<b>Steve</b>).</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">Not started — full detail lives in Open Actions above</span>
+        </div>
+      </div>
+
+      <div class="sprint-card planned">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 5</span>
+            <span class="sprint-range num">Planned · following</span>
+          </div>
+          <div class="sprint-focus">Product surface polish, Copilot validation</div>
+        </div>
+        <div class="sprint-body single-col">
+          <div class="sprint-col planned">
+            <div class="sprint-col-t"><span class="dot"></span>Committed</div>
+            <ul>
+              <li>Polish Command Center — the actual demo surface prospects see; every fix this cycle came from someone being about to look at it.</li>
+              <li>Prototype the Branch/CMO Copilot — cheap one-day internal test, but BankIQ and Curinos are already live with validated results ($1.6B deposits, one case), so the bar is real, not "add a chatbot."</li>
+              <li>Command Center rebrand — new name; cosmetic, sequenced after the polish work above.</li>
+              <li>Auto-generated narrative engine test — cheap, no competitive clock, can slot in wherever there's room.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">Not started — full detail lives in Open Actions above</span>
+        </div>
+      </div>
+
+      <div class="sprint-card">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 3</span>
+            <span class="sprint-range num">Sep 10, 2026</span>
+          </div>
+          <div class="sprint-focus">Wrong-project bug in AudienceFinder's data</div>
+        </div>
+        <div class="sprint-body">
+          <div class="sprint-col shipped">
+            <div class="sprint-col-t"><span class="dot"></span>Shipped</div>
+            <ul>
+              <li>Found and fixed a real deployment error: the <code class="num">resonate_audiences</code> / <code class="num">resonate_audience_enrichment</code> tables built on Sep&nbsp;7 were created in <code class="num">kmbnchjyjoudthrinkcb</code> ("BMAP_v1") — a Supabase project picked by name match, never verified against what the app actually uses. Confirmed via <code class="num">secure_proxy.py</code>'s <code class="num">SUPA_URL</code> that the Hub only ever talks to <code class="num">tuiiywphoynbmkxpoyps</code>. Recreated both tables there with the same real Trustmark data — reachable from the real app now, not orphaned.</li>
+            </ul>
+          </div>
+          <div class="sprint-col found">
+            <div class="sprint-col-t"><span class="dot"></span>Found</div>
+            <ul>
+              <li>The project's own CLAUDE.md documents one canonical Supabase project (<code class="num">tuiiywphoynbmkxpoyps</code>) with schema namespacing (<code class="num">analytics.</code>/<code class="num">raw.</code>/<code class="num">geo.</code>/<code class="num">ref.</code>) — should have been checked before assuming a project by its name.</li>
+            </ul>
+          </div>
+          <div class="sprint-col open">
+            <div class="sprint-col-t"><span class="dot"></span>Open questions</div>
+            <ul>
+              <li>The orphaned copy still exists in <code class="num">kmbnchjyjoudthrinkcb</code> — drop it, or leave it as-is? Not decided.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">Product B · own error corrected, no score change</span>
+        </div>
+      </div>
 
       <div class="sprint-card">
         <div class="sprint-hdr">

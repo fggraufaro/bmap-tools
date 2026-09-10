@@ -298,12 +298,6 @@
     g('appWrap').style.display = 'block';
   }
 
-  if (typeof window.claude !== 'undefined') {
-    // Rendered inside a Claude Artifact — already private/owner-shared.
-    afterAuth();
-    return;
-  }
-
   window.checkAccess = function checkAccess(){
     const input = g('tokenInput').value.trim();
     if (input === ROADMAP_PASSKEY) {
@@ -316,9 +310,20 @@
     }
   };
 
-  let saved = null;
-  try { saved = sessionStorage.getItem('roadmap_ok'); } catch (e) {}
-  if (saved) { afterAuth(); }
+  // Deferred to DOMContentLoaded: #appWrap is declared further down in the
+  // source, so calling afterAuth() synchronously here (before the parser
+  // reaches it) throws on the null element and leaves the whole page
+  // blank — the exact bug this caused when it ran inline.
+  document.addEventListener('DOMContentLoaded', function(){
+    if (typeof window.claude !== 'undefined') {
+      // Rendered inside a Claude Artifact — already private/owner-shared.
+      afterAuth();
+      return;
+    }
+    let saved = null;
+    try { saved = sessionStorage.getItem('roadmap_ok'); } catch (e) {}
+    if (saved) { afterAuth(); }
+  });
 })();
 </script>
 

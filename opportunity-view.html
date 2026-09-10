@@ -125,6 +125,8 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .action-card.pri-top{border-left-color:var(--amber)}
 .action-card.pri-next{border-left-color:var(--green)}
 .action-card.pri-watch{border-left-color:var(--red)}
+.action-zp{font-size:11px;color:var(--muted);margin:4px 0}
+.action-zp b{color:var(--navy)}
 .action-tier{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .action-branch{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:5px}
 .action-why{font-size:12px;color:var(--text);line-height:1.45}
@@ -656,6 +658,7 @@ async function renderInlineROI(branch) {
   box.innerHTML = `<div class="action-card pri-top" style="margin-top:14px">
     <div class="action-tier">Selected on map</div>
     <div class="action-branch">${branchLabel}</div>
+    <div class="action-zp">Zone: <b>${branch.opportunity_zone || '—'}</b> · Play: <b>${branch.campaign || '—'}</b></div>
     ${tableHtml}
     ${totalsLine}
     <div class="action-why" style="margin-top:8px">At the combined 3% tier: ~${Math.round(fundedAccounts)} funded accounts, ~${fmtMoney(spend)} estimated media spend, ~${fmtMoney(cac)} CAC/account.</div>
@@ -1057,6 +1060,18 @@ function setActionStatus(uninumbr, status) {
   } catch (e) { /* localStorage unavailable — status just won't persist */ }
   renderActionsRow();
 }
+// Clicking a What's Next card selects that branch exactly as clicking its
+// map marker would (same onBranchClick — map pans/zooms, the radius panel
+// opens, "Selected on map" updates below). Looked up by uninumbr rather than
+// passing the branch object inline, matching the existing setActionStatus/
+// openROI pattern already used on these cards.
+function selectActionBranch(uninumbr) {
+  const b = currentBranches.find(x => String(x.uninumbr) === String(uninumbr));
+  if (!b) return;
+  g('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  onBranchClick(b);
+}
+
 function renderActionsRow() {
   const byScore = [...currentBranches].sort((a, b) => (+b.opportunity_score || 0) - (+a.opportunity_score || 0));
   const tiers = { top: null, next: null, opportunity: null };
@@ -1069,12 +1084,12 @@ function renderActionsRow() {
     const move = CAMPAIGN_ACTION[b.campaign];
     const status = getActionStatus(b.uninumbr);
     const statusHtml = status === 'in_progress'
-      ? `<div class="action-status"><span class="status-badge in-progress">✓ In progress</span><button class="status-btn" onclick="setActionStatus('${b.uninumbr}','in_progress')">Undo</button></div>`
+      ? `<div class="action-status"><span class="status-badge in-progress">✓ In progress</span><button class="status-btn" onclick="event.stopPropagation();setActionStatus('${b.uninumbr}','in_progress')">Undo</button></div>`
       : status === 'dismissed'
-      ? `<div class="action-status"><span class="status-badge dismissed">Not right now</span><button class="status-btn" onclick="setActionStatus('${b.uninumbr}','dismissed')">Undo</button></div>`
-      : `<div class="action-status"><button class="status-btn on" onclick="setActionStatus('${b.uninumbr}','in_progress')">Mark as in progress</button><button class="status-btn off" onclick="setActionStatus('${b.uninumbr}','dismissed')">Not right now</button></div>`;
+      ? `<div class="action-status"><span class="status-badge dismissed">Not right now</span><button class="status-btn" onclick="event.stopPropagation();setActionStatus('${b.uninumbr}','dismissed')">Undo</button></div>`
+      : `<div class="action-status"><button class="status-btn on" onclick="event.stopPropagation();setActionStatus('${b.uninumbr}','in_progress')">Mark as in progress</button><button class="status-btn off" onclick="event.stopPropagation();setActionStatus('${b.uninumbr}','dismissed')">Not right now</button></div>`;
     const branchLabel = `${b.namebr} — ${b.citybr}, ${b.stalpbr}`.replace(/'/g, "\\'");
-    actionsHtml += `<div class="action-card ${cls}"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-why">${CAMPAIGN_WHY[b.campaign] || ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}<br><a href="javascript:void(0)" onclick="openROI('${branchLabel}','${b.uninumbr}')" style="color:var(--blue);font-weight:700;font-size:11.5px">See projected ROI →</a></div>` : ''}${statusHtml}</div>`;
+    actionsHtml += `<div class="action-card ${cls}" onclick="selectActionBranch('${b.uninumbr}')" style="cursor:pointer" title="Click to view on map"><div class="action-tier">${TIER_LABEL[tier]}</div><div class="action-branch">${b.namebr} — ${b.citybr}, ${b.stalpbr}</div><div class="action-zp">Zone: <b>${b.opportunity_zone || '—'}</b> · Play: <b>${b.campaign || '—'}</b></div><div class="action-why">${CAMPAIGN_WHY[b.campaign] || ZONE_PLAIN[b.opportunity_zone] || ''}. Currently $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M in deposits.</div>${move ? `<div class="action-move"><b>Do this:</b> ${move}<br><a href="javascript:void(0)" onclick="event.stopPropagation();openROI('${branchLabel}','${b.uninumbr}')" style="color:var(--blue);font-weight:700;font-size:11.5px">See projected ROI →</a></div>` : ''}<div onclick="event.stopPropagation()">${statusHtml}</div></div>`;
   });
   g('actionsRow').innerHTML = actionsHtml || '<div class="rr-empty">No flagged branches this month.</div>';
 }

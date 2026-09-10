@@ -1127,8 +1127,14 @@ function renderActionsRow() {
 // sparkline off vw_rate_radar_history (req #4). ──
 async function loadRateRadar(ik) {
   const norm = s => (s || '').trim().toLowerCase();
-  const compForRR = await api('branch_target_competitors', `my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=10`);
-  const namedComps = [...new Map((compForRR || []).filter(c => c.target_namefull).map(c => [norm(c.target_namefull), c])).values()];
+  // limit=1000 on the raw rows, not 10 — a single institution (e.g. one
+  // struggling regional bank) can legitimately be the #1 vulnerability
+  // target across many of this bank's branches, so a tight limit here
+  // was getting exhausted by repeats of one name before the other real
+  // named competitors ever had a chance to surface. Dedupe first, then
+  // cap to the top 10 distinct institutions for display.
+  const compForRR = await api('branch_target_competitors', `my_inst_key=eq.${ik}&select=target_namefull,vuln_score&order=vuln_score.desc&limit=1000`);
+  const namedComps = [...new Map((compForRR || []).filter(c => c.target_namefull).map(c => [norm(c.target_namefull), c])).values()].slice(0, 10);
   if (!namedComps.length) { g('rrBody').innerHTML = '<div class="rr-empty">No named competitors computed for this institution yet.</div>'; return; }
 
   const rrAll = await api('vw_rate_radar_latest', `select=bank_name,cd_apy,cd_term,cd_provenance,cd_verified,savings_apy,savings_provenance,savings_verified,high_yield_savings_apy,high_yield_savings_provenance,high_yield_savings_verified,checking_apy,checking_provenance,checking_verified,money_market_apy,money_market_provenance,money_market_verified,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);

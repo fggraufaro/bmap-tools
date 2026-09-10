@@ -1,4 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+
 <title>Verlocity Platform Roadmap</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,560;9..144,650&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -699,6 +700,34 @@
         </div>
         <div class="sprint-footer">
           <span class="rdy-tag none">Not started — full detail lives in Open Actions above</span>
+        </div>
+      </div>
+
+      <div class="sprint-card planned">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 7</span>
+            <span class="sprint-range num">Planned · following</span>
+          </div>
+          <div class="sprint-focus">Automate the core data pipeline, add free datasets</div>
+        </div>
+        <div class="sprint-body single-col">
+          <div class="sprint-col planned">
+            <div class="sprint-col-t"><span class="dot"></span>Committed</div>
+            <ul>
+              <li>Audited the current pipeline first — found there's no ingestion code anywhere for <code class="num">raw.raw_sod</code>, <code class="num">raw.raw_income</code>, <code class="num">raw.raw_population</code>, <code class="num">raw.raw_zhvi</code>, or <code class="num">analytics.bank_financial_snapshot_latest</code>. Every refresh today is a manual CSV load; <code class="num">pg_cron</code> is installed on the Supabase project but has zero scheduled jobs.</li>
+              <li>Build the <b>Zillow ZHVI</b> ingestion script first (monthly) — the most stale source today (~5 months behind) and the simplest to automate.</li>
+              <li>Build the <b>Call Reports / UBPR / NCUA FS220</b> ingestion script (quarterly) — replaces <code class="num">call_reports.py</code>'s manual folder-drop + hardcoded quarter-list pattern.</li>
+              <li>Build <b>FDIC SOD</b> and <b>Census ACS</b> ingestion scripts (annual) — lower urgency since current lag is small, but needed to close out full automation.</li>
+              <li>Wire real scheduling via <code class="num">pg_cron</code> or a Railway cron service, and auto-invoke <code class="num">refresh_bmap_after_upload</code> / <code class="num">refresh_branch_opportunity_base</code> after each load instead of manual calls.</li>
+              <li>Provision a Census API key — none of the 5 sources have programmatic credentials set up anywhere today.</li>
+              <li>Add 6 new free datasets, each mapped to a specific scoring improvement (full detail in Open Actions above): <b>IRS SOI</b> migration data (leading indicator ahead of SOD deposit growth), <b>HMDA</b> loan data (competitor mortgage-share signal), <b>CFPB complaints</b> (real-time competitor attrition risk), <b>Census Business Formation Statistics</b> (leading indicator vs. the static SMB snapshot), <b>BLS QCEW</b> (refreshes the persona layer's stale ACS occupation data), and <b>FDIC enforcement actions</b> (free early-warning layer on capital-ratio vulnerability scoring).</li>
+              <li>Correct CLAUDE.md's reference to <code class="num">schedule_rate_radar.py</code> — confirmed it doesn't exist in either repo or their git history.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">Not started — paid options (S&amp;P Global/SNL deposit rankings, Placer.ai/Advan foot traffic) researched but deliberately left out of this scope, budget/vendor-gated</span>
         </div>
       </div>
 

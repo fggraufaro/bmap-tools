@@ -23,6 +23,9 @@ html{zoom:0.8}
    have been. Confirmed via actual rendered pixel measurements, not just
    inspecting the CSS. */
 body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;background:var(--gray);color:var(--text);font-size:14px;font-variant-numeric:tabular-nums}
+/* Default page density — scales the whole app the same way manually zooming
+   the browser to 85% does (not the access-code gate, which stays full-size). */
+#appWrap{zoom:.85}
 /* zoom:0.8 reproduces exactly the 80% browser-zoom look confirmed as correct —
    simpler and safer than rescaling every font-size/padding value by hand, and
    (unlike a CSS transform) the browser reflows at this size before Leaflet

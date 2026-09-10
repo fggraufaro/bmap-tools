@@ -623,7 +623,7 @@
   let db;
   try { db = await claude.use('db'); } catch(e) { db = null; }
   if (!db) {
-    listEl.innerHTML = '<div class="actions-empty">Open-action tracking isn\'t available in this view.</div>';
+    listEl.innerHTML = '<div class="actions-empty">Open-action tracking isn\'t available in this view. <a href="https://claude.ai/code/artifact/f2513088-1af1-43f5-a384-f59f2e32f79e" target="_blank" rel="noopener" style="color:var(--accent-ink);font-weight:600;">Open the live tracker →</a></div>';
     return;
   }
   const col = db.collection('actions');

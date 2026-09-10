@@ -212,20 +212,6 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .pop-t{font-weight:700;font-size:12.5px;margin-bottom:3px}
 .pop-r{font-size:11px;color:var(--muted);margin-top:2px}
 
-/* ── Institution picker — internal-only, separate passkey from the main
-   access gate. A client link always carries ?bank=inst_key and never sees
-   any of this. This exists so Verlocity staff can open the bare URL and
-   choose which prospect/client to load, without exposing a searchable
-   institution list to anyone who only has the main passkey. ── */
-#pickerGate{position:fixed;inset:0;background:rgba(8,61,95,.9);z-index:998;display:none;align-items:center;justify-content:center}
-#pickerGate.open{display:flex}
-.picker-box{background:var(--navy);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:24px 28px;width:320px;text-align:center}
-.picker-lbl{color:rgba(255,255,255,.5);font-size:10.5px;margin-bottom:10px;letter-spacing:.05em}
-.picker-inp{width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:9px 12px;color:#fff;font-size:13px;outline:none;text-align:center;margin-bottom:8px;font-family:inherit}
-.picker-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:7px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer}
-.picker-cancel{margin-top:10px;font-size:10.5px;color:rgba(255,255,255,.4);cursor:pointer}
-.picker-err{display:none;color:var(--blue);font-size:11px;margin:6px 0}
-
 .select-wrap{position:relative;width:340px;margin:0 auto}
 .select-inp{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;outline:none;font-family:inherit;color:var(--text)}
 .select-dd{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid var(--navy);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:240px;overflow-y:auto;display:none;z-index:60;text-align:left}
@@ -237,7 +223,6 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .select-name mark{background:#D9F2F6;padding:0 2px;font-style:normal;font-weight:700}
 .select-meta{font-size:10px;color:var(--muted)}
 .select-msg{padding:12px;font-size:11px;color:var(--muted);text-align:center}
-.pick-cta{margin-top:14px;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
@@ -273,17 +258,6 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
     <div class="select-wrap dn" id="selectWrap">
       <input class="select-inp" id="si" type="text" placeholder="Search institution — e.g. Hancock Whitney" autocomplete="off">
       <div class="select-dd" id="dd"></div>
-    </div>
-    <button class="pick-cta dn" id="pickCta" onclick="openPicker()">Select institution →</button>
-  </div>
-
-  <div id="pickerGate">
-    <div class="picker-box">
-      <div class="picker-lbl">INTERNAL CODE — SELECT INSTITUTION</div>
-      <input id="pickerInput" class="picker-inp" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')tryPicker()">
-      <div id="pickerErr" class="picker-err">Incorrect code — try again</div>
-      <button class="picker-btn" onclick="tryPicker()">Unlock →</button>
-      <div class="picker-cancel" onclick="closePicker()">Cancel</div>
     </div>
   </div>
 
@@ -464,29 +438,11 @@ function afterAuth() {
   } else {
     // No ?bank= in the URL: this is Verlocity staff opening the bare link,
     // not a client link. Client links always carry ?bank=inst_key and never
-    // reach this branch. Show the "select institution" button, gated by its
-    // own separate internal code — never the same code as the main gate.
+    // reach this branch. Go straight to the institution search — the main
+    // access gate above is the only protection this flow needs.
     g('emptyTitle').textContent = 'No institution specified in the link';
-    g('pickCta').classList.remove('dn');
-  }
-}
-
-// ── Internal institution picker — separate passkey from the main access
-// gate (req: extra step + extra passkey). Deliberately a second, distinct
-// code so a client who only has the main passkey can never reach a
-// searchable list of every institution in the system. ──
-const PICKER_UNLOCK_CODE = 'verlocity-internal';
-function openPicker() { g('pickerGate').classList.add('open'); g('pickerInput').value = ''; g('pickerErr').style.display = 'none'; g('pickerInput').focus(); }
-function closePicker() { g('pickerGate').classList.remove('open'); }
-function tryPicker() {
-  if (g('pickerInput').value.trim() === PICKER_UNLOCK_CODE) {
-    closePicker();
-    g('pickCta').classList.add('dn');
     g('selectWrap').classList.remove('dn');
     g('si').focus();
-  } else {
-    g('pickerErr').style.display = 'block';
-    g('pickerInput').value = '';
   }
 }
 

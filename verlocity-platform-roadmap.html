@@ -261,9 +261,66 @@
     .sprint-col:first-child{border-top:none;}
     .sprint-focus{text-align:left;}
   }
+
+  /* ── Access gate — same Railway session auth as the rest of the growth
+     stack (Hub, Opportunity View, Growth Map, Rate Radar Validator). Skipped
+     automatically when rendered inside a Claude Artifact, since that surface
+     already has its own real access control (private, owner-shared) — a
+     second password gate there would just be able to lock the owner out,
+     since the artifact sandbox can't reach the Railway auth endpoint. ── */
+  #authGate{position:fixed;inset:0;background:#083D5F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999}
+  .gate-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center;font-family:"IBM Plex Sans",system-ui,sans-serif;}
+  .gate-lbl{color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em}
+  .gate-inp{width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px;font-family:inherit}
+  .gate-err{display:none;color:#02A7C2;font-size:11px;margin-bottom:10px}
+  .gate-btn{width:100%;background:#02A7C2;color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit}
+  .gate-btn:disabled{opacity:.5;cursor:not-allowed}
 </style>
 
-<div class="page">
+<div id="authGate">
+  <div class="gate-box">
+    <div class="gate-lbl">ENTER ACCESS CODE</div>
+    <input id="tokenInput" class="gate-inp" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')checkAccess()">
+    <div id="authErr" class="gate-err">Incorrect code — try again</div>
+    <button class="gate-btn" onclick="checkAccess()">Access →</button>
+  </div>
+</div>
+<script>
+(function(){
+  const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+  const g = id => document.getElementById(id);
+
+  function afterAuth(){
+    g('authGate').style.display = 'none';
+    g('appWrap').style.display = 'block';
+  }
+
+  if (typeof window.claude !== 'undefined') {
+    // Rendered inside a Claude Artifact — already private/owner-shared, and
+    // this sandbox can't reach the Railway auth endpoint anyway.
+    afterAuth();
+    return;
+  }
+
+  window.checkAccess = function checkAccess(){
+    const input = g('tokenInput').value.trim();
+    const btn = document.querySelector('#authGate button');
+    if (btn) btn.disabled = true;
+    fetch(`${HUB_API}/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: input }) })
+      .then(async r => {
+        if (!r.ok) { g('authErr').style.display='block'; g('tokenInput').value=''; g('tokenInput').focus(); if (btn) btn.disabled=false; return; }
+        const data = await r.json();
+        sessionStorage.setItem('hub_token', data.token);
+        afterAuth();
+      }).catch(() => { g('authErr').style.display='block'; if (btn) btn.disabled=false; });
+  };
+
+  const saved = sessionStorage.getItem('hub_token');
+  if (saved) { afterAuth(); }
+})();
+</script>
+
+<div class="page" id="appWrap" style="display:none">
 
   <div class="masthead">
     <div>

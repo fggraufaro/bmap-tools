@@ -509,6 +509,12 @@ function pickInstitution(i) {
   const b = ddItems[i]; if (!b) return;
   closeSelectDd();
   g('empty').style.display = 'none';
+  // Picking via the search/internal-code flow never updated the URL, so a
+  // refresh re-read an empty ?bank= and dumped the viewer back to "No
+  // institution specified" — re-triggering the internal-code gate every
+  // time. Writing the pick into the URL makes it survive a refresh exactly
+  // like a pre-supplied ?bank= link already does.
+  history.replaceState(null, '', '?bank=' + encodeURIComponent(b.inst_key));
   loadBank(b.inst_key);
 }
 function closeSelectDd() { g('dd').classList.remove('open'); ddIdx = -1; }

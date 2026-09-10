@@ -1003,7 +1003,7 @@ async function loadBank(ik) {
   g('vStat2Val').textContent = investCount;
   g('vStat2Delta').textContent = `of ${summaryRows.length} branches`;
   g('vStat2Delta').style.color = 'var(--muted)';
-  g('vStat3Val').textContent = '$' + (justifyDep / 1e6).toFixed(0) + 'M';
+  g('vStat3Val').textContent = fmtMoneyM(justifyDep);
   g('vStat3Delta').textContent = justifyDep > 0 ? 'showing signs of competitive pressure' : 'no branches currently at risk';
   g('vStat3Delta').style.color = justifyDep > 0 ? '#A33C31' : '#1E7A4C';
   // NOTE: these are YoY figures, not true month-over-month deltas — the

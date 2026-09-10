@@ -105,6 +105,7 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .rr-chip{background:var(--gray);border-radius:6px;padding:4px 8px;font-size:10.5px;border-left:3px solid transparent}
 .rr-chip b{color:var(--navy)}
 .rr-chip.conf-high{border-left-color:var(--green)}
+.rr-chip.conf-low{border-left-color:var(--amber)}
 .rr-stale-tag{font-size:9.5px;color:var(--muted);font-weight:400}
 .rr-callout{font-size:11.5px;color:var(--navy);background:var(--lblue);border-radius:6px;padding:8px 10px;margin-top:8px;line-height:1.4}
 .rr-trend{margin-top:8px}
@@ -1118,16 +1119,22 @@ async function loadRateRadar(ik) {
       <span style="font-size:10px;color:var(--muted);margin-left:6px">CD rate, last ${pts.length} readings — ${vals[0].toFixed(2)}% → ${vals[vals.length-1].toFixed(2)}%</span></div>`;
   }
 
-  // Opportunity View is customer-facing (this file's own gate keeps a CEO/
-  // board audience locked to their own institution — see the params
-  // comment above). Rate Radar's confidence grading is an internal QA
-  // signal, not something to show a customer: an "Unverified"/search-only
-  // rate is exactly the category the project has flagged as unreliable for
-  // larger banks (implausible values, e.g. 0.01% APY). So this view never
-  // renders a rate that isn't verified — manually confirmed, or sourced
-  // straight from the bank's own site/AI vision read.
-  const isCustomerReady = (prov, verified) => verified || prov === 'site' || prov === 'ai_vision';
-  const chip = (label, v, prov, verified, sub) => (v && isCustomerReady(prov, verified)) ? `<div class="rr-chip conf-high" title="Verified — read directly from the bank’s own site">${label} <b>${(+v).toFixed(2)}%</b>${sub ? ` <span style="color:var(--muted)">${sub}</span>` : ''}</div>` : '';
+  // 2026-09-10: reverted from "hide unverified entirely" back to "show
+  // everything, mark confidence quietly" — the fully-hidden version (shipped
+  // for the Cattlemens/Brock meeting) made a well-populated bank like
+  // Trustmark look nearly empty, which undersold the product for Brock's own
+  // product-feedback review. Verified (site/ai_vision/manual) still reads as
+  // a confident green chip; everything else still shows — real data, not
+  // hidden — but with a quieter amber marker instead of the value vanishing.
+  // If this needs to go back to hidden-unless-verified for an actual
+  // customer-facing meeting, that's a one-line revert of this function.
+  const isVerified = (prov, verified) => verified || prov === 'site' || prov === 'ai_vision';
+  const chip = (label, v, prov, verified, sub) => {
+    if (!v) return '';
+    const ok = isVerified(prov, verified);
+    const title = ok ? 'Verified — read directly from the bank’s own site' : 'Not yet verified against the bank’s own site — sourced from search';
+    return `<div class="rr-chip ${ok ? 'conf-high' : 'conf-low'}" title="${title}">${label} <b>${(+v).toFixed(2)}%</b>${sub ? ` <span style="color:var(--muted)">${sub}</span>` : ''}</div>`;
+  };
   const staleTag = runAt => {
     if (!runAt) return '';
     const days = Math.floor((Date.now() - new Date(runAt).getTime()) / 86400000);

@@ -973,6 +973,16 @@ function clearRadius() {
 
 // ── Load bank ──
 let currentBranches = [];
+// Real addressable deposit pool per branch (summed branch_target_competitors
+// target_dep_m), used only to pick which branch wins each What's Next card
+// slot — see renderActionsRow(). A rural branch with one named competitor
+// can post a huge opportunity_score just by out-growing weak local peers,
+// even when the real dollar pool nearby is tiny (confirmed by hand across
+// three institutions tonight: Gould/Gloster/Y Branch-style branches beating
+// out Pinhook/Meridian-style branches sitting on 5-10x the addressable
+// deposits). opportunity_score itself is untouched — this only reranks
+// which branch represents each campaign tier on the cards.
+let branchPoolM = {};
 async function loadBank(ik) {
   g('empty').style.display = 'none';
   g('main').style.display = 'flex';
@@ -984,10 +994,15 @@ async function loadBank(ik) {
   setTimeout(() => map && map.invalidateSize(), 50);
   g('actionsRow').innerHTML = '';
 
-  const [summaryRows, branches] = await Promise.all([
+  const [summaryRows, branches, poolRows] = await Promise.all([
     api('branch_opportunity_base', `inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone`),
-    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign&order=opportunity_score.desc`)
+    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign&order=opportunity_score.desc`),
+    api('branch_target_competitors', `my_inst_key=eq.${ik}&select=my_branch_id,target_dep_m`)
   ]);
+  branchPoolM = {};
+  (Array.isArray(poolRows) ? poolRows : []).forEach(r => {
+    branchPoolM[r.my_branch_id] = (branchPoolM[r.my_branch_id] || 0) + (+r.target_dep_m || 0);
+  });
   if (!summaryRows || !summaryRows.length) { g('bn') && (g('bn').textContent = ''); g('emptyTitle').textContent = 'No data found for this institution'; g('empty').style.display = 'flex'; g('main').style.display = 'none'; return; }
   currentBranches = branches.filter(b => b.sims_latitude && b.sims_longitude);
 
@@ -1075,10 +1090,21 @@ function selectActionBranch(uninumbr) {
   onBranchClick(b);
 }
 
+// Blends opportunity_score with real addressable deposit pool (log-scaled,
+// so a big pool discounts a thin one without letting sheer size dominate a
+// genuine growth signal) — see the branchPoolM comment above loadBank().
+// log10(pool+1): a $24M pool -> 1.40, a $90M pool -> 1.96, a $240M pool ->
+// 2.38 — enough to reorder close calls without swamping the score entirely.
+function cardRank(b) {
+  return (+b.opportunity_score || 0) * Math.log10((branchPoolM[b.uninumbr] || 0) + 1);
+}
 function renderActionsRow() {
-  const byScore = [...currentBranches].sort((a, b) => (+b.opportunity_score || 0) - (+a.opportunity_score || 0));
   const tiers = { top: null, next: null, opportunity: null };
-  byScore.forEach(b => { const t = priorityTierOf(b.campaign); if (t && !tiers[t]) tiers[t] = b; });
+  currentBranches.forEach(b => {
+    const t = priorityTierOf(b.campaign);
+    if (!t) return;
+    if (!tiers[t] || cardRank(b) > cardRank(tiers[t])) tiers[t] = b;
+  });
   const actionOrder = [['top', 'pri-top'], ['next', 'pri-next'], ['opportunity', 'pri-watch']];
   let actionsHtml = '';
   actionOrder.forEach(([tier, cls]) => {

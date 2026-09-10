@@ -1,0 +1,679 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>Verlocity Platform Roadmap</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,560;9..144,650&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F5F6F3;
+    --paper-raised:#FFFFFF;
+    --ink:#16211D;
+    --ink-soft:#4E5D57;
+    --ink-faint:#93A19B;
+    --line:#DCE2DD;
+    --line-strong:#B9C4BE;
+    --accent:#1E6F5C;
+    --accent-ink:#0D3F33;
+    --accent-soft:#DCEEE8;
+    --gold:#A9752B;
+    --gold-ink:#6B4A19;
+    --gold-soft:#F4E8D2;
+    --red:#A5423A;
+    --red-ink:#6B2A25;
+    --red-soft:#F3DEDA;
+    --shadow:0 1px 2px rgba(22,33,29,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#101E19;
+      --paper-raised:#162720;
+      --ink:#E9EDE9;
+      --ink-soft:#AEBBB4;
+      --ink-faint:#63756D;
+      --line:#243731;
+      --line-strong:#33483F;
+      --accent:#41B191;
+      --accent-ink:#CDEFE3;
+      --accent-soft:#1B3A32;
+      --gold:#D9A54B;
+      --gold-ink:#F0D9AC;
+      --gold-soft:#3A2E17;
+      --red:#E08479;
+      --red-ink:#F3C4BC;
+      --red-soft:#3A211E;
+      --shadow:0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101E19;
+    --paper-raised:#162720;
+    --ink:#E9EDE9;
+    --ink-soft:#AEBBB4;
+    --ink-faint:#63756D;
+    --line:#243731;
+    --line-strong:#33483F;
+    --accent:#41B191;
+    --accent-ink:#CDEFE3;
+    --accent-soft:#1B3A32;
+    --gold:#D9A54B;
+    --gold-ink:#F0D9AC;
+    --gold-soft:#3A2E17;
+    --red:#E08479;
+    --red-ink:#F3C4BC;
+    --red-soft:#3A211E;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--paper);color:var(--ink);}
+  .page{
+    max-width:1040px;margin:0 auto;padding:40px 28px 80px;
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    color:var(--ink);
+  }
+  h1,h2,h3{font-family:"Fraunces",Georgia,serif;text-wrap:balance;margin:0;}
+  .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+  code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:0.92em;background:var(--accent-soft);color:var(--accent-ink);padding:1px 5px;border-radius:4px;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;animation:none !important;} }
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+    padding-bottom:22px;border-bottom:2px solid var(--ink);margin-bottom:36px;flex-wrap:wrap;
+  }
+  .masthead .eyebrow{
+    font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:10px;
+  }
+  .masthead h1{font-size:clamp(30px,4vw,42px);font-weight:650;line-height:1.05;}
+  .masthead p{color:var(--ink-soft);margin-top:8px;max-width:46ch;font-size:15px;}
+  .readiness-tag{
+    text-align:right;flex-shrink:0;
+  }
+  .readiness-tag .score{font-size:40px;font-weight:600;line-height:1;color:var(--accent-ink);background:var(--accent-soft);
+    padding:6px 14px;border-radius:8px;display:inline-block;}
+  .readiness-tag .cap{display:block;margin-top:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}
+
+  section{margin-bottom:52px;}
+  .section-head{margin-bottom:18px;}
+  .section-head .tag{
+    font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);
+    background:var(--accent-soft);padding:3px 9px;border-radius:5px;display:inline-block;margin-bottom:10px;
+  }
+  .section-head h2{font-size:24px;font-weight:600;}
+  .section-head .sub{color:var(--ink-soft);font-size:14px;margin-top:6px;max-width:62ch;}
+
+  /* ---------- open actions ---------- */
+  .actions-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;}
+  .actions-list{display:flex;flex-direction:column;}
+  .action-row{display:flex;align-items:flex-start;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);}
+  .action-row:last-child{border-bottom:none;}
+  .action-check{flex-shrink:0;width:18px;height:18px;margin-top:2px;border:1.5px solid var(--line-strong);border-radius:5px;cursor:pointer;appearance:none;-webkit-appearance:none;background:var(--paper);position:relative;}
+  .action-check:hover{border-color:var(--accent);}
+  .action-check:checked{background:var(--accent);border-color:var(--accent);}
+  .action-check:checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;line-height:1;}
+  .action-body{flex:1;min-width:0;}
+  .action-text{font-size:13.5px;color:var(--ink);line-height:1.5;}
+  .action-text.done{color:var(--ink-faint);text-decoration:line-through;}
+  .action-meta{display:flex;gap:8px;margin-top:7px;align-items:center;flex-wrap:wrap;}
+  .action-source{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);letter-spacing:.02em;}
+  .action-owner{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--accent-ink);background:var(--accent-soft);border:1px solid transparent;border-radius:100px;padding:2px 9px;cursor:text;min-width:70px;outline:none;}
+  .action-owner:focus{border-color:var(--accent);}
+  .action-owner::placeholder{color:var(--ink-faint);}
+  .actions-empty{color:var(--ink-faint);font-size:13px;padding:20px 18px;}
+  .actions-live-tag{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);}
+  .actions-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+
+  /* ---------- gauges ---------- */
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+  .gauge-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:18px 14px 16px;
+    display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow);}
+  .gauge-card svg{width:104px;height:104px;}
+  .gauge-ring-bg{fill:none;stroke:var(--line);stroke-width:10;}
+  .gauge-ring-fg{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round;transform:rotate(-90deg);transform-origin:60px 60px;}
+  .gauge-score{font-family:"IBM Plex Mono";font-weight:600;font-size:22px;fill:var(--ink);}
+  .gauge-label{margin-top:10px;font-size:12px;text-align:center;color:var(--ink-soft);font-weight:500;line-height:1.3;}
+
+  /* ---------- products ---------- */
+  .products{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .product-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:22px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:14px;}
+  .product-card.b{border-color:var(--line-strong);}
+  .product-card .kicker{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}
+  .product-card h3{font-size:22px;font-weight:650;margin-top:2px;}
+  .status-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:100px;width:fit-content;}
+  .status-chip.priority{background:var(--accent-soft);color:var(--accent-ink);}
+  .status-chip.gated{background:var(--gold-soft);color:var(--gold-ink);}
+  .field-list{display:flex;flex-direction:column;gap:9px;margin-top:4px;}
+  .field-row{display:grid;grid-template-columns:88px 1fr;gap:10px;font-size:13.5px;align-items:baseline;}
+  .field-row .k{color:var(--ink-faint);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;}
+  .field-row .v{color:var(--ink);}
+
+  /* ---------- ledger table ---------- */
+  .ledger{display:flex;flex-direction:column;border-top:1px solid var(--line-strong);}
+  .ledger-row{display:grid;grid-template-columns:150px 100px 1fr 130px;gap:16px;padding:13px 4px;border-bottom:1px solid var(--line);align-items:center;}
+  .ledger-row.head{font-family:"IBM Plex Mono";font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);border-bottom:1px solid var(--line-strong);padding-bottom:8px;}
+  .ledger-row .tool-name{font-weight:650;font-size:14.5px;}
+  .ledger-row .desc{color:var(--ink-soft);font-size:13.5px;}
+  .ledger-row .segment{font-size:12px;color:var(--ink-faint);}
+  .pill{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:100px;white-space:nowrap;}
+  .pill.live{background:var(--accent-soft);color:var(--accent-ink);}
+  .pill.building{background:var(--gold-soft);color:var(--gold-ink);}
+  .pill.blocked{background:var(--red-soft);color:var(--red-ink);}
+  .pill.notstarted{background:var(--line);color:var(--ink-soft);}
+
+  /* ---------- timeline / gantt ---------- */
+  .gantt-scroll{overflow-x:auto;}
+  .gantt{position:relative;min-width:760px;display:grid;grid-template-columns:150px repeat(12,1fr);row-gap:14px;padding-top:26px;}
+  .gantt .month-label{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);text-align:center;}
+  .gantt .month-label:first-child{grid-column:1;}
+  .track-label{font-size:13px;font-weight:600;display:flex;align-items:center;color:var(--ink);}
+  .bar-track{position:relative;height:26px;background:var(--line);border-radius:6px;grid-column:2 / 14;overflow:hidden;}
+  .bar-fill{position:absolute;top:0;bottom:0;border-radius:6px;}
+  .bar-fill .bl{position:absolute;inset:0;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:600;color:var(--paper-raised);white-space:nowrap;overflow:hidden;}
+  .gate-line{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--ink-faint);z-index:1;}
+  .gate-label{position:absolute;top:2px;left:0;font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink);font-weight:600;white-space:nowrap;transform:translateX(-50%);background:var(--paper);padding:0 4px;}
+
+  /* ---------- budget ---------- */
+  .budget-wrap{display:grid;grid-template-columns:1fr 220px;gap:28px;align-items:start;}
+  .budget-scroll{overflow-x:auto;}
+  .budget-chart{min-width:560px;}
+  .scale-row{display:grid;grid-template-columns:150px 1fr;font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);margin-bottom:10px;}
+  .scale-ticks{display:grid;grid-template-columns:repeat(4,1fr);text-align:right;}
+  .budget-row{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:0;margin-bottom:14px;}
+  .budget-row .glabel{font-size:13px;font-weight:600;}
+  .budget-row .grp{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:600;display:block;margin-bottom:8px;}
+  .rail{position:relative;height:16px;background:var(--line);border-radius:100px;}
+  .range{position:absolute;top:0;bottom:0;border-radius:100px;}
+  .range.prod{background:var(--accent);}
+  .range.comp{background:var(--gold);}
+  .range-caps{position:relative;font-family:"IBM Plex Mono";font-size:11px;color:var(--ink-soft);height:16px;margin-top:4px;}
+  .range-caps span{position:absolute;transform:translateX(-50%);}
+  .total-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:20px;box-shadow:var(--shadow);text-align:center;}
+  .total-card .cap{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);font-weight:600;}
+  .total-card .amt{font-family:"Fraunces";font-weight:650;font-size:30px;margin:10px 0 6px;line-height:1.1;}
+  .total-card .note{font-size:12px;color:var(--ink-soft);}
+
+  /* ---------- data flow ---------- */
+  .flow{display:flex;flex-direction:column;gap:10px;background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:20px;box-shadow:var(--shadow);}
+  .flow-row{display:grid;grid-template-columns:110px 1fr 110px;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .flow-row:last-child{border-bottom:none;}
+  .flow-endpoint{font-weight:650;font-size:13px;text-align:center;padding:6px 4px;border-radius:6px;background:var(--paper);}
+  .flow-mid{display:flex;align-items:center;gap:10px;justify-content:center;}
+  .flow-arrow{font-size:18px;font-weight:600;}
+  .flow-arrow.out{color:var(--accent);}
+  .flow-arrow.in{color:var(--gold);}
+  .flow-text{color:var(--ink-soft);}
+
+  /* ---------- now next later ---------- */
+  .nnl{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .nnl-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:20px;box-shadow:var(--shadow);}
+  .nnl-card .tag{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.07em;font-weight:600;padding:3px 9px;border-radius:5px;display:inline-block;margin-bottom:12px;}
+  .nnl-card:nth-child(1) .tag{background:var(--accent-soft);color:var(--accent-ink);}
+  .nnl-card:nth-child(2) .tag{background:var(--gold-soft);color:var(--gold-ink);}
+  .nnl-card:nth-child(3) .tag{background:var(--line);color:var(--ink-soft);}
+  .nnl-card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--ink);}
+
+  footer{border-top:1px solid var(--line);padding-top:18px;color:var(--ink-faint);font-size:12.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+  /* ---------- sprint log ---------- */
+  .sprint-list{display:flex;flex-direction:column;gap:18px;}
+  .sprint-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;}
+  .sprint-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:16px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .sprint-id{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .sprint-num{font-family:"Fraunces";font-weight:650;font-size:19px;}
+  .sprint-range{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--ink-faint);}
+  .sprint-focus{font-size:13px;color:var(--ink-soft);font-style:italic;text-align:right;}
+  .sprint-body{display:grid;grid-template-columns:repeat(3,1fr);}
+  .sprint-col{padding:16px 20px;border-left:1px solid var(--line);}
+  .sprint-col:first-child{border-left:none;}
+  .sprint-col-t{display:flex;align-items:center;gap:7px;font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin-bottom:11px;}
+  .sprint-col-t .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .sprint-col.shipped .dot{background:var(--accent);}
+  .sprint-col.shipped .sprint-col-t{color:var(--accent-ink);}
+  .sprint-col.found .dot{background:var(--gold);}
+  .sprint-col.found .sprint-col-t{color:var(--gold-ink);}
+  .sprint-col.open .dot{background:var(--red);}
+  .sprint-col.open .sprint-col-t{color:var(--red-ink);}
+  .sprint-col ul{margin:0;padding-left:15px;display:flex;flex-direction:column;gap:9px;}
+  .sprint-col li{font-size:12.5px;color:var(--ink);line-height:1.55;}
+  .sprint-col li::marker{color:var(--ink-faint);}
+  .sprint-col-empty{color:var(--ink-faint);font-size:12px;font-style:italic;}
+  .sprint-footer{padding:11px 22px;background:var(--paper);border-top:1px solid var(--line);}
+  .rdy-tag{display:inline-block;font-family:"IBM Plex Mono";font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:100px;background:var(--accent-soft);color:var(--accent-ink);white-space:nowrap;}
+  .rdy-tag.none{background:var(--line);color:var(--ink-soft);}
+
+  @media (max-width:760px){
+    .gauges{grid-template-columns:repeat(2,1fr);}
+    .products{grid-template-columns:1fr;}
+    .ledger-row{grid-template-columns:1fr;gap:4px;}
+    .ledger-row.head{display:none;}
+    .budget-wrap{grid-template-columns:1fr;}
+    .nnl{grid-template-columns:1fr;}
+    .sprint-body{grid-template-columns:1fr;}
+    .sprint-col{border-left:none;border-top:1px solid var(--line);}
+    .sprint-col:first-child{border-top:none;}
+    .sprint-focus{text-align:left;}
+  }
+</style>
+
+<div class="page">
+
+  <div class="masthead">
+    <div>
+      <div class="eyebrow">Verlocity · working plan · Sept 2026</div>
+      <h1>Verlocity Platform Roadmap</h1>
+      <p>Two products, one ledger — what's live, what's sequenced next, what it costs, and where SOC&nbsp;2 sits on the critical path. Revisit monthly, not daily.</p>
+    </div>
+    <div class="readiness-tag">
+      <span class="score num">3.1<span style="font-size:18px;">/10</span></span>
+      <span class="cap">Platform readiness</span>
+    </div>
+  </div>
+
+  <section class="open-actions">
+    <div class="section-head">
+      <span class="tag">Track it, don't just log it</span>
+      <h2>Open actions</h2>
+      <div class="sub">Every real action item below, live — check one off when it's actually done, claim one by typing your name. Anyone with this link can update it. <span class="actions-live-tag"><span class="actions-live-dot"></span>live</span></div>
+    </div>
+    <div class="actions-card">
+      <div class="actions-list" id="actionsList">
+        <div class="actions-empty">Loading…</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="readiness">
+    <div class="section-head">
+      <span class="tag">Where things stand</span>
+      <h2>Readiness, by layer</h2>
+      <div class="sub">The intelligence core is the hard part, and it's furthest along. The productization layer around it is what's missing.</div>
+    </div>
+    <div class="gauges">
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="98.0"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">7/10</text>
+        </svg>
+        <div class="gauge-label">Core intelligence<br>BMAP + Rate Radar data &amp; logic</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="196.0"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">4/10</text>
+        </svg>
+        <div class="gauge-label">Product A<br>Intelligence Subscription</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
+        </svg>
+        <div class="gauge-label">Product B<br>All-in-One Growth Engine</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="326.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">0/10</text>
+        </svg>
+        <div class="gauge-label">Cross-cutting infra<br>Identity, billing, usage data</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="products">
+    <div class="product-card">
+      <div>
+        <div class="kicker">Product A</div>
+        <h3>Intelligence Subscription</h3>
+      </div>
+      <span class="status-chip priority">Priority — build now</span>
+      <div class="field-list">
+        <div class="field-row"><span class="k">For</span><span class="v">Regional banks that already run their own marketing team</span></div>
+        <div class="field-row"><span class="k">Stack</span><span class="v">BMAP + Rate Radar, as an ongoing login — not a one-time report</span></div>
+        <div class="field-row"><span class="k">Blocking</span><span class="v">Dashboard prototype exists (Command Center) — fine for one-off pitches today. Shared login and browser-only status become real problems once multiple live clients need independent access. Server-side status + billing remain either way</span></div>
+        <div class="field-row"><span class="k">Data flow</span><span class="v">Outbound only — safe to launch before SOC&nbsp;2</span></div>
+      </div>
+    </div>
+    <div class="product-card b">
+      <div>
+        <div class="kicker">Product B</div>
+        <h3>All-in-One Growth Engine</h3>
+      </div>
+      <span class="status-chip gated">Gated on Product A's proof</span>
+      <div class="field-list">
+        <div class="field-row"><span class="k">For</span><span class="v">Community banks (sub‑$1B) with no marketing team of their own</span></div>
+        <div class="field-row"><span class="k">Stack</span><span class="v">Full funnel — BMAP → Rate Radar → AudienceFinder → MediaPredict → Omnibranch — plus a visible human checkpoint</span></div>
+        <div class="field-row"><span class="k">Go-to-market</span><span class="v">East Coast direct from Verlocity; elsewhere, via reseller/agency partners</span></div>
+        <div class="field-row"><span class="k">Data flow</span><span class="v">Eventually inbound (bank financials) — needs SOC&nbsp;2</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">The six tools, honestly</span>
+      <h2>Tool ledger</h2>
+    </div>
+    <div class="ledger">
+      <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Feeds</span></div>
+      <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Branch-level deposit-opportunity scoring; bank-facing dashboard prototype (Command Center) already exists, gated by the shared Hub password</span><span class="segment">Both products</span></div>
+      <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Competitor rate scraping; caller covers what bots can't reach</span><span class="segment">Both products</span></div>
+      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Proven live on a real campaign (Trustmark) — Cortex brief → 3 audiences → schema + seed data now in Supabase. Automation job is the remaining work; check Resonate's ToS before scheduling it</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Its ROI math is already live in Command Center — deposit goal → funded accounts → spend → CAC, grounded in real BMAP competitor data. Full Excel-based 5-step workflow still separate</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Microsite generator; build vs. buy still undecided</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Kohl Analytics' tool — third-party, unscoped, unintegrated</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">Now load-bearing sooner than planned — Product B's main channel outside the East Coast</span><span class="segment">Product B</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">12-month sequencing</span>
+      <h2>Product build × SOC&nbsp;2, in parallel</h2>
+      <div class="sub">The dashed gate marks Type&nbsp;I — first-party data and full pilot recruiting both wait on it.</div>
+    </div>
+    <div class="gantt-scroll">
+      <div class="gantt">
+        <span></span>
+        <span class="month-label">M1</span><span class="month-label">M2</span><span class="month-label">M3</span><span class="month-label">M4</span>
+        <span class="month-label">M5</span><span class="month-label">M6</span><span class="month-label">M7</span><span class="month-label">M8</span>
+        <span class="month-label">M9</span><span class="month-label">M10</span><span class="month-label">M11</span><span class="month-label">M12</span>
+
+        <span class="track-label">Product build</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="left:0%;width:33.3%;background:var(--accent);"><span class="bl">Multi-tenant · dashboard · billing</span></div>
+          <div class="bar-fill" style="left:33.3%;width:66.7%;background:var(--accent-soft);border:1px solid var(--accent);"></div>
+        </div>
+
+        <span class="track-label">SOC&nbsp;2 path</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="left:0%;width:33.3%;background:var(--gold);"><span class="bl">Implement controls</span></div>
+          <div class="bar-fill" style="left:33.3%;width:58.4%;background:var(--gold-soft);border:1px solid var(--gold);"><span class="bl" style="color:var(--gold-ink);">Type II observation window</span></div>
+        </div>
+
+        <span class="track-label">Pilot banks</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="left:16.7%;width:83.3%;background:var(--accent-soft);border:1px solid var(--accent);"><span class="bl" style="color:var(--accent-ink);">Recruit → live pilots (outbound data only)</span></div>
+        </div>
+
+        <span class="track-label">First-party data</span>
+        <div class="bar-track">
+          <div class="bar-fill" style="left:0%;width:33.3%;background:var(--red-soft);border:1px solid var(--red);"><span class="bl" style="color:var(--red-ink);">Locked</span></div>
+          <div class="bar-fill" style="left:33.3%;width:66.7%;background:var(--accent-soft);border:1px solid var(--accent);"><span class="bl" style="color:var(--accent-ink);">Unlocked — Phase 2 profitability data</span></div>
+        </div>
+
+        <div class="gate-line" style="left:calc(150px + (100% - 150px) * 0.333);"><span class="gate-label">Type I ready</span></div>
+        <div class="gate-line" style="left:calc(150px + (100% - 150px) * 0.917);"><span class="gate-label">Type II report</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">Year 1</span>
+      <h2>Budget — product build + SOC&nbsp;2</h2>
+      <div class="sub">Argentina dev rates ($27.88/hr), 2-3 full-time developers. No sales/BD spend included.</div>
+    </div>
+    <div class="budget-wrap">
+      <div class="budget-scroll">
+        <div class="budget-chart">
+          <div class="scale-row"><span></span><div class="scale-ticks"><span>$25K</span><span>$50K</span><span>$75K</span><span>$100K</span></div></div>
+
+          <span class="grp">Product</span>
+          <div class="budget-row">
+            <span class="glabel">Engineering</span>
+            <div>
+              <div class="rail"><div class="range prod" style="left:67%;width:28%;"></div></div>
+              <div class="range-caps"><span style="left:67%;">$67K</span><span style="left:95%;">$95K</span></div>
+            </div>
+          </div>
+          <div class="budget-row">
+            <span class="glabel">Infra / vendor</span>
+            <div>
+              <div class="rail"><div class="range prod" style="left:25%;width:20%;"></div></div>
+              <div class="range-caps"><span style="left:25%;">$25K</span><span style="left:45%;">$45K</span></div>
+            </div>
+          </div>
+
+          <span class="grp" style="margin-top:6px;">Compliance — SOC&nbsp;2</span>
+          <div class="budget-row">
+            <span class="glabel">Platform + audit fees</span>
+            <div>
+              <div class="rail"><div class="range comp" style="left:33%;width:42%;"></div></div>
+              <div class="range-caps"><span style="left:33%;">$33K</span><span style="left:75%;">$75K</span></div>
+            </div>
+          </div>
+          <div class="budget-row">
+            <span class="glabel">Compliance consultant</span>
+            <div>
+              <div class="rail"><div class="range comp" style="left:10%;width:20%;"></div></div>
+              <div class="range-caps"><span style="left:10%;">$10K</span><span style="left:30%;">$30K</span></div>
+            </div>
+          </div>
+          <div class="budget-row">
+            <span class="glabel">Controls engineering</span>
+            <div>
+              <div class="rail"><div class="range comp" style="left:4%;width:3%;"></div></div>
+              <div class="range-caps"><span style="left:4%;">$4K</span><span style="left:7%;">$7K</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="total-card">
+        <span class="cap">Total, Year 1</span>
+        <div class="amt num">$140K–$250K</div>
+        <span class="note">Product ~$92K–$140K · SOC&nbsp;2 ~$47K–$112K</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">Why launch doesn't wait on SOC&nbsp;2</span>
+      <h2>Data flow, by direction</h2>
+    </div>
+    <div class="flow">
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">BMAP opportunity scores</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Rate Radar competitive rates</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">AudienceFinder segments</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Omnibranch microsites</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Bank</span><div class="flow-mid"><span class="flow-arrow in">&#8592;</span><span class="flow-text">Branch financials, for Phase&nbsp;2 profitability</span><span class="status-chip gated" style="margin-left:4px;">Gated · needs Type I</span></div><span class="flow-endpoint">Verlocity</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">The next decision, not the whole plan</span>
+      <h2>Now / Next / Later</h2>
+    </div>
+    <div class="nnl">
+      <div class="nnl-card">
+        <span class="tag">Now · 0–30 days</span>
+        <ul>
+          <li>Lock in 2–3 Argentina developers, dedicated</li>
+          <li>Scope multi-tenant account architecture</li>
+          <li>Decide Omnibranch: build vs. buy</li>
+          <li>Draft security-questionnaire answers</li>
+          <li>Decide exclusivity policy with Tom/Brock — Product B upcharge, never Product A</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">Next · 30–90 days</span>
+        <ul>
+          <li>Ship accounts + Product A dashboard shell</li>
+          <li>Begin SOC&nbsp;2 control implementation</li>
+          <li>Recruit 3–5 pilot banks, outbound data only</li>
+          <li>Kick off Type&nbsp;I audit engagement</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">Later · 4–12 months+</span>
+        <ul>
+          <li>Type&nbsp;I lands → first-party data unlocks</li>
+          <li>Type&nbsp;II observation runs its course</li>
+          <li>Product A pilots become the reputation proof</li>
+          <li>Only then: scope Product B in earnest</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">Running record, sprint by sprint</span>
+      <h2>Sprint log</h2>
+      <div class="sub">One card per sprint, newest first — what shipped, what we found, what's still open. Action items live in the tracker above, not here.</div>
+    </div>
+    <div class="sprint-list">
+
+      <div class="sprint-card">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 2</span>
+            <span class="sprint-range num">Sep 8, 2026</span>
+          </div>
+          <div class="sprint-focus">Diagnosis &amp; stakeholder open questions</div>
+        </div>
+        <div class="sprint-body">
+          <div class="sprint-col shipped">
+            <div class="sprint-col-t"><span class="dot"></span>Shipped</div>
+            <ul>
+              <li>Diagnosed and fixed the Trustmark false-failure problem: <code class="num">bank_registry</code>'s circuit-breaker flag never expires, so 5 of 7 "failing" banks were just stale-flagged from Sep&nbsp;7 and skipped, not re-tested. Reset and re-ran — 4 recovered real data (Regions Found; BankPlus, Community Bank of MS, Copiah partials), 28 verified rows pushed to <code class="num">rate_observations</code>.</li>
+            </ul>
+          </div>
+          <div class="sprint-col found">
+            <div class="sprint-col-t"><span class="dot"></span>Found</div>
+            <ul>
+              <li>Root cause was the never-expiring circuit-breaker flag, not the banks themselves — the real hard-case count is 3 (Truist, First Bank, Huntington), not 7.</li>
+              <li>First Bank has a duplicate <code class="num">bank_registry</code> row (two entries, different failure counts) fragmenting its flag.</li>
+            </ul>
+          </div>
+          <div class="sprint-col open">
+            <div class="sprint-col-t"><span class="dot"></span>Open questions</div>
+            <ul>
+              <li>Exclusivity policy with Tom/Brock — Brock's counter-question (does it matter if Verlocity isn't running media or holding first-party data?) still unanswered.</li>
+              <li>Rate Radar as a standalone SKU — an idea to pressure-test, not a decision.</li>
+              <li>Growth Labs recruiting timing — pre-sales discovery, or a real sequencing change?</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">Core intelligence · diagnosis sharpened, no score change</span>
+        </div>
+      </div>
+
+      <div class="sprint-card">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 1</span>
+            <span class="sprint-range num">Sep 7, 2026</span>
+          </div>
+          <div class="sprint-focus">Rate Radar hardening &amp; Trustmark validation</div>
+        </div>
+        <div class="sprint-body">
+          <div class="sprint-col shipped">
+            <div class="sprint-col-t"><span class="dot"></span>Shipped</div>
+            <ul>
+              <li>Fixed a real Rate Radar extraction gap: tables that state "APY" once in the header, with bare numbers per row, were previously unreadable regardless of site quality. Confirmed live on Haven Savings Bank and Fulton Bank — both now extract full CD ladders correctly.</li>
+              <li>Ran Rate Radar end-to-end against Trustmark National Bank's real top-10 competitors (derived straight from BMAP's own branch-level competitor data) — proved BMAP and Rate Radar compose correctly.</li>
+              <li>Supabase schema built and seeded with real Trustmark data for AudienceFinder.</li>
+            </ul>
+          </div>
+          <div class="sprint-col found">
+            <div class="sprint-col-t"><span class="dot"></span>Found</div>
+            <ul>
+              <li>Large regional/national banks (Regions, Truist, Huntington-scale) resist current extraction — some run active bot-protection, some simply don't publish rates as scrapable text. Community and regional banks unaffected.</li>
+              <li>RLS gap on 3 BMAP_v1 tables.</li>
+              <li>AudienceFinder pipeline mapped — no API exists yet.</li>
+              <li>AudienceFinder proven live on Cortex — not blocked on Analytics 360.</li>
+              <li>Command Center already predicts deposit acquisition (goal → accounts → spend → CAC) — MediaPredict's math, already live and pitch-ready as-is.</li>
+            </ul>
+          </div>
+          <div class="sprint-col open">
+            <div class="sprint-col-t"><span class="dot"></span>Open questions</div>
+            <ul class="sprint-col-empty" style="list-style:none;padding-left:0;"><li>None this sprint.</li></ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag">Product A 3→4 · Product B 1→3 · Overall 2.9→3.1</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span>Verlocity Platform Roadmap</span>
+    <span>Working plan — revisit monthly, not daily.</span>
+  </footer>
+
+</div>
+
+<script>
+(async () => {
+  const listEl = document.getElementById('actionsList');
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  let db;
+  try { db = await claude.use('db'); } catch(e) { db = null; }
+  if (!db) {
+    listEl.innerHTML = '<div class="actions-empty">Open-action tracking isn\'t available in this view.</div>';
+    return;
+  }
+  const col = db.collection('actions');
+
+  function render(docs){
+    const items = docs.map(d => ({ id: d.id, ...d.data() }));
+    items.sort((a,b) => (a.done === b.done) ? ((a.order||0) - (b.order||0)) : (a.done ? 1 : -1));
+    if (!items.length){
+      listEl.innerHTML = '<div class="actions-empty">No open actions.</div>';
+      return;
+    }
+    listEl.innerHTML = items.map(it => `
+      <div class="action-row">
+        <input type="checkbox" class="action-check" data-id="${esc(it.id)}" ${it.done ? 'checked' : ''} aria-label="Mark done">
+        <div class="action-body">
+          <div class="action-text${it.done ? ' done' : ''}">${esc(it.text)}</div>
+          <div class="action-meta">
+            <span class="action-source">${esc(it.source || '')}</span>
+            <input class="action-owner" data-id="${esc(it.id)}" placeholder="+ owner" value="${esc(it.owner || '')}" aria-label="Owner">
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.action-check').forEach(cb => {
+      cb.addEventListener('change', async (e) => {
+        const id = e.target.dataset.id;
+        const next = e.target.checked;
+        try { await col.doc(id).update({ done: next }); }
+        catch (err) { e.target.checked = !next; }
+      });
+    });
+    listEl.querySelectorAll('.action-owner').forEach(inp => {
+      let saved = inp.value;
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
+      inp.addEventListener('blur', async (e) => {
+        const id = e.target.dataset.id;
+        const val = e.target.value.trim();
+        if (val === saved) return;
+        try { await col.doc(id).update({ owner: val }); saved = val; }
+        catch (err) { e.target.value = saved; }
+      });
+    });
+  }
+
+  col.onSnapshot(
+    (snap) => render(snap.docs),
+    () => { listEl.innerHTML = '<div class="actions-empty">Couldn\'t load actions right now.</div>'; }
+  );
+})();
+</script>
+
+</body></html>

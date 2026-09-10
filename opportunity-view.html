@@ -93,9 +93,15 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .radius-tab.active{border-color:var(--navy);background:var(--navy);color:#fff}
 .radius-share{padding:14px;display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--border);margin-top:6px}
 .radius-share-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
-.radius-table{width:100%;border-collapse:collapse;font-size:10.5px}
-.radius-table th{text-align:left;padding:6px 8px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--border)}
-.radius-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+/* Replaced by .radius-row (stacked) — the 5-column table didn't fit the
+   300px radius-card panel without horizontal scroll; see radius-row below. */
+.radius-row{padding:8px 10px;border-bottom:1px solid var(--border)}
+.radius-row:last-child{border-bottom:none}
+.radius-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px}
+.radius-row-name{font-weight:600;color:var(--navy);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.radius-row-dep{flex-shrink:0;font-weight:600}
+.radius-row-sub{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;color:var(--muted);margin-top:2px}
+.radius-cu-badge{display:inline-block;font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;background:var(--lblue);color:var(--blue);margin-left:4px;vertical-align:1px}
 .rr-body{padding:14px 18px;max-height:600px;overflow-y:auto}
 .rr-row{padding:10px 0;border-bottom:1px solid var(--border)}
 .rr-row:last-child{border-bottom:none}
@@ -932,14 +938,20 @@ function renderRadius() {
     </div>
     ${compList.length ? `
     <div style="padding:10px 10px 2px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Competitors — within ${mi} mi (${compList.length})</div>
-    <table class="radius-table">
-      <thead><tr><th>Type</th><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Share</th></tr></thead>
-      <tbody>${compList.map(c => {
+    <div>${compList.map(c => {
         const avgYoy = c.yoyVals.length ? c.yoyVals.reduce((a, v) => a + v, 0) / c.yoyVals.length : null;
         const shr = total > 0 ? (c.deposits / total * 100) : null;
-        return `<tr><td>${c.type || '—'}</td><td style="font-weight:600">${c.name}</td><td>${fmtM(c.deposits)}</td><td>${avgYoy != null ? (avgYoy * 100).toFixed(1) + '%' : '—'}</td><td>${shr != null ? shr.toFixed(1) + '%' : '—'}</td></tr>`;
-      }).join('')}</tbody>
-    </table>` : `<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within ${mi} mi.</div>`}`;
+        return `<div class="radius-row">
+          <div class="radius-row-top">
+            <span class="radius-row-name" title="${c.name}">${c.name}${c.type === 'cu' ? '<span class="radius-cu-badge">CU</span>' : ''}</span>
+            <span class="radius-row-dep">${fmtM(c.deposits)}</span>
+          </div>
+          <div class="radius-row-sub">
+            <span>${avgYoy != null ? (avgYoy * 100).toFixed(1) + '% YoY' : '— YoY'}</span>
+            <span>${shr != null ? shr.toFixed(1) + '% share' : '— share'}</span>
+          </div>
+        </div>`;
+      }).join('')}</div>` : `<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within ${mi} mi.</div>`}`;
 }
 
 function clearRadius() {

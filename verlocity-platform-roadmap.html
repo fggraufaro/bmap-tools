@@ -262,12 +262,15 @@
     .sprint-focus{text-align:left;}
   }
 
-  /* ── Access gate — same Railway session auth as the rest of the growth
-     stack (Hub, Opportunity View, Growth Map, Rate Radar Validator). Skipped
-     automatically when rendered inside a Claude Artifact, since that surface
-     already has its own real access control (private, owner-shared) — a
-     second password gate there would just be able to lock the owner out,
-     since the artifact sandbox can't reach the Railway auth endpoint. ── */
+  /* ── Access gate — a passkey distinct from the shared growth-stack code
+     (Hub, Opportunity View, Growth Map, Rate Radar Validator all use the
+     one Railway-verified team password; the Roadmap uses its own). This
+     page has no backend of its own, so the check is client-side only —
+     readable in page source by anyone who looks, same tradeoff as the
+     internal picker gate that used to live on Opportunity View. Skipped
+     automatically when rendered inside a Claude Artifact, since that
+     surface already has its own real access control (private, owner-
+     shared) — a gate there would just be able to lock the owner out. ── */
   #authGate{position:fixed;inset:0;background:#083D5F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999}
   .gate-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center;font-family:"IBM Plex Sans",system-ui,sans-serif;}
   .gate-lbl{color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em}
@@ -287,7 +290,7 @@
 </div>
 <script>
 (function(){
-  const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+  const ROADMAP_PASSKEY = '02191994';
   const g = id => document.getElementById(id);
 
   function afterAuth(){
@@ -296,26 +299,25 @@
   }
 
   if (typeof window.claude !== 'undefined') {
-    // Rendered inside a Claude Artifact — already private/owner-shared, and
-    // this sandbox can't reach the Railway auth endpoint anyway.
+    // Rendered inside a Claude Artifact — already private/owner-shared.
     afterAuth();
     return;
   }
 
   window.checkAccess = function checkAccess(){
     const input = g('tokenInput').value.trim();
-    const btn = document.querySelector('#authGate button');
-    if (btn) btn.disabled = true;
-    fetch(`${HUB_API}/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: input }) })
-      .then(async r => {
-        if (!r.ok) { g('authErr').style.display='block'; g('tokenInput').value=''; g('tokenInput').focus(); if (btn) btn.disabled=false; return; }
-        const data = await r.json();
-        sessionStorage.setItem('hub_token', data.token);
-        afterAuth();
-      }).catch(() => { g('authErr').style.display='block'; if (btn) btn.disabled=false; });
+    if (input === ROADMAP_PASSKEY) {
+      try { sessionStorage.setItem('roadmap_ok', '1'); } catch (e) {}
+      afterAuth();
+    } else {
+      g('authErr').style.display = 'block';
+      g('tokenInput').value = '';
+      g('tokenInput').focus();
+    }
   };
 
-  const saved = sessionStorage.getItem('hub_token');
+  let saved = null;
+  try { saved = sessionStorage.getItem('roadmap_ok'); } catch (e) {}
   if (saved) { afterAuth(); }
 })();
 </script>

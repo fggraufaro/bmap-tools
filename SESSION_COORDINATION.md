@@ -16,7 +16,7 @@ Owns action items: **a13, a14, a15, a16, a17, a24**
 | id | Task |
 |---|---|
 | a13 | Build Zillow ZHVI ingestion script (monthly) — most stale source today (~5 months behind), simplest to automate |
-| a14 | Build Call Reports / UBPR / NCUA FS220 ingestion script (quarterly) — replaces `call_reports.py`'s manual folder-drop + hardcoded quarter-list |
+| a14 | Build Call Reports / UBPR / NCUA FS220 ingestion script (quarterly) — replaces `call_reports.py`'s manual folder-drop + hardcoded quarter-list. **Correction (verified 2026-09-10): the existing loader is at `bmap-tools/Rate Radar/call_reports.py`, not in `bmap-snapshot`** — it's a standalone FFIEC RI/RCE/RCK reader with no crawl/scrape dependency. Port/adapt it into `bmap-snapshot`'s automation rather than rebuilding from scratch; copy the file into this worktree first since Session 1's scope can't see `bmap-tools`. |
 | a15 | Build FDIC SOD + Census ACS ingestion scripts (annual) |
 | a16 | Wire scheduling via `pg_cron` (installed on the Supabase project, unused) or a Railway cron service; auto-invoke `refresh_bmap_after_upload` / `refresh_branch_opportunity_base` after each load |
 | a17 | Provision a Census API key — none of the 5 raw sources have programmatic credentials today |

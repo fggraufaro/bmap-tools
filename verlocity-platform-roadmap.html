@@ -116,6 +116,7 @@
   .action-text{font-size:13.5px;color:var(--ink);line-height:1.5;}
   .action-text.done{color:var(--ink-faint);text-decoration:line-through;}
   .action-meta{display:flex;gap:8px;margin-top:7px;align-items:center;flex-wrap:wrap;}
+  .action-id{font-family:"IBM Plex Mono";font-size:10.5px;font-weight:700;color:var(--ink-soft);background:var(--line);border-radius:4px;padding:1px 6px;letter-spacing:.02em;}
   .action-source{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);letter-spacing:.02em;}
   .action-owner{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--accent-ink);background:var(--accent-soft);border:1px solid transparent;border-radius:100px;padding:2px 9px;cursor:text;min-width:70px;outline:none;}
   .action-owner:focus{border-color:var(--accent);}
@@ -873,6 +874,7 @@
         <div class="action-body">
           <div class="action-text${it.done ? ' done' : ''}">${esc(it.text)}</div>
           <div class="action-meta">
+            <span class="action-id">${esc(it.id)}</span>
             <span class="action-source">${esc(it.source || '')}</span>
             <input class="action-owner" data-id="${esc(it.id)}" placeholder="+ owner" value="${esc(it.owner || '')}" aria-label="Owner">
           </div>

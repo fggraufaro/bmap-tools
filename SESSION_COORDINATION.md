@@ -77,3 +77,14 @@ Responsibilities:
 - **16-play matrix**: the authoritative campaign/play vocabulary lives in `bmap_assessment_doc.py`'s `PLAY_MATRIX` dict (sourced from `BMAP_Methodology_Part1.docx`). Don't invent new play names.
 - **Grants after DDL**: any `DROP` + `CREATE TABLE/VIEW` needs `GRANT SELECT ON [table] TO anon, authenticated, service_role` re-applied, or downstream REST access breaks silently.
 - **Verify before shipping**: test against real source files and real deployments, not memory of how something works. This project has a strong track record tonight of finding real bugs by insisting on live verification — keep that standard.
+
+## Production safety limits — added 2026-09-11, mandatory for all sessions
+
+Today surfaced real incidents worth turning into hard rules, not just noting once: a production DELETE with no backup, and a live mutating procedure call run as a self-verification step. Both happened to be safe, but neither should happen again this way.
+
+1. **No destructive operation without Session 4's sign-off in this channel, first.** Before any DELETE affecting more than a handful of rows, any TRUNCATE, any DROP, or any procedure call that mutates production data — send Session 4 a cross-session message and wait for it to respond, even if you believe you already have approval from elsewhere. Approval given inside a different session's own chat is invisible to Session 4 and doesn't count here. This isn't about second-guessing you — it's that Session 4 is the one place tracking what's actually true about production, and it can't do that with approvals it never saw.
+2. **Always back up before anything destructive, no exceptions.** Same `[table]_backup_YYYYMMDD` pattern every prior sprint used. Time pressure or an existing sign-off doesn't waive this.
+3. **Don't prove your own wiring by mutating production.** If you need an end-to-end test, use a Supabase branch (org is on the Pro plan, branching is available — ask Session 4 to provision one if you need it) or verify by reading real query results against what's already there, the way Session 4 does it. A live production procedure call is not a test environment.
+4. **Report claims with evidence Session 4 can check independently** — commit SHA, exact table/row counts, exact function or view name — not just an assertion that something works. Session 4 verifies everything before marking it done regardless; evidence up front just avoids a round trip.
+
+These apply from now forward. Nothing before this needs to be redone.

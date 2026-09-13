@@ -125,6 +125,20 @@
   .actions-live-tag{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);}
   .actions-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
 
+  /* ---------- top 3 priorities ---------- */
+  .priority-block{margin-bottom:24px;}
+  .priority-block:last-child{margin-bottom:0;}
+  .priority-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;}
+  .priority-head h3{font-size:17px;font-weight:650;margin-bottom:2px;}
+  .priority-head p{font-size:13px;color:var(--ink-soft);margin:0;}
+  .priority-tag{font-family:"IBM Plex Mono";font-size:12px;font-weight:700;padding:3px 9px;border-radius:5px;flex-shrink:0;margin-top:2px;}
+  .priority-tag.p1{background:var(--accent-soft);color:var(--accent-ink);}
+  .priority-tag.p2{background:var(--gold-soft);color:var(--gold-ink);}
+  .priority-tag.p3{background:var(--red-soft);color:var(--red-ink);}
+  .priority-head.p1{border-left:3px solid var(--accent);padding-left:12px;}
+  .priority-head.p2{border-left:3px solid var(--gold);padding-left:12px;}
+  .priority-head.p3{border-left:3px solid var(--red);padding-left:12px;}
+
   /* ---------- gauges ---------- */
   .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
   .gauge-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:18px 14px 16px;
@@ -343,11 +357,52 @@
     </div>
   </div>
 
+  <section class="top-priorities">
+    <div class="section-head">
+      <span class="tag">Next 3 months</span>
+      <h2>Top 3 priorities</h2>
+      <div class="sub">Everything else on the tracker below is real work, but these are the three that decide whether Verlocity generates revenue in the next quarter. Same live checklist — check off, claim an owner — just grouped so the plan doesn't get lost in the backlog.</div>
+    </div>
+
+    <div class="priority-block">
+      <div class="priority-head p1">
+        <span class="priority-tag p1">P1</span>
+        <div>
+          <h3>Revenue-ready GTM motion</h3>
+          <p>Verify the predictive claim, ship the sales asset, close the first deals.</p>
+        </div>
+      </div>
+      <div class="actions-card"><div class="actions-list" id="p1List"><div class="actions-empty">Loading…</div></div></div>
+    </div>
+
+    <div class="priority-block">
+      <div class="priority-head p2">
+        <span class="priority-tag p2">P2</span>
+        <div>
+          <h3>Validated predictive scoring</h3>
+          <p>The moat vs. BlastPoint — wire in new signals only where they prove real lift.</p>
+        </div>
+      </div>
+      <div class="actions-card"><div class="actions-list" id="p2List"><div class="actions-empty">Loading…</div></div></div>
+    </div>
+
+    <div class="priority-block">
+      <div class="priority-head p3">
+        <span class="priority-tag p3">P3</span>
+        <div>
+          <h3>Security/trust readiness</h3>
+          <p>Non-negotiable gate before any prospect gets real access, regardless of product quality.</p>
+        </div>
+      </div>
+      <div class="actions-card"><div class="actions-list" id="p3List"><div class="actions-empty">Loading…</div></div></div>
+    </div>
+  </section>
+
   <section class="open-actions">
     <div class="section-head">
       <span class="tag">Track it, don't just log it</span>
-      <h2>Open actions</h2>
-      <div class="sub">Every real action item below, live — check one off when it's actually done, claim one by typing your name. Anyone with this link can update it. <span class="actions-live-tag"><span class="actions-live-dot"></span>live</span></div>
+      <h2>All other open actions</h2>
+      <div class="sub">Everything not already shown in the Top 3 Priorities above — live, check one off when it's actually done, claim one by typing your name. Anyone with this link can update it. <span class="actions-live-tag"><span class="actions-live-dot"></span>live</span></div>
     </div>
     <div class="actions-card">
       <div class="actions-list" id="actionsList">
@@ -618,24 +673,28 @@
 <script>
 (async () => {
   const listEl = document.getElementById('actionsList');
+  const p1El = document.getElementById('p1List');
+  const p2El = document.getElementById('p2List');
+  const p3El = document.getElementById('p3List');
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  // Top 3 Priorities — 3-Month Plan, added 2026-09-13. a38 appears in both
+  // P1 and P3 deliberately (per-customer access separation serves both).
+  const P1_IDS = ['a1','a2','a37','a38','a39'];
+  const P2_IDS = ['a19','a25','a27','a28','a22','a40'];
+  const P3_IDS = ['a30','a35','a36','a38','a41'];
 
   let db;
   try { db = await claude.use('db'); } catch(e) { db = null; }
   if (!db) {
-    listEl.innerHTML = '<div class="actions-empty">Open-action tracking isn\'t available in this view. <a href="https://claude.ai/code/artifact/f2513088-1af1-43f5-a384-f59f2e32f79e" target="_blank" rel="noopener" style="color:var(--accent-ink);font-weight:600;">Open the live tracker →</a></div>';
+    const msg = '<div class="actions-empty">Open-action tracking isn\'t available in this view. <a href="https://claude.ai/code/artifact/f2513088-1af1-43f5-a384-f59f2e32f79e" target="_blank" rel="noopener" style="color:var(--accent-ink);font-weight:600;">Open the live tracker →</a></div>';
+    listEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg;
     return;
   }
   const col = db.collection('actions');
 
-  function render(docs){
-    const items = docs.map(d => ({ id: d.id, ...d.data() }));
-    items.sort((a,b) => (a.done === b.done) ? ((a.order||0) - (b.order||0)) : (a.done ? 1 : -1));
-    if (!items.length){
-      listEl.innerHTML = '<div class="actions-empty">No open actions.</div>';
-      return;
-    }
-    listEl.innerHTML = items.map(it => `
+  function rowHtml(it){
+    return `
       <div class="action-row">
         <input type="checkbox" class="action-check" data-id="${esc(it.id)}" ${it.done ? 'checked' : ''} aria-label="Mark done">
         <div class="action-body">
@@ -647,9 +706,11 @@
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+  }
 
-    listEl.querySelectorAll('.action-check').forEach(cb => {
+  function wireList(el){
+    el.querySelectorAll('.action-check').forEach(cb => {
       cb.addEventListener('change', async (e) => {
         const id = e.target.dataset.id;
         const next = e.target.checked;
@@ -657,7 +718,7 @@
         catch (err) { e.target.checked = !next; }
       });
     });
-    listEl.querySelectorAll('.action-owner').forEach(inp => {
+    el.querySelectorAll('.action-owner').forEach(inp => {
       let saved = inp.value;
       inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
       inp.addEventListener('blur', async (e) => {
@@ -670,9 +731,32 @@
     });
   }
 
+  function renderInto(el, items, emptyMsg){
+    if (!items.length){ el.innerHTML = `<div class="actions-empty">${emptyMsg}</div>`; return; }
+    el.innerHTML = items.map(rowHtml).join('');
+    wireList(el);
+  }
+
+  function render(docs){
+    const byId = {};
+    docs.forEach(d => { byId[d.id] = { id: d.id, ...d.data() }; });
+
+    renderInto(p1El, P1_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
+    renderInto(p2El, P2_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
+    renderInto(p3El, P3_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
+
+    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS]);
+    const rest = docs.map(d => ({ id: d.id, ...d.data() })).filter(it => !shown.has(it.id));
+    rest.sort((a,b) => (a.done === b.done) ? ((a.order||0) - (b.order||0)) : (a.done ? 1 : -1));
+    renderInto(listEl, rest, 'No other open actions.');
+  }
+
   col.onSnapshot(
     (snap) => render(snap.docs),
-    () => { listEl.innerHTML = '<div class="actions-empty">Couldn\'t load actions right now.</div>'; }
+    () => {
+      const msg = '<div class="actions-empty">Couldn\'t load actions right now.</div>';
+      listEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg;
+    }
   );
 })();
 </script>

@@ -8,6 +8,8 @@ Four Claude Code sessions are working the Verlocity Platform Roadmap's Open Acti
 - **Git-tracked copy**: `bmap-tools/verlocity-platform-roadmap.html` on `main`, GitHub `fggraufaro/bmap-tools`
 - The two must stay in sync. The pattern every session should follow after touching either: publish the HTML to the artifact URL, copy the same file into the repo, commit, push. Never publish without passing `url` — that updates the existing artifact instead of creating a new one.
 - Open Actions live in the artifact's own database (`actions` collection), not just as static HTML — use `Artifact` tool actions `read_db` (to check current state) and `write_db` (to mark items done, set `owner`, etc.) rather than hand-editing the checklist markup.
+- **Sprint Log — split out 2026-09-13**: `https://claude.ai/code/artifact/e64d7f71-ad96-4f83-b0a2-da782b9f8237`, git-tracked at `bmap-tools/verlocity-sprint-log.html`. The main roadmap artifact now only links to it — don't add new sprint write-ups back into the roadmap file; add them to the Sprint Log page and keep both in sync the same publish/copy/commit/push way.
+- **3-Month Plan (added 2026-09-13)**: three priorities — P1 Revenue-ready GTM motion, P2 Validated predictive scoring (6/10 target), P3 Security/trust readiness — tracked as `a1`, `a2`, `a19`, `a22`, `a37`-`a41` in the Open Actions DB, each with an `owner` session and phases embedded in its `text`. `a1` was reopened (previously marked done with no supporting evidence); `a2` was unparked to ship v1 on current scoring rather than wait on the scoring upgrade.
 
 ## Session 1 — Data Pipeline & Automation
 

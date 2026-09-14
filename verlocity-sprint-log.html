@@ -169,6 +169,7 @@
               <li><b>a1 fully closed, independently verified.</b> Test 1 (branch-level competitive density → deposit growth, FDIC SOD) = <b>SUPPORTED</b> — both independent transitions (2023→2024, 2024→2025) pass all 3 pre-registered criteria, spreads of 3.6–5.1 percentage points, robust to closure exclusion. Session 4 re-ran every query directly against Supabase and reproduced every reported cell exactly before accepting the result. This is the platform's first evidence-backed predictive claim: "competitive density predicts deposit growth, controlling for market share." Tests 2–4 (institution financial health, parent-institution health, local market tailwind — 14 evaluations across ROA/LDR/brokered%/NIM/income/population/ZHVI) were also run and independently spot-verified; none cleared their pre-registered bars. Reported honestly as negative/inconclusive rather than reframed as a win — none of it enters a2's evidence section.</li>
               <li><b>a2 shipped, four real changes, all merged to main.</b> (1) Replaced an abstract methodology paragraph with a per-branch dollar deposit-opportunity projection, applying a1's verified backtest cell-by-cell to each branch's actual current deposits — Session 4 independently re-derived the tercile cutpoints from raw data and confirmed they match the hardcoded values exactly. (2) Cut AI-generated narrative fluff (removed two whole AI-web-search sections outright, not just hidden — real cost/latency savings per doc) and recolored the network map to match the Hub's own priority-tier language. (3) Grounded the per-branch Audience Signal narrative in Census ACS age-bracket and occupation-mix data (previously income/population/ZHVI only) — spot-checked directly against real 2024 Census rows, join format and math confirmed correct.</li>
               <li><b>Live security exposure found and closed.</b> 8 tables (including one added this same week) had RLS disabled with SELECT granted to anon/authenticated — readable by anyone holding the public Supabase key, bypassing the Hub's login entirely. Read-only, not read-write; confirmed the app itself doesn't depend on this access (goes through the service-role backend instead). Francisco ran the fix (<code class="num">ENABLE ROW LEVEL SECURITY</code>, no policy needed) after one failed attempt that included a 9th, extension-owned table and rolled back the whole batch — corrected and re-verified closed on both ends (Session 3 and Session 4, independently).</li>
+              <li><b>a2 confirmed working end-to-end.</b> Francisco ran a full assessment live from the Hub on a real bank and confirmed he's happy with the result — the last open piece of a2's Phase 3 sign-off. a2 is now fully closed, not just code-complete.</li>
             </ul>
           </div>
           <div class="sprint-col found">
@@ -182,14 +183,14 @@
           <div class="sprint-col open">
             <div class="sprint-col-t"><span class="dot"></span>Open questions</div>
             <ul>
-              <li>a2's assessment-doc output hasn't been tested end-to-end in production yet — Francisco is testing it live from the Hub himself. Product A's score reflects verified-correct logic, not a confirmed live run.</li>
               <li>NIM (Test 2) came closest of any non-Test-1 predictor — passed one transition, missed the other by 0.84 vs. the 1pp bar. Flagged as worth a look against a third quarter pair later, not validated now.</li>
               <li>Test 2 (institution health) is fully closed at 2 transitions; Test 3 (parent-institution → branch) has only 1 transition available and stays directional-only until a second Call Report quarter or a fresh SOD year lands.</li>
+              <li>Cross-cutting infra (identity, billing, multi-tenant) is unchanged tonight — a2 working end-to-end proves the flagship deliverable, not that Product A is ready for a second simultaneous customer. a38 (per-customer login separation) is still the real gate there.</li>
             </ul>
           </div>
         </div>
         <div class="sprint-footer">
-          <span class="rdy-tag">Core intelligence 7→8 · Product A 4→5 · Overall 3.1→3.2</span>
+          <span class="rdy-tag">Core intelligence 7→8 · Product A 4→6 · Overall 3.1→3.3</span>
         </div>
       </div>
 

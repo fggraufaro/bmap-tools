@@ -118,7 +118,9 @@
   .action-check:checked{background:var(--accent);border-color:var(--accent);}
   .action-check:checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;line-height:1;}
   .action-body{flex:1;min-width:0;}
-  .action-text{font-size:13.5px;color:var(--ink);line-height:1.5;}
+  .action-title{font-size:14.5px;font-weight:650;color:var(--ink);margin-bottom:3px;}
+  .action-title.done{color:var(--ink-faint);text-decoration:line-through;}
+  .action-text{font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
   .action-text.done{color:var(--ink-faint);text-decoration:line-through;}
   .action-meta{display:flex;gap:8px;margin-top:7px;align-items:center;flex-wrap:wrap;}
   .action-id{font-family:"IBM Plex Mono";font-size:10.5px;font-weight:700;color:var(--ink-soft);background:var(--line);border-radius:4px;padding:1px 6px;letter-spacing:.02em;}
@@ -722,6 +724,7 @@
       <div class="action-row">
         <input type="checkbox" class="action-check" data-id="${esc(it.id)}" ${it.done ? 'checked' : ''} aria-label="Mark done">
         <div class="action-body">
+          ${it.title ? `<div class="action-title${it.done ? ' done' : ''}">${esc(it.title)}</div>` : ''}
           <div class="action-text${it.done ? ' done' : ''}">${esc(it.text)}</div>
           <div class="action-meta">
             <span class="action-id">${esc(it.id)}</span>

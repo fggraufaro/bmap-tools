@@ -95,7 +95,12 @@
   .readiness-tag .cap{display:block;margin-top:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}
 
   section{margin-bottom:52px;}
-  .section-head{margin-bottom:18px;}
+  .section-head{margin-bottom:18px;cursor:pointer;position:relative;padding-right:32px;user-select:none;}
+  .section-head::after{content:"▾";position:absolute;top:0;right:2px;font-size:16px;color:var(--ink-faint);transition:transform .15s ease;}
+  .section-head:hover::after{color:var(--accent);}
+  section.collapsed .section-head{margin-bottom:0;}
+  section.collapsed .section-head::after{transform:rotate(-90deg);}
+  section.collapsed > *:not(.section-head){display:none;}
   .section-head .tag{
     font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);
     background:var(--accent-soft);padding:3px 9px;border-radius:5px;display:inline-block;margin-bottom:10px;
@@ -356,6 +361,102 @@
       <span class="cap">Platform readiness</span>
     </div>
   </div>
+  <section class="readiness">
+    <div class="section-head">
+      <span class="tag">Where things stand</span>
+      <h2>Readiness, by layer</h2>
+      <div class="sub">The intelligence core is the hard part, and it's furthest along. The productization layer around it is what's missing.</div>
+    </div>
+    <div class="gauges">
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="65.3"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">8/10</text>
+        </svg>
+        <div class="gauge-label">Core intelligence<br>BMAP + Rate Radar data &amp; logic</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="163.4"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">5/10</text>
+        </svg>
+        <div class="gauge-label">Product A<br>Intelligence Subscription</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
+        </svg>
+        <div class="gauge-label">Product B<br>All-in-One Growth Engine</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="326.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">0/10</text>
+        </svg>
+        <div class="gauge-label">Cross-cutting infra<br>Identity, billing, usage data</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">The six tools, honestly</span>
+      <h2>Tool ledger</h2>
+    </div>
+    <div class="ledger">
+      <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Feeds</span></div>
+      <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Branch-level deposit-opportunity scoring; bank-facing dashboard prototype (Opportunity View) already exists, gated by the shared Hub password</span><span class="segment">Both products</span></div>
+      <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Competitor rate scraping; caller covers what bots can't reach</span><span class="segment">Both products</span></div>
+      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Proven live on a real campaign (Trustmark) — Cortex brief → 3 audiences → schema + seed data now in Supabase (tuiiywphoynbmkxpoyps, the real project). Automation job is the remaining work; check Resonate's ToS before scheduling it</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Its ROI math is already live in Opportunity View — deposit goal → funded accounts → spend → CAC, grounded in real BMAP competitor data. Full Excel-based 5-step workflow still separate</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Microsite generator; build vs. buy still undecided</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Kohl Analytics' tool — third-party, unscoped, unintegrated</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">Now load-bearing sooner than planned — Product B's main channel outside the East Coast</span><span class="segment">Product B</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">The next decision, not the whole plan</span>
+      <h2>Now / Next / Later</h2>
+    </div>
+    <div class="nnl">
+      <div class="nnl-card">
+        <span class="tag">Now · 0–30 days</span>
+        <ul>
+          <li>Lock in 2–3 Argentina developers, dedicated</li>
+          <li>Scope multi-tenant account architecture</li>
+          <li>Decide Omnibranch: build vs. buy</li>
+          <li>Draft security-questionnaire answers</li>
+          <li>Decide exclusivity policy with Tom/Brock — Product B upcharge, never Product A</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">Next · 30–90 days</span>
+        <ul>
+          <li>Ship accounts + Product A dashboard shell</li>
+          <li>Begin SOC&nbsp;2 control implementation</li>
+          <li>Recruit 3–5 pilot banks, outbound data only</li>
+          <li>Kick off Type&nbsp;I audit engagement</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">Later · 4–12 months+</span>
+        <ul>
+          <li>Type&nbsp;I lands → first-party data unlocks</li>
+          <li>Type&nbsp;II observation runs its course</li>
+          <li>Product A pilots become the reputation proof</li>
+          <li>Only then: scope Product B in earnest</li>
+        </ul>
+      </div>
+    </div>
+  </section>
 
   <section class="top-priorities">
     <div class="section-head">
@@ -411,49 +512,6 @@
     </div>
   </section>
 
-  <section class="readiness">
-    <div class="section-head">
-      <span class="tag">Where things stand</span>
-      <h2>Readiness, by layer</h2>
-      <div class="sub">The intelligence core is the hard part, and it's furthest along. The productization layer around it is what's missing.</div>
-    </div>
-    <div class="gauges">
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="65.3"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">8/10</text>
-        </svg>
-        <div class="gauge-label">Core intelligence<br>BMAP + Rate Radar data &amp; logic</div>
-      </div>
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="163.4"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">5/10</text>
-        </svg>
-        <div class="gauge-label">Product A<br>Intelligence Subscription</div>
-      </div>
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
-        </svg>
-        <div class="gauge-label">Product B<br>All-in-One Growth Engine</div>
-      </div>
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="326.7"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">0/10</text>
-        </svg>
-        <div class="gauge-label">Cross-cutting infra<br>Identity, billing, usage data</div>
-      </div>
-
-    </div>
-  </section>
-
   <section class="products">
     <div class="product-card">
       <div>
@@ -480,23 +538,6 @@
         <div class="field-row"><span class="k">Go-to-market</span><span class="v">East Coast direct from Verlocity; elsewhere, via reseller/agency partners</span></div>
         <div class="field-row"><span class="k">Data flow</span><span class="v">Eventually inbound (bank financials) — needs SOC&nbsp;2</span></div>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-head">
-      <span class="tag">The six tools, honestly</span>
-      <h2>Tool ledger</h2>
-    </div>
-    <div class="ledger">
-      <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Feeds</span></div>
-      <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Branch-level deposit-opportunity scoring; bank-facing dashboard prototype (Opportunity View) already exists, gated by the shared Hub password</span><span class="segment">Both products</span></div>
-      <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Competitor rate scraping; caller covers what bots can't reach</span><span class="segment">Both products</span></div>
-      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Proven live on a real campaign (Trustmark) — Cortex brief → 3 audiences → schema + seed data now in Supabase (tuiiywphoynbmkxpoyps, the real project). Automation job is the remaining work; check Resonate's ToS before scheduling it</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Its ROI math is already live in Opportunity View — deposit goal → funded accounts → spend → CAC, grounded in real BMAP competitor data. Full Excel-based 5-step workflow still separate</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Microsite generator; build vs. buy still undecided</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Kohl Analytics' tool — third-party, unscoped, unintegrated</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">Now load-bearing sooner than planned — Product B's main channel outside the East Coast</span><span class="segment">Product B</span></div>
     </div>
   </section>
 
@@ -617,43 +658,6 @@
 
   <section>
     <div class="section-head">
-      <span class="tag">The next decision, not the whole plan</span>
-      <h2>Now / Next / Later</h2>
-    </div>
-    <div class="nnl">
-      <div class="nnl-card">
-        <span class="tag">Now · 0–30 days</span>
-        <ul>
-          <li>Lock in 2–3 Argentina developers, dedicated</li>
-          <li>Scope multi-tenant account architecture</li>
-          <li>Decide Omnibranch: build vs. buy</li>
-          <li>Draft security-questionnaire answers</li>
-          <li>Decide exclusivity policy with Tom/Brock — Product B upcharge, never Product A</li>
-        </ul>
-      </div>
-      <div class="nnl-card">
-        <span class="tag">Next · 30–90 days</span>
-        <ul>
-          <li>Ship accounts + Product A dashboard shell</li>
-          <li>Begin SOC&nbsp;2 control implementation</li>
-          <li>Recruit 3–5 pilot banks, outbound data only</li>
-          <li>Kick off Type&nbsp;I audit engagement</li>
-        </ul>
-      </div>
-      <div class="nnl-card">
-        <span class="tag">Later · 4–12 months+</span>
-        <ul>
-          <li>Type&nbsp;I lands → first-party data unlocks</li>
-          <li>Type&nbsp;II observation runs its course</li>
-          <li>Product A pilots become the reputation proof</li>
-          <li>Only then: scope Product B in earnest</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-head">
       <span class="tag">Running record, sprint by sprint</span>
       <h2>Sprint log</h2>
       <div class="sub">Moved to its own page so this roadmap stays focused on open actions. One card per sprint, newest first — what shipped, what we found, what's still open.</div>
@@ -672,6 +676,26 @@
 
 <script>
 (async () => {
+  // Collapsible section titles — click (or Enter/Space) a section-head to
+  // toggle everything else in that <section>. Purely presentational (no
+  // persistence) since this is used live in meetings, not revisited across
+  // sessions the way a saved preference would need to be.
+  document.querySelectorAll('section').forEach(sec => {
+    const head = sec.querySelector(':scope > .section-head');
+    if (!head) return;
+    head.tabIndex = 0;
+    head.setAttribute('role', 'button');
+    head.setAttribute('aria-expanded', 'true');
+    const toggle = () => {
+      const collapsed = sec.classList.toggle('collapsed');
+      head.setAttribute('aria-expanded', String(!collapsed));
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+
   const listEl = document.getElementById('actionsList');
   const p1El = document.getElementById('p1List');
   const p2El = document.getElementById('p2List');

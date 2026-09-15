@@ -502,6 +502,16 @@ function initMap(){
   branchLayer=L.layerGroup().addTo(map);
   competitorLayer=L.layerGroup();
   personaLayer=L.layerGroup();
+  // Persona/Zip polygons default to Leaflet's overlayPane, same as branchLayer's
+  // circleMarkers -- within one shared pane, z-order is DOM/add-order, not z-index,
+  // so toggling Persona on (which re-renders and re-adds its polygons last) put its
+  // fills on top and ate clicks meant for branch markers underneath. Competitor/city
+  // markers use icon-based L.marker (markerPane, z-index 600) so they were never
+  // actually affected -- confirmed by testing both against the same persona polygon
+  // before this fix. A dedicated pane below the default overlayPane's 400 fixes this
+  // permanently, independent of toggle order.
+  map.createPane('personaPane');
+  map.getPane('personaPane').style.zIndex=350;
   radiusLayer=L.layerGroup().addTo(map);
   heatLayer=L.layerGroup();
 
@@ -547,6 +557,16 @@ function initMap(){
 }
 
 function closeCard(){g('zipCard').classList.remove('on');}
+
+// The Zip Persona card and the Radius Market Summary panel are both
+// right-anchored (confirmed live: Peapack-Gladstone/Watchung NJ, zip card
+// sitting on top of the competitor list). Shift the zip card left of the
+// radius panel whenever both are open, snap back to the corner otherwise --
+// called from both cards' open/close points so it's correct regardless of
+// which one the user opens first.
+function positionZipCard(){
+  g('zipCard').style.right = g('radiusCard').classList.contains('on') ? '434px' : '14px';
+}
 
 let topCitiesInfo=null; // {dominate:[...top3], opportunity:[...top3]} — split by play strength
 
@@ -734,6 +754,7 @@ function closeRadiusCard(){
   radiusAnalysis=null;
   activeRadiusFilter=null;
   refreshLayerColors();
+  positionZipCard();
 }
 
 // geo.branches_master_v2's bank_id is the RSSDID (per the same convention used
@@ -771,6 +792,7 @@ async function analyzeRadius(branch){
   g('radiusCardTitle').textContent=`${branch.namebr} — Radius Market Summary`;
   g('radiusCardBody').innerHTML='Loading market data…';
   g('radiusCard').classList.add('on');
+  positionZipCard();
 
   const maxR=Math.max(...RADIUS_MILES);
 
@@ -1055,6 +1077,7 @@ async function renderPersonaLayer(branchSet){
 
   personaLayer.clearLayers();
   L.geoJSON({type:'FeatureCollection',features:inBox},{
+    pane:'personaPane',
     style:f=>{
       const p=personaMap[f.properties.ZCTA5CE10];
       const color=p?PERSONA_COLOR[p.persona]:'#D8DCE1';
@@ -1088,6 +1111,7 @@ async function renderPersonaLayer(branchSet){
           ${p.est_households?`<div style="font-size:10px;color:var(--muted);margin-top:8px">Households estimated from population ÷ avg. household size — not a direct Census count.</div>`:''}
         ` : `<div class="card-row"><span class="k">No persona data</span><span class="v">—</span></div>`;
         g('zipCard').classList.add('on');
+        positionZipCard();
       });
     }
   }).addTo(personaLayer);

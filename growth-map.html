@@ -834,8 +834,17 @@ function renderRadiusView(){
   refreshLayerColors();
 
   radiusLayer.clearLayers();
-  L.circle([lat,lon],{radius:mi*1609.34,color:'#083D5F',weight:1.5,fillOpacity:0,dashArray:'4,4'}).addTo(radiusLayer);
+  const circle=L.circle([lat,lon],{radius:mi*1609.34,color:'#083D5F',weight:1.5,fillOpacity:0,dashArray:'4,4'}).addTo(radiusLayer);
   L.circleMarker([lat,lon],{radius:4,color:'#fff',weight:1,fillColor:'#083D5F',fillOpacity:1}).addTo(radiusLayer);
+  // Same pattern as Opportunity View's renderRadius() -- center/zoom on the
+  // selected branch's radius circle, re-fitting on every call so it also
+  // re-centers when the radius tab changes (setRadiusMi -> renderRadiusView,
+  // same as the initial branch click via analyzeRadius -> renderRadiusView).
+  // Padding is Growth Map's own panel footprint, not copied from Opportunity
+  // View: 240px left clears the Map Layers panel (220px wide + its 14px
+  // margin), 440px right clears the Radius Market Summary panel (420px
+  // wide + margin) that opens alongside this circle every time.
+  map.fitBounds(circle.getBounds(), {paddingTopLeft:[240,20], paddingBottomRight:[440,20]});
 
   const compInRadius=enriched.filter(c=>c.distance_miles<=mi);
   const mineInRadius=myNearby.filter(b=>b.dist<=mi);

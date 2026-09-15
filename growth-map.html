@@ -637,26 +637,12 @@ function computeTopCities(branchList, n=3){
 
 async function showTopCityHeatmap(){
   if(!topCitiesInfo || (!topCitiesInfo.dominate.length && !topCitiesInfo.opportunity.length)){
-    
     return;
   }
-  
 
-  if(!topoData){
-    try{
-      const resp=await fetch('./zip_boundaries.topojson');
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const topo=await resp.json();
-      const key=Object.keys(topo.objects)[0];
-      topoData=topojson.feature(topo,topo.objects[key]);
-      topoData.features = topoData.features.filter(f=>f.geometry);
-    }catch(e){
-      console.error('zip_boundaries.topojson failed to load:',e);
-      
-      return;
-    }
-  }
-
+  // No longer depends on zip_boundaries.topojson (see the per-city circle
+  // note below) -- that fetch is now Persona/Zip's alone, loaded lazily
+  // there if the user never toggles Top Cities at all.
   const PAD_DEG=0.08; // ~5.5mi buffer beyond each city's outermost branch — bigger, more visible highlight
   heatLayer.clearLayers();
   let overallBounds=null;
@@ -672,7 +658,6 @@ async function showTopCityHeatmap(){
 
   Object.entries(LIST_STYLE).forEach(([listType,style])=>{
     const cities=topCitiesInfo[listType]||[];
-    const rankByZip={};
     cities.forEach(city=>{
       const lats=city.branches.map(b=>b.sims_latitude);
       const lons=city.branches.map(b=>b.sims_longitude);
@@ -684,29 +669,28 @@ async function showTopCityHeatmap(){
       overallBounds = overallBounds
         ? overallBounds.extend([[box.minLat,box.minLon],[box.maxLat,box.maxLon]])
         : L.latLngBounds([box.minLat,box.minLon],[box.maxLat,box.maxLon]);
-      topoData.features.forEach(f=>{
-        const c=f.properties._centroid || (f.properties._centroid=centroidOf(f));
-        if(Number.isNaN(c[1])) return;
-        if(c[1]>=box.minLat && c[1]<=box.maxLat && c[0]>=box.minLon && c[0]<=box.maxLon){
-          const zip=f.properties.ZCTA5CE10;
-          const prev=rankByZip[zip];
-          if(!prev || city.rank<prev.rank) rankByZip[zip]={rank:city.rank, city:city.name};
-        }
-      });
-    });
 
-    const inBox=topoData.features.filter(f=>rankByZip[f.properties.ZCTA5CE10]);
-    L.geoJSON({type:'FeatureCollection',features:inBox},{
-      style:f=>{
-        const info=rankByZip[f.properties.ZCTA5CE10];
-        const fillOpacity=Math.max(0.16, 0.48-(info.rank-1)*0.09);
-        return {color:style.border,weight:1,opacity:0.55,fillColor:style.fill,fillOpacity};
-      },
-      onEachFeature:(f,layer)=>{
-        const info=rankByZip[f.properties.ZCTA5CE10];
-        layer.bindTooltip(`${style.label} #${info.rank} — ${info.city}`,{sticky:true});
-      }
-    }).addTo(heatLayer);
+      // One clean circle per city instead of every underlying zip polygon
+      // shaded individually -- the zip-by-zip fill looked like a jagged,
+      // melted-together blob for any dense metro (confirmed messy on
+      // Jackson/Pearl/Meridian, MS live), especially with branch/competitor
+      // dots still visible through and around it. A single circle centered
+      // on the branch cluster, sized to its real spread, reads as one
+      // deliberate highlight instead of a stain on the map.
+      const centerLat=(Math.min(...lats)+Math.max(...lats))/2;
+      const centerLon=(Math.min(...lons)+Math.max(...lons))/2;
+      const spreadMi=Math.max(
+        haversineMiles(centerLat,centerLon,Math.min(...lats),centerLon),
+        haversineMiles(centerLat,centerLon,Math.max(...lats),centerLon),
+        haversineMiles(centerLat,centerLon,centerLat,Math.min(...lons)),
+        haversineMiles(centerLat,centerLon,centerLat,Math.max(...lons))
+      );
+      const fillOpacity=Math.max(0.16, 0.48-(city.rank-1)*0.09);
+      L.circle([centerLat,centerLon],{
+        radius:(spreadMi+5.5)*1609.34, // +5.5mi buffer, matches PAD_DEG's prior footprint
+        color:style.border,weight:1.5,opacity:0.6,fillColor:style.fill,fillOpacity
+      }).bindTooltip(`${style.label} #${city.rank} — ${city.name}`,{sticky:true}).addTo(heatLayer);
+    });
 
     // Badges anchored at the TOP edge of each city's highlighted area, not its
     // center — the center is buried under the tinted fill and other markers;

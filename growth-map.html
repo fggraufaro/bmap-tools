@@ -801,13 +801,28 @@ async function analyzeRadius(branch){
   for(let i=0;i<compUninumbrs.length;i+=400){
     const chunk=compUninumbrs.slice(i,i+400);
     const rows=await api('branch_opportunity_base',
-      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits,sims_latitude,sims_longitude`);
+      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,namefull,latest_dep,opportunity_score,opportunity_zone,yoy_deposits,sims_latitude,sims_longitude,inst_key`);
     (Array.isArray(rows)?rows:[]).forEach(r=>branchInfoMap[r.uninumbr]=r);
   }
 
   const enriched=compLinks
     .map(c=>({...c, info:branchInfoMap[c.competitor_branch_uninumbr]}))
     .filter(c=>c.info && c.info.sims_latitude && c.info.sims_longitude);
+
+  // a62: Growth Map as the new-signal sandbox — CFPB week-over-week complaint
+  // trend, fetched once per institution set here (not on every radius-tab
+  // switch) since it's institution-level, not branch-level. insufficient_volume
+  // is a flag from the view itself (annual complaints_2024 < 10), never
+  // computed client-side — a noisy percentage off a tiny denominator would be
+  // worse than no number at all.
+  const cfpbInstKeys=[...new Set(enriched.map(c=>c.info.inst_key).filter(Boolean))];
+  const cfpbMap={};
+  for(let i=0;i<cfpbInstKeys.length;i+=400){
+    const chunk=cfpbInstKeys.slice(i,i+400);
+    const rows=await api('vw_cfpb_complaints_wow',
+      `inst_key=in.(${chunk.join(',')})&select=inst_key,wow_pct_chg,insufficient_volume`);
+    (Array.isArray(rows)?rows:[]).forEach(r=>cfpbMap[r.inst_key]=r);
+  }
 
   // My own nearby branches — this bank's OTHER branches near this one,
   // computed client-side since branch_competitors_10mi_v2 only tracks
@@ -816,7 +831,7 @@ async function analyzeRadius(branch){
     .map(b=>({...b, dist:haversineMiles(lat,lon,b.sims_latitude,b.sims_longitude)}))
     .filter(b=>b.sims_latitude && b.sims_longitude && b.dist<=maxR);
 
-  radiusAnalysis={branch, lat, lon, maxR, enriched, myNearby};
+  radiusAnalysis={branch, lat, lon, maxR, enriched, myNearby, cfpbMap};
   renderRadiusView();
 }
 
@@ -830,7 +845,7 @@ function setRadiusMi(mi){
 // already pulled everything out to the largest radius, this just re-filters.
 function renderRadiusView(){
   if(!radiusAnalysis) return;
-  const {branch, lat, lon, enriched, myNearby}=radiusAnalysis;
+  const {branch, lat, lon, enriched, myNearby, cfpbMap}=radiusAnalysis;
   const mi=selectedRadiusMi;
 
   activeRadiusFilter={lat, lon, mi};
@@ -885,7 +900,8 @@ function renderRadiusView(){
     const key=c.competitor_bank_id;
     if(!compGroups[key]) compGroups[key]={
       bank_id:c.competitor_bank_id, type:c.competitor_institution_type,
-      name:c.info.namefull, deposits:0, branches:0, minDist:Infinity, yoyVals:[]
+      name:c.info.namefull, deposits:0, branches:0, minDist:Infinity, yoyVals:[],
+      inst_key:c.info.inst_key
     };
     compGroups[key].deposits+=(+c.info.latest_dep||0);
     compGroups[key].branches+=1;
@@ -896,6 +912,20 @@ function renderRadiusView(){
   const compList=Object.values(compGroups).sort((a,b)=>b.deposits-a.deposits);
 
   const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
+  // a62: never render a raw percentage off a tiny complaint count — the view's
+  // own insufficient_volume flag (annual complaints_2024 < 10) is the signal
+  // that a WoW % would be noise, not the number itself.
+  const fmtCfpbTrend=instKey=>{
+    const rec=cfpbMap&&cfpbMap[instKey];
+    if(!rec) return '<span style="color:var(--muted)">—</span>';
+    if(rec.insufficient_volume) return '<span style="color:var(--muted);font-size:11px">insufficient volume for trend</span>';
+    const v=rec.wow_pct_chg;
+    if(v==null) return '<span style="color:var(--muted)">—</span>';
+    const up=v>0, flat=v===0;
+    const color=flat?'var(--muted)':(up?'var(--red)':'var(--green)');
+    const arrow=flat?'':(up?'▲ ':'▼ ');
+    return `<span style="color:${color};font-weight:600">${arrow}${Math.abs(v).toFixed(1)}%</span>`;
+  };
   g('radiusCardBody').innerHTML=`
     <div style="padding:14px 16px 4px;display:flex;gap:6px">
       ${RADIUS_MILES.map(m=>`<button onclick="setRadiusMi(${m})" style="flex:1;padding:8px 0;border-radius:8px;border:1.5px solid ${m===mi?'var(--navy)':'var(--border)'};background:${m===mi?'var(--navy)':'#fff'};color:${m===mi?'#fff':'var(--navy)'};font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${m} mi</button>`).join('')}
@@ -915,7 +945,7 @@ function renderRadiusView(){
     ${compList.length?`
     <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Competitors — within ${mi} mi (${compList.length})</div>
     <table class="radius-table">
-      <thead><tr><th>Type</th><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Market Share</th></tr></thead>
+      <thead><tr><th>Type</th><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Market Share</th><th>CFPB Trend</th></tr></thead>
       <tbody>
         ${compList.map(c=>{
           const avgYoy=c.yoyVals.length?c.yoyVals.reduce((a,v)=>a+v,0)/c.yoyVals.length:null;
@@ -927,6 +957,7 @@ function renderRadiusView(){
             <td>${fmtM(c.deposits)}</td>
             <td>${avgYoy!=null?(avgYoy*100).toFixed(1)+'%':'—'}</td>
             <td>${compSharePct!=null?compSharePct.toFixed(1)+'%':'—'}</td>
+            <td>${fmtCfpbTrend(c.inst_key)}</td>
           </tr>`;
         }).join('')}
       </tbody>

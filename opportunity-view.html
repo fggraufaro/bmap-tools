@@ -94,6 +94,11 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .radius-tabs{padding:12px 12px 4px;display:flex;gap:6px}
 .radius-tab{flex:1;padding:7px 0;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--navy);font-weight:700;font-size:11.5px;cursor:pointer;font-family:'Inter',sans-serif}
 .radius-tab.active{border-color:var(--navy);background:var(--navy);color:#fff}
+.branch-narrative{padding:14px 14px 0}
+.branch-narrative-btn{width:100%;background:var(--amber);color:var(--navy);border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif}
+.branch-narrative-btn:disabled{opacity:.6;cursor:default}
+.branch-narrative-body{margin-top:10px;padding:12px;background:var(--gray);border-radius:8px;font-size:12.5px;line-height:1.55;color:var(--text);white-space:pre-wrap}
+.branch-narrative-err{margin-top:10px;font-size:11.5px;color:var(--red)}
 .radius-share{padding:14px;display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--border);margin-top:6px}
 .radius-share-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
 /* Replaced by .radius-row (stacked) — the 5-column table didn't fit the
@@ -887,6 +892,10 @@ function renderRadius() {
   };
 
   g('radiusCardBody').innerHTML = `
+    <div class="branch-narrative" id="branchNarrativeWrap">
+      <button class="branch-narrative-btn" id="branchNarrativeBtn" onclick="generateBranchNarrative()">What's going on here? →</button>
+      <div id="branchNarrativeBody"></div>
+    </div>
     <div class="radius-tabs">${RADIUS_MILES.map(m => `<button class="radius-tab ${m === mi ? 'active' : ''}" onclick="setRadiusMi(${m})">${m} mi</button>`).join('')}</div>
     <div class="radius-share">
       <div style="width:56px;height:56px;border-radius:50%;flex-shrink:0;background:conic-gradient(var(--blue) ${Math.min(100, sharePct || 0) * 3.6}deg, var(--border) 0deg);display:flex;align-items:center;justify-content:center">
@@ -924,6 +933,92 @@ function clearRadius() {
   g('mapSelectedROI') && (g('mapSelectedROI').innerHTML = '');
   if (map && visibleBranches && visibleBranches.length) {
     map.fitBounds(visibleBranches.map(b => [b.sims_latitude, b.sims_longitude]), { padding: [40, 40] });
+  }
+}
+
+// a57: per-branch "what's going on here" synthesis — Joe Gibbs (Trustmark)
+// found the plain competitor list on branch click not actionable enough for
+// a retail branch administrator. Reuses the exact narrative-generation path
+// and language discipline already built for generateMarketStory() (same
+// callAI/AI_PROXY call, same banned-phrase rules) rather than a new
+// mechanism — just scoped to one branch instead of a ranked list, and adds
+// rate position, which the network-wide story doesn't cover.
+async function generateBranchNarrative() {
+  if (!radiusAnalysis) return;
+  const branch = radiusAnalysis.branch;
+  const btn = g('branchNarrativeBtn');
+  const body = g('branchNarrativeBody');
+  btn.disabled = true;
+  btn.textContent = 'Thinking…';
+  body.innerHTML = '';
+
+  try {
+    // Vulnerability — this branch's own top named competitors, same source
+    // and ranking (vuln_score, via target_rank) as the rest of the product,
+    // not a re-derived number.
+    const comps = await api('branch_target_competitors',
+      `my_branch_id=eq.${branch.uninumbr}&select=target_namefull,target_dep_m,target_zone,target_yoy_pct,vuln_score&order=target_rank.asc&limit=3`);
+    const topComps = Array.isArray(comps) ? comps : [];
+
+    // Rate position — same full-fetch-then-normalize-match pattern as
+    // loadRateRadar(), deliberately not a name-filtered query: several real
+    // target_namefull values contain commas ("Wells Fargo Bank, National
+    // Association"), which breaks PostgREST's in.() list syntax.
+    let rateLine = 'No Rate Radar data available for this branch’s named competitors yet.';
+    if (topComps.length) {
+      const norm = s => (s || '').trim().toLowerCase();
+      const rrAll = await api('vw_rate_radar_latest',
+        'select=bank_name,cd_apy,cd_verified,savings_apy,savings_verified,run_at&order=run_at.desc&limit=2000');
+      const rrByName = {};
+      (rrAll || []).forEach(r => { const k = norm(r.bank_name); if (!rrByName[k]) rrByName[k] = r; });
+      const live = rrByName[norm(topComps[0].target_namefull)];
+      if (live && (live.cd_apy != null || live.savings_apy != null)) {
+        const parts = [];
+        if (live.cd_apy != null) parts.push(`CD ${(+live.cd_apy).toFixed(2)}%${live.cd_verified ? ' (verified)' : ' (unverified)'}`);
+        if (live.savings_apy != null) parts.push(`savings ${(+live.savings_apy).toFixed(2)}%${live.savings_verified ? ' (verified)' : ' (unverified)'}`);
+        rateLine = `${topComps[0].target_namefull} is currently rate-crawled at ${parts.join(', ')}.`;
+      } else {
+        rateLine = `${topComps[0].target_namefull} hasn’t been crawled by Rate Radar yet — no rate comparison available.`;
+      }
+    }
+
+    const dollarYoy = (+branch.latest_dep || 0) * (+branch.yoy_deposits || 0);
+    const smallBase = (+branch.latest_dep || 0) < 20e6;
+    const recommendedPlay = CAMPAIGN_ACTION[branch.campaign] || 'No specific play assigned yet — flag for review.';
+    const compLines = topComps.length
+      ? topComps.map((c, i) => `  ${i + 1}. ${c.target_namefull} — $${(+c.target_dep_m).toFixed(0)}M deposits, zone ${c.target_zone || '—'}, YoY ${c.target_yoy_pct != null ? c.target_yoy_pct.toFixed(1) + '%' : '—'}, vulnerability score ${c.vuln_score != null ? (+c.vuln_score).toFixed(1) : '—'}`).join('\n')
+      : '  None identified yet.';
+
+    const system = `You are a deposit-growth strategist writing a short "what's going on here" briefing for a retail branch administrator inside Verlocity's platform, for ONE specific branch. This is an in-product synthesis, not a report — 3 to 5 sentences, plain language, no headers, no bullet list, no methodology section.
+
+Mandatory rules:
+- Never claim churn, attrition, or "customers leaving" from a deposit decline alone — no account-level movement data is provided. Frame declines as risk/exposure, not events that already happened.
+- Never assert an unearned causal story for growth — banned phrases: "the market is responding," "clearly winning," "clearly capturing share," "signals momentum" used as a conclusion rather than an observation. State the number, then the action.
+- If SMALL BASE is flagged, say the percentage is less reliable than it looks — do not present it with the same confidence as a large-base number.
+- Reference the named competitor(s) by name if given. Mention the rate position line if it's informative, but don't invent a comparison the data doesn't support.
+- End with the assigned play, restated in your own voice — do not invent a different recommendation.
+- Never expose or describe the underlying scoring formula, weights, or how opportunity_score/vuln_score are calculated — state the conclusion, not the mechanism.`;
+
+    const userMsg = `BRANCH: ${branch.namebr} — ${branch.citybr}, ${branch.stalpbr}
+Zone: ${branch.opportunity_zone || '—'} | Opportunity score: ${(+branch.opportunity_score || 0).toFixed(1)}
+Deposits: $${((+branch.latest_dep || 0) / 1e6).toFixed(1)}M | YoY: ${((+branch.yoy_deposits || 0) * 100).toFixed(1)}% (${dollarYoy >= 0 ? '+' : '-'}$${(Math.abs(dollarYoy) / 1e6).toFixed(1)}M)${smallBase ? ' | SMALL BASE — pct change is noisy' : ''}
+
+Top named competitors (ranked by vulnerability):
+${compLines}
+
+Rate position: ${rateLine}
+
+Assigned play (use this, don't invent a different tactic): ${recommendedPlay}`;
+
+    const text = await callAI(system, userMsg, 500);
+    body.innerHTML = '<div class="branch-narrative-body" id="bnbText"></div>';
+    g('bnbText').textContent = text;
+  } catch (e) {
+    body.innerHTML = '<div class="branch-narrative-err" id="bnbErr"></div>';
+    g('bnbErr').textContent = 'Failed to generate: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "What's going on here? →";
   }
 }
 

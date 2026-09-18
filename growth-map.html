@@ -821,7 +821,7 @@ async function analyzeRadius(branch){
   for(let i=0;i<cfpbInstKeys.length;i+=400){
     const chunk=cfpbInstKeys.slice(i,i+400);
     const rows=await api('vw_cfpb_complaints_wow',
-      `inst_key=in.(${chunk.join(',')})&select=inst_key,wow_pct_chg,insufficient_volume`);
+      `inst_key=in.(${chunk.join(',')})&select=inst_key,wow_pct_chg,insufficient_volume,trailing_90d_count`);
     (Array.isArray(rows)?rows:[]).forEach(r=>cfpbMap[r.inst_key]=r);
   }
 
@@ -930,17 +930,21 @@ function renderRadiusView(){
   const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
   // a62: never render a raw percentage off a tiny complaint count — the view's
   // own insufficient_volume flag (annual complaints_2024 < 10) is the signal
-  // that a WoW % would be noise, not the number itself.
+  // that a WoW % would be noise, not the number itself. The count is always
+  // shown alongside the % too, per Francisco 2026-09-18 — a % alone can
+  // mislead (e.g. 1->2 complaints reads as "+100%" with no sense of scale).
   const fmtCfpbTrend=instKey=>{
     const rec=cfpbMap&&cfpbMap[instKey];
     if(!rec) return '<span style="color:var(--muted)">—</span>';
-    if(rec.insufficient_volume) return '<span style="color:var(--muted);font-size:11px">insufficient volume for trend</span>';
+    const n=rec.trailing_90d_count;
+    const countTxt=n!=null?` (${n} in 90d)`:'';
+    if(rec.insufficient_volume) return `<span style="color:var(--muted);font-size:11px">insufficient volume for trend${countTxt}</span>`;
     const v=rec.wow_pct_chg;
-    if(v==null) return '<span style="color:var(--muted)">—</span>';
+    if(v==null) return `<span style="color:var(--muted)">—${countTxt}</span>`;
     const up=v>0, flat=v===0;
     const color=flat?'var(--muted)':(up?'var(--red)':'var(--green)');
     const arrow=flat?'':(up?'▲ ':'▼ ');
-    return `<span style="color:${color};font-weight:600">${arrow}${Math.abs(v).toFixed(1)}%</span>`;
+    return `<span style="color:${color};font-weight:600">${arrow}${Math.abs(v).toFixed(1)}%</span><span style="color:var(--muted)">${countTxt}</span>`;
   };
   g('radiusCardBody').innerHTML=`
     <div style="padding:14px 16px 4px;display:flex;gap:6px">

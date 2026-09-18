@@ -53,9 +53,10 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 .radius-card{position:absolute;top:0;right:0;bottom:0;z-index:1000;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.14);width:420px;max-width:88vw;display:none;overflow:hidden;flex-direction:column}
 .radius-card.on{display:flex}
 .radius-card #radiusCardBody{overflow-y:auto}
-.radius-table{width:100%;border-collapse:collapse;font-size:12px}
-.radius-table th{text-align:left;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
-.radius-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
+.radius-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:11.5px}
+.radius-table th{text-align:left;padding:7px 8px;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.radius-table td{padding:7px 8px;border-bottom:1px solid var(--border);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;overflow-wrap:break-word}
+.radius-table td:first-child{overflow-wrap:break-word;word-break:break-word}
 .radius-table tr:last-child td{border-bottom:none}
 .radius-share-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:4px;width:80px}
 .radius-share-fill{height:100%;background:var(--blue)}
@@ -886,30 +887,45 @@ function renderRadiusView(){
     });
   }
 
-  const compTotal=compInRadius.reduce((a,c)=>a+(+c.info.latest_dep||0),0);
+  // Market share is bank-branch deposits vs. bank-branch deposits, full stop.
+  // CU "deposits" here are the institution-wide NCUA total (a55/a63 fixed
+  // this to be honest rather than a fabricated per-branch split), so mixing
+  // a CU into this denominator would make a single credit union's entire
+  // balance sheet look like it's sitting inside this radius — not real, per
+  // Francisco 2026-09-18. Banks only.
+  const bankCompInRadius=compInRadius.filter(c=>c.competitor_institution_type==='bank');
+  const cuCompInRadius=compInRadius.filter(c=>c.competitor_institution_type==='cu');
+  const compTotal=bankCompInRadius.reduce((a,c)=>a+(+c.info.latest_dep||0),0);
   const mineTotal=mineInRadius.reduce((a,b)=>a+(+b.latest_dep||0),0);
   const total=compTotal+mineTotal;
   const sharePct = total>0 ? (mineTotal/total*100) : null;
   const branchCount=compInRadius.length+mineInRadius.length;
 
-  // Competitor institution list for the selected radius only, grouped by
-  // bank, sorted by deposits — not size-filtered like branch_target_competitors
-  // elsewhere in BMAP.
-  const compGroups={};
-  compInRadius.forEach(c=>{
-    const key=c.competitor_bank_id;
-    if(!compGroups[key]) compGroups[key]={
-      bank_id:c.competitor_bank_id, type:c.competitor_institution_type,
-      name:c.info.namefull, deposits:0, branches:0, minDist:Infinity, yoyVals:[],
-      inst_key:c.info.inst_key
-    };
-    compGroups[key].deposits+=(+c.info.latest_dep||0);
-    compGroups[key].branches+=1;
-    const dm=Number(c.distance_miles);
-    compGroups[key].minDist=Math.min(compGroups[key].minDist, Number.isFinite(dm)?dm:Infinity);
-    if(c.info.yoy_deposits!=null) compGroups[key].yoyVals.push(+c.info.yoy_deposits);
-  });
-  const compList=Object.values(compGroups).sort((a,b)=>b.deposits-a.deposits);
+  // Two separate groupings — banks (real per-branch deposits, market share
+  // is meaningful) and CUs (institution-wide totals, shown as their own
+  // facts, never blended into a share-of-market number).
+  function groupByInst(list){
+    const groups={};
+    list.forEach(c=>{
+      const key=c.competitor_bank_id;
+      if(!groups[key]) groups[key]={
+        bank_id:c.competitor_bank_id, type:c.competitor_institution_type,
+        name:c.info.namefull, deposits:0, branches:0, minDist:Infinity, yoyVals:[],
+        inst_key:c.info.inst_key
+      };
+      groups[key].deposits+=(+c.info.latest_dep||0);
+      groups[key].branches+=1;
+      const dm=Number(c.distance_miles);
+      groups[key].minDist=Math.min(groups[key].minDist, Number.isFinite(dm)?dm:Infinity);
+      if(c.info.yoy_deposits!=null) groups[key].yoyVals.push(+c.info.yoy_deposits);
+    });
+    return Object.values(groups);
+  }
+  const bankList=groupByInst(bankCompInRadius).sort((a,b)=>b.deposits-a.deposits);
+  // CUs ranked by branches actually present in this radius, not institution-
+  // wide deposits — a CU with 3 branches next door is the real local
+  // presence, not a CU with 1 branch here and a huge balance sheet elsewhere.
+  const cuList=groupByInst(cuCompInRadius).sort((a,b)=>b.branches-a.branches);
 
   const fmtM=v=>'$'+(v/1e6).toLocaleString(undefined,{maximumFractionDigits:1})+'M';
   // a62: never render a raw percentage off a tiny complaint count — the view's
@@ -936,23 +952,22 @@ function renderRadiusView(){
         <div style="width:46px;height:46px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${sharePct!=null?sharePct.toFixed(0)+'%':'—'}</div>
       </div>
       <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700">Market Share within ${mi} mi</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700">Bank Market Share within ${mi} mi</div>
         <div style="font-size:13px;margin-top:4px">Your deposits: <b>${fmtM(mineTotal)}</b> of <b>${fmtM(total)}</b> total</div>
-        <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${branchCount} branches in range</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${branchCount} branches in range${cuList.length?` · ${cuList.length} CU${cuList.length===1?'':'s'} shown separately below`:''}</div>
       </div>
     </div>
 
-    ${compList.length?`
-    <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Competitors — within ${mi} mi (${compList.length})</div>
+    ${bankList.length?`
+    <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Banks — within ${mi} mi (${bankList.length})</div>
     <table class="radius-table">
-      <thead><tr><th>Type</th><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Market Share</th><th>CFPB Trend</th></tr></thead>
+      <thead><tr><th>Institution</th><th>Deposits</th><th>Avg YoY</th><th>Mkt Share</th><th>CFPB Trend</th></tr></thead>
       <tbody>
-        ${compList.map(c=>{
+        ${bankList.map(c=>{
           const avgYoy=c.yoyVals.length?c.yoyVals.reduce((a,v)=>a+v,0)/c.yoyVals.length:null;
           const compSharePct = total>0 ? (c.deposits/total*100) : null;
           return `
           <tr>
-            <td>${c.type||'—'}</td>
             <td style="font-family:'Inter',system-ui,sans-serif;font-weight:600">${c.name}</td>
             <td>${fmtM(c.deposits)}</td>
             <td>${avgYoy!=null?(avgYoy*100).toFixed(1)+'%':'—'}</td>
@@ -962,7 +977,28 @@ function renderRadiusView(){
         }).join('')}
       </tbody>
     </table>
-    ` : '<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within '+mi+' mi.</div>'}
+    ` : '<div style="padding:12px;color:var(--muted);font-size:11.5px">No bank competitors within '+mi+' mi.</div>'}
+
+    ${cuList.length?`
+    <div style="padding:16px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Credit Unions — within ${mi} mi (${cuList.length})</div>
+    <div style="padding:0 12px 8px;font-size:10.5px;color:var(--muted)">Deposits are each CU's full institution total, not a branch-level figure — not comparable to bank market share above.</div>
+    <table class="radius-table">
+      <thead><tr><th>Institution</th><th>Branches</th><th>Deposits</th><th>YoY</th><th>CFPB Trend</th></tr></thead>
+      <tbody>
+        ${cuList.map(c=>{
+          const avgYoy=c.yoyVals.length?c.yoyVals.reduce((a,v)=>a+v,0)/c.yoyVals.length:null;
+          return `
+          <tr>
+            <td style="font-family:'Inter',system-ui,sans-serif;font-weight:600">${c.name}</td>
+            <td>${c.branches}</td>
+            <td>${fmtM(c.deposits)}</td>
+            <td>${avgYoy!=null?(avgYoy*100).toFixed(1)+'%':'—'}</td>
+            <td>${fmtCfpbTrend(c.inst_key)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    ` : ''}
   `;
 }
 

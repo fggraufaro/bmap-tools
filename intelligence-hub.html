@@ -1028,7 +1028,7 @@ g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
-  const [rows,br,tgt,compRaw]=await Promise.all([
+  const [rows,br,tgt,compRaw,bankFinRows]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
     api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,adult_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index,total_deposits_10mi&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`),
@@ -1038,7 +1038,8 @@ async function loadBank(ik){
     // Dive). Used here only for state-filterable "Top Competitor Targets",
     // where the alternative (running branches_within_radius for every
     // branch) isn't practical to do live for a whole network on page load.
-    api('branch_target_competitors',`my_inst_key=eq.${ik}&select=my_branch_id,target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone,target_uninumbr,target_roa&order=vuln_score.desc&limit=5000`)
+    api('branch_target_competitors',`my_inst_key=eq.${ik}&select=my_branch_id,target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone,target_uninumbr,target_roa&order=vuln_score.desc&limit=5000`),
+    api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=dep_yoy_pct`)
   ]);
   allBr=br||[];allComp=compRaw||[];bankData={rows,allBr,tgt:tgt||[],ik};
   if(!rows||!rows.length){set('bn','No branch data found');return;}
@@ -1047,14 +1048,24 @@ async function loadBank(ik){
   set('bn',rows[0].namefull);set('bb',`${rows.length} branches`);set('db',`$${(tot/1e9).toFixed(1)}B`);
   // ── HEALTH BAR ─────────────────────────────────────────────────────────────
   const avgScore = avg('opportunity_score');
-  const avgBankYoy = avg('yoy_deposits') * 100;
+  // a66 fix (2026-09-19): "Bank YoY" must be the institution's real,
+  // Call-Report-sourced growth rate, not an average of branch-level FDIC SOD
+  // percentages. avg('yoy_deposits') (the old approach) produced the
+  // OPPOSITE SIGN of the real number for Hancock Whitney (+0.8% here vs. the
+  // true -0.53%) -- branch-level SOD growth and institution-level Call
+  // Report growth are genuinely different measurements, not just different
+  // weightings of one thing. Read the real number from
+  // bank_financial_snapshot_latest instead -- the same field the Financial
+  // Analysis export already correctly uses, so the two can never disagree.
+  const bankFinRow = Array.isArray(bankFinRows) && bankFinRows.length ? bankFinRows[0] : null;
+  const avgBankYoy = bankFinRow && bankFinRow.dep_yoy_pct != null ? +bankFinRow.dep_yoy_pct : null;
   const avgPeerYoy = avg('avg_comp_yoy') * 100;
-  const gap = avgBankYoy - avgPeerYoy;
+  const gap = avgBankYoy != null ? avgBankYoy - avgPeerYoy : null;
   const justifyDep = rows.filter(r=>r.opportunity_zone==='Justify').reduce((a,r)=>a+(+r.latest_dep||0),0);
   const verdict = avgScore >= 75 ? 'Top performer' : avgScore >= 50 ? 'Above average' : avgScore >= 25 ? 'Below average' : 'Needs attention';
   const pctLabel = avgScore >= 75 ? 'Top 25% of local peers' : avgScore >= 50 ? '50th–75th percentile' : avgScore >= 25 ? 'Bottom 25–50th percentile' : 'Bottom 25% of local peers';
   const scoreColor = avgScore >= 50 ? '#27500A' : avgScore >= 25 ? '#854D0E' : '#A32D2D';
-  const gapColor = gap >= 0 ? '#27500A' : '#A32D2D';
+  const gapColor = gap != null ? (gap >= 0 ? '#27500A' : '#A32D2D') : 'var(--muted)';
   g('healthScore').textContent = avgScore.toFixed(1);
   g('healthScore').style.color = scoreColor;
   g('healthVerdict').textContent = verdict;
@@ -1062,10 +1073,10 @@ async function loadBank(ik){
   g('healthPct').textContent = pctLabel;
   g('healthFill').style.width = Math.min(avgScore, 100) + '%';
   g('healthFill').style.background = scoreColor;
-  g('bankYoy').textContent = (avgBankYoy >= 0 ? '+' : '') + avgBankYoy.toFixed(1) + '%';
-  g('bankYoy').style.color = avgBankYoy >= 0 ? '#27500A' : '#A32D2D';
+  g('bankYoy').textContent = avgBankYoy != null ? (avgBankYoy >= 0 ? '+' : '') + avgBankYoy.toFixed(1) + '%' : '—';
+  g('bankYoy').style.color = avgBankYoy != null ? (avgBankYoy >= 0 ? '#27500A' : '#A32D2D') : 'var(--muted)';
   g('peerYoy').textContent = avgPeerYoy.toFixed(1) + '%';
-  g('yoyGap').textContent = (gap >= 0 ? '+' : '') + gap.toFixed(1) + 'pp';
+  g('yoyGap').textContent = gap != null ? (gap >= 0 ? '+' : '') + gap.toFixed(1) + 'pp' : '—';
   g('yoyGap').style.color = gapColor;
   g('atRisk').textContent = '$' + (justifyDep/1e6).toFixed(0) + 'M at risk';
   g('atRisk').style.color = justifyDep > 0 ? '#A32D2D' : '#27500A';

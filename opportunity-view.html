@@ -986,6 +986,28 @@ async function generateBranchNarrative() {
       }
     }
 
+    // Trade-area demographics — same source (vw_zip_persona) and reasoning
+    // already used for a63's exposure work: who actually lives here changes
+    // what product/message fits, independent of how the branch itself is
+    // performing. Population/income growth and ZHVI come straight off the
+    // branch record already fetched in loadBank() — these are the market_
+    // growth_score INPUTS (raw population/income/home-value facts), not the
+    // composite score itself, so this doesn't cross the no-formula-exposure
+    // line.
+    let personaLine = 'No persona data available for this ZIP yet.';
+    if (branch.zipbr) {
+      const personaRows = await api('vw_zip_persona', `zip=eq.${branch.zipbr}&select=persona,occupation_group,income,total_population,est_households&limit=1`);
+      const p = Array.isArray(personaRows) && personaRows.length ? personaRows[0] : null;
+      if (p) {
+        personaLine = `ZIP ${branch.zipbr} trade area: "${p.persona}" (dominant occupation group: ${p.occupation_group || '—'}), median income $${p.income != null ? Math.round(+p.income).toLocaleString() : '—'}, ~${p.total_population != null ? Math.round(+p.total_population).toLocaleString() : '—'} residents / ${p.est_households != null ? Math.round(+p.est_households).toLocaleString() : '—'} households.`;
+      }
+    }
+    const marketParts = [];
+    if (branch.total_population != null) marketParts.push(`Population ${Math.round(+branch.total_population).toLocaleString()}${branch.yoy_pop_growth != null ? ` (${(+branch.yoy_pop_growth * 100) >= 0 ? '+' : ''}${(+branch.yoy_pop_growth * 100).toFixed(1)}% YoY)` : ''}`);
+    if (branch.household_income != null) marketParts.push(`household income $${Math.round(+branch.household_income).toLocaleString()}${branch.yoy_income_growth != null ? ` (${(+branch.yoy_income_growth * 100) >= 0 ? '+' : ''}${(+branch.yoy_income_growth * 100).toFixed(1)}% YoY)` : ''}`);
+    if (branch.zhvi != null) marketParts.push(`home values $${Math.round(+branch.zhvi).toLocaleString()}${branch.zhvi_yoy_pct != null ? ` (${(+branch.zhvi_yoy_pct) >= 0 ? '+' : ''}${(+branch.zhvi_yoy_pct).toFixed(1)}% YoY)` : ''}`);
+    const marketLine = marketParts.length ? marketParts.join(', ') + '.' : 'No market growth data available yet.';
+
     const dollarYoy = (+branch.latest_dep || 0) * (+branch.yoy_deposits || 0);
     const smallBase = (+branch.latest_dep || 0) < 20e6;
     const recommendedPlay = CAMPAIGN_ACTION[branch.campaign] || 'No specific play assigned yet — flag for review.';
@@ -993,9 +1015,13 @@ async function generateBranchNarrative() {
       ? topComps.map((c, i) => `  ${i + 1}. ${c.target_namefull} — $${(+c.target_dep_m).toFixed(0)}M deposits, zone ${c.target_zone || '—'}, YoY ${c.target_yoy_pct != null ? c.target_yoy_pct.toFixed(1) + '%' : '—'}, vulnerability score ${c.vuln_score != null ? (+c.vuln_score).toFixed(1) : '—'}`).join('\n')
       : '  None identified yet.';
 
-    const system = `You are writing a short "what's going on here" briefing for a retail branch administrator inside Verlocity's platform, for ONE specific branch. This is an in-product synthesis, not a report. HARD LIMIT: 2 to 3 sentences, plain language, no headers, no bullet list, no methodology section, no scene-setting or preamble.
+    const system = `You are writing a short "what's going on here" briefing for a retail branch administrator inside Verlocity's platform, for ONE specific branch. This is an in-product synthesis, not a report. HARD LIMIT: 4 to 5 sentences, plain language, no headers, no bullet list, no methodology section, no scene-setting or preamble.
 
-Every claim must trace directly to a number in the data given. If you write something that isn't a number from the input or a direct restatement of the assigned play, delete it.
+The briefing has two parts, both grounded in the data given, neither a list of numbers:
+1. Branch performance read — deposits/YoY, the named competitive threat, rate position.
+2. Market profile — synthesize the trade-area persona and population/income/home-value trend into a short characterization of WHAT KIND of market this is and where it's headed (e.g. "a growing, higher-income market with strengthening home values" or "a stable, moderate-income area with flat population growth"), not a restated list of "population X, income Y, home value Z." The trend direction you name must match the actual sign of the growth figures given — call a market "growing" only if population/income/ZHVI growth is actually positive in the data, "cooling" or "flat" only if it's actually flat or negative.
+
+Every claim must trace directly to a number in the data given or be a direct synthesis of those numbers into a market characterization. If you write something that isn't grounded in an input number or the assigned play, delete it.
 
 Mandatory rules:
 - Never claim churn, attrition, or "customers leaving" from a deposit decline alone — no account-level movement data is provided. Frame declines as risk/exposure, not events that already happened.
@@ -1004,8 +1030,10 @@ Mandatory rules:
 - Never characterize a competitor's strategy or intent from a number alone — banned: "defensive posture," "pricing hesitation," "aggressive push," or similar. State the competitor's own number (deposits, YoY, or rate) and stop there; do not guess why it is what it is.
 - If SMALL BASE is flagged, say the percentage is less reliable than it looks — do not present it with the same confidence as a large-base number.
 - Reference the named competitor(s) by name if given, with their actual number. Mention the rate position line only if it adds a concrete fact (a real rate) — never editorialize about what a rate "signals."
+- The persona label is a data classification, not a stereotype to elaborate on — use it to characterize the market (e.g. "the trade area skews Established Professionals, a higher-income segment") but do not invent assumptions about what residents want, buy, or do beyond the label and occupation group given.
+- The market profile is a characterization of trajectory (growing/stable/cooling), not a deposit forecast — never claim a specific dollar or percentage outcome for the branch from the market trend; that connection, if any, belongs to the assigned play, not to you.
 - Close with the assigned play stated directly and plainly — do not paraphrase it into softer or vaguer language, and do not invent a different recommendation.
-- Never expose or describe the underlying scoring formula, weights, or how opportunity_score/vuln_score are calculated — state the conclusion, not the mechanism.`;
+- Never expose or describe the underlying scoring formula, weights, or how opportunity_score/vuln_score/market_growth_score are calculated — state the conclusion, not the mechanism.`;
 
     const userMsg = `BRANCH: ${branch.namebr} — ${branch.citybr}, ${branch.stalpbr}
 Zone: ${branch.opportunity_zone || '—'} | Opportunity score: ${(+branch.opportunity_score || 0).toFixed(1)}
@@ -1016,9 +1044,13 @@ ${compLines}
 
 Rate position: ${rateLine}
 
+Trade-area persona: ${personaLine}
+
+Local market growth: ${marketLine}
+
 Assigned play (use this, don't invent a different tactic): ${recommendedPlay}`;
 
-    const text = await callAI(system, userMsg, 220);
+    const text = await callAI(system, userMsg, 320);
     body.innerHTML = '<div class="branch-narrative-body" id="bnbText"></div>';
     g('bnbText').textContent = text;
   } catch (e) {
@@ -1055,7 +1087,7 @@ async function loadBank(ik) {
 
   const [summaryRows, branches, poolRows, bankFinRows] = await Promise.all([
     api('branch_opportunity_base', `inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone`),
-    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_income_growth,total_population,yoy_pop_growth,zhvi,zhvi_yoy_pct&order=opportunity_score.desc`),
     api('branch_target_competitors', `my_inst_key=eq.${ik}&select=my_branch_id,target_dep_m`),
     api('bank_financial_snapshot_latest', `inst_key=eq.${ik}&select=dep_yoy_pct`)
   ]);

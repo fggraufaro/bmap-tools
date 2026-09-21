@@ -786,7 +786,11 @@ function drawBranches(list) {
     const tier = priorityTierOf(b.campaign);
     const color = tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0';
     const m = L.circleMarker([b.sims_latitude, b.sims_longitude], { radius: rScale(b.latest_dep), color: tier ? '#5B6472' : '#fff', weight: 1.5, fillColor: color, fillOpacity: tier ? 0.95 : 0.75 });
-    m.bindPopup(`<div class="pop-t">${b.namebr}</div><div class="pop-r">${b.citybr}, ${b.stalpbr}</div><div class="pop-r">${ZONE_PLAIN[b.opportunity_zone] || ''}</div><div class="pop-r">Deposits: $${((+b.latest_dep || 0) / 1e6).toFixed(1)}M</div><div class="pop-r" style="margin-top:4px;color:var(--blue)">Click to see nearby competitors →</div>`);
+    // No popup here anymore — it duplicated the Radius Market Summary panel
+    // that onBranchClick already opens on this same click, and its "Click to
+    // see nearby competitors" line was dead text (nothing was bound to it).
+    // Francisco found it live 2026-09-19: the popup would flash open then
+    // vanish, and that line did nothing — confusing on top of redundant.
     m.on('click', () => onBranchClick(b));
     m.addTo(branchLayer);
   });
@@ -982,6 +986,28 @@ async function generateBranchNarrative() {
       }
     }
 
+    // Trade-area demographics — same source (vw_zip_persona) and reasoning
+    // already used for a63's exposure work: who actually lives here changes
+    // what product/message fits, independent of how the branch itself is
+    // performing. Population/income growth and ZHVI come straight off the
+    // branch record already fetched in loadBank() — these are the market_
+    // growth_score INPUTS (raw population/income/home-value facts), not the
+    // composite score itself, so this doesn't cross the no-formula-exposure
+    // line.
+    let personaLine = 'No persona data available for this ZIP yet.';
+    if (branch.zipbr) {
+      const personaRows = await api('vw_zip_persona', `zip=eq.${branch.zipbr}&select=persona,occupation_group,income,total_population,est_households&limit=1`);
+      const p = Array.isArray(personaRows) && personaRows.length ? personaRows[0] : null;
+      if (p) {
+        personaLine = `ZIP ${branch.zipbr} trade area: "${p.persona}" (dominant occupation group: ${p.occupation_group || '—'}), median income $${p.income != null ? Math.round(+p.income).toLocaleString() : '—'}, ~${p.total_population != null ? Math.round(+p.total_population).toLocaleString() : '—'} residents / ${p.est_households != null ? Math.round(+p.est_households).toLocaleString() : '—'} households.`;
+      }
+    }
+    const marketParts = [];
+    if (branch.total_population != null) marketParts.push(`Population ${Math.round(+branch.total_population).toLocaleString()}${branch.yoy_pop_growth != null ? ` (${(+branch.yoy_pop_growth * 100) >= 0 ? '+' : ''}${(+branch.yoy_pop_growth * 100).toFixed(1)}% YoY)` : ''}`);
+    if (branch.household_income != null) marketParts.push(`household income $${Math.round(+branch.household_income).toLocaleString()}${branch.yoy_income_growth != null ? ` (${(+branch.yoy_income_growth * 100) >= 0 ? '+' : ''}${(+branch.yoy_income_growth * 100).toFixed(1)}% YoY)` : ''}`);
+    if (branch.zhvi != null) marketParts.push(`home values $${Math.round(+branch.zhvi).toLocaleString()}${branch.zhvi_yoy_pct != null ? ` (${(+branch.zhvi_yoy_pct) >= 0 ? '+' : ''}${(+branch.zhvi_yoy_pct).toFixed(1)}% YoY)` : ''}`);
+    const marketLine = marketParts.length ? marketParts.join(', ') + '.' : 'No market growth data available yet.';
+
     const dollarYoy = (+branch.latest_dep || 0) * (+branch.yoy_deposits || 0);
     const smallBase = (+branch.latest_dep || 0) < 20e6;
     const recommendedPlay = CAMPAIGN_ACTION[branch.campaign] || 'No specific play assigned yet — flag for review.';
@@ -989,15 +1015,25 @@ async function generateBranchNarrative() {
       ? topComps.map((c, i) => `  ${i + 1}. ${c.target_namefull} — $${(+c.target_dep_m).toFixed(0)}M deposits, zone ${c.target_zone || '—'}, YoY ${c.target_yoy_pct != null ? c.target_yoy_pct.toFixed(1) + '%' : '—'}, vulnerability score ${c.vuln_score != null ? (+c.vuln_score).toFixed(1) : '—'}`).join('\n')
       : '  None identified yet.';
 
-    const system = `You are a deposit-growth strategist writing a short "what's going on here" briefing for a retail branch administrator inside Verlocity's platform, for ONE specific branch. This is an in-product synthesis, not a report — 3 to 5 sentences, plain language, no headers, no bullet list, no methodology section.
+    const system = `You are writing a short "what's going on here" briefing for a retail branch administrator inside Verlocity's platform, for ONE specific branch. This is an in-product synthesis, not a report. HARD LIMIT: 4 to 5 sentences, plain language, no headers, no bullet list, no methodology section, no scene-setting or preamble.
+
+The briefing has two parts, both grounded in the data given, neither a list of numbers:
+1. Branch performance read — deposits/YoY, the named competitive threat, rate position.
+2. Market profile — synthesize the trade-area persona and population/income/home-value trend into a short characterization of WHAT KIND of market this is and where it's headed (e.g. "a growing, higher-income market with strengthening home values" or "a stable, moderate-income area with flat population growth"), not a restated list of "population X, income Y, home value Z." The trend direction you name must match the actual sign of the growth figures given — call a market "growing" only if population/income/ZHVI growth is actually positive in the data, "cooling" or "flat" only if it's actually flat or negative.
+
+Every claim must trace directly to a number in the data given or be a direct synthesis of those numbers into a market characterization. If you write something that isn't grounded in an input number or the assigned play, delete it.
 
 Mandatory rules:
 - Never claim churn, attrition, or "customers leaving" from a deposit decline alone — no account-level movement data is provided. Frame declines as risk/exposure, not events that already happened.
 - Never assert an unearned causal story for growth — banned phrases: "the market is responding," "clearly winning," "clearly capturing share," "signals momentum" used as a conclusion rather than an observation. State the number, then the action.
+- Never invent a reason for customer behavior that isn't in the data — banned: "may be splitting their balances," "keeping legacy accounts elsewhere," or any other guess about what customers are doing with their money. No account-level data is given, so no claim about account-level behavior is allowed, full stop.
+- Never characterize a competitor's strategy or intent from a number alone — banned: "defensive posture," "pricing hesitation," "aggressive push," or similar. State the competitor's own number (deposits, YoY, or rate) and stop there; do not guess why it is what it is.
 - If SMALL BASE is flagged, say the percentage is less reliable than it looks — do not present it with the same confidence as a large-base number.
-- Reference the named competitor(s) by name if given. Mention the rate position line if it's informative, but don't invent a comparison the data doesn't support.
-- End with the assigned play, restated in your own voice — do not invent a different recommendation.
-- Never expose or describe the underlying scoring formula, weights, or how opportunity_score/vuln_score are calculated — state the conclusion, not the mechanism.`;
+- Reference the named competitor(s) by name if given, with their actual number. Mention the rate position line only if it adds a concrete fact (a real rate) — never editorialize about what a rate "signals."
+- The persona label is a data classification, not a stereotype to elaborate on — use it to characterize the market (e.g. "the trade area skews Established Professionals, a higher-income segment") but do not invent assumptions about what residents want, buy, or do beyond the label and occupation group given.
+- The market profile is a characterization of trajectory (growing/stable/cooling), not a deposit forecast — never claim a specific dollar or percentage outcome for the branch from the market trend; that connection, if any, belongs to the assigned play, not to you.
+- Close with the assigned play stated directly and plainly — do not paraphrase it into softer or vaguer language, and do not invent a different recommendation.
+- Never expose or describe the underlying scoring formula, weights, or how opportunity_score/vuln_score/market_growth_score are calculated — state the conclusion, not the mechanism.`;
 
     const userMsg = `BRANCH: ${branch.namebr} — ${branch.citybr}, ${branch.stalpbr}
 Zone: ${branch.opportunity_zone || '—'} | Opportunity score: ${(+branch.opportunity_score || 0).toFixed(1)}
@@ -1008,9 +1044,13 @@ ${compLines}
 
 Rate position: ${rateLine}
 
+Trade-area persona: ${personaLine}
+
+Local market growth: ${marketLine}
+
 Assigned play (use this, don't invent a different tactic): ${recommendedPlay}`;
 
-    const text = await callAI(system, userMsg, 500);
+    const text = await callAI(system, userMsg, 320);
     body.innerHTML = '<div class="branch-narrative-body" id="bnbText"></div>';
     g('bnbText').textContent = text;
   } catch (e) {
@@ -1045,10 +1085,11 @@ async function loadBank(ik) {
   setTimeout(() => map && map.invalidateSize(), 50);
   g('actionsRow').innerHTML = '';
 
-  const [summaryRows, branches, poolRows] = await Promise.all([
+  const [summaryRows, branches, poolRows, bankFinRows] = await Promise.all([
     api('branch_opportunity_base', `inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone`),
-    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign&order=opportunity_score.desc`),
-    api('branch_target_competitors', `my_inst_key=eq.${ik}&select=my_branch_id,target_dep_m`)
+    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_income_growth,total_population,yoy_pop_growth,zhvi,zhvi_yoy_pct&order=opportunity_score.desc`),
+    api('branch_target_competitors', `my_inst_key=eq.${ik}&select=my_branch_id,target_dep_m`),
+    api('bank_financial_snapshot_latest', `inst_key=eq.${ik}&select=dep_yoy_pct`)
   ]);
   branchPoolM = {};
   (Array.isArray(poolRows) ? poolRows : []).forEach(r => {
@@ -1068,23 +1109,36 @@ async function loadBank(ik) {
   // shows (a growth-rate gap, a count of branches), never an unearned
   // causal claim like "you are losing customers" or "churn is happening".
   const totalDep = summaryRows.reduce((a, r) => a + (+r.latest_dep || 0), 0);
-  const avgBankYoy = (summaryRows.reduce((a, r) => a + (+r.yoy_deposits || 0), 0) / summaryRows.length) * 100;
+  // a66 fix (2026-09-19): "Bank YoY" must be the institution's real,
+  // Call-Report-sourced growth rate, not an average of branch-level FDIC SOD
+  // percentages. Averaging branch percentages unweighted (the old approach)
+  // produced the OPPOSITE SIGN of the real number for Hancock Whitney
+  // (+0.8% here vs. the true -0.53%) -- and even a deposit-weighted average
+  // of those same branch figures still didn't match, because branch-level
+  // SOD growth and institution-level Call Report growth are genuinely
+  // different measurements, not just different weightings of one thing.
+  // Read the real number from bank_financial_snapshot_latest instead -- the
+  // same field the Hub's Financial Analysis export already correctly uses,
+  // so the two can never disagree again.
+  const bankFinRow = Array.isArray(bankFinRows) && bankFinRows.length ? bankFinRows[0] : null;
+  const avgBankYoy = bankFinRow && bankFinRow.dep_yoy_pct != null ? +bankFinRow.dep_yoy_pct : null;
   const avgPeerYoy = (summaryRows.reduce((a, r) => a + (+r.avg_comp_yoy || 0), 0) / summaryRows.length) * 100;
-  const gap = avgBankYoy - avgPeerYoy;
+  const gap = avgBankYoy != null ? avgBankYoy - avgPeerYoy : null;
   const investCount = summaryRows.filter(r => r.opportunity_zone === 'Invest').length;
   const justifyDep = summaryRows.filter(r => r.opportunity_zone === 'Justify').reduce((a, r) => a + (+r.latest_dep || 0), 0);
 
   g('vBankline').textContent = `${bankName} · ${summaryRows.length} branches · $${(totalDep / 1e9).toFixed(1)}B in deposits`;
   let sentence;
-  if (gap >= 1) sentence = `Your deposits are growing faster than the branches around you — ${gap.toFixed(1)} points ahead of peers over the past 12 months.`;
+  if (gap == null) sentence = `Deposit growth rate not yet available for this institution.`;
+  else if (gap >= 1) sentence = `Your deposits are growing faster than the branches around you — ${gap.toFixed(1)} points ahead of peers over the past 12 months.`;
   else if (gap <= -1) sentence = `Your deposits are growing slower than the branches around you — ${Math.abs(gap).toFixed(1)} points behind peers over the past 12 months.`;
   else sentence = `Your deposit growth is roughly in line with the branches around you over the past 12 months.`;
   if (investCount > 0) sentence += ` ${investCount} branch${investCount === 1 ? '' : 'es'} ${investCount === 1 ? 'looks' : 'look'} ready for a deposit push.`;
   g('vSentence').textContent = sentence;
 
-  g('vStat1Val').textContent = (avgBankYoy >= 0 ? '+' : '') + avgBankYoy.toFixed(1) + '%';
-  g('vStat1Delta').textContent = `${gap >= 0 ? '+' : ''}${gap.toFixed(1)}pp vs. peer average`;
-  g('vStat1Delta').style.color = gap >= 0 ? '#1E7A4C' : '#A33C31';
+  g('vStat1Val').textContent = avgBankYoy != null ? (avgBankYoy >= 0 ? '+' : '') + avgBankYoy.toFixed(1) + '%' : '—';
+  g('vStat1Delta').textContent = gap != null ? `${gap >= 0 ? '+' : ''}${gap.toFixed(1)}pp vs. peer average` : 'Not available';
+  g('vStat1Delta').style.color = gap != null ? (gap >= 0 ? '#1E7A4C' : '#A33C31') : 'var(--muted)';
   g('vStat2Val').textContent = investCount;
   g('vStat2Delta').textContent = `of ${summaryRows.length} branches`;
   g('vStat2Delta').style.color = 'var(--muted)';

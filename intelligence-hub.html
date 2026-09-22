@@ -564,22 +564,22 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       </div>
       <div class="matrix-2x2">
         <div class="mq mq-q2">
-          <div class="mq-head"><span class="mq-qlbl">Q2 · Strong market · Strong branch</span></div>
+          <div class="mq-head"><span class="mq-qlbl">Q1 · Market Domination</span></div>
           <div class="mq-play" id="mqPlay2"></div>
           <div class="mq-tiles" id="mqQ2"></div>
         </div>
         <div class="mq mq-q1">
-          <div class="mq-head"><span class="mq-qlbl">Q1 · Strong market · Needs attention</span></div>
+          <div class="mq-head"><span class="mq-qlbl">Q2 · Grow and Perform</span></div>
           <div class="mq-play" id="mqPlay1"></div>
           <div class="mq-tiles" id="mqQ1"></div>
         </div>
         <div class="mq mq-q3">
-          <div class="mq-head"><span class="mq-qlbl">Q3 · Weak market · Strong branch</span></div>
+          <div class="mq-head"><span class="mq-qlbl">Q3 · Maintain and Improve</span></div>
           <div class="mq-play" id="mqPlay3"></div>
           <div class="mq-tiles" id="mqQ3"></div>
         </div>
         <div class="mq mq-q4">
-          <div class="mq-head"><span class="mq-qlbl">Q4 · Weak market · Weak branch</span></div>
+          <div class="mq-head"><span class="mq-qlbl">Q4 · Reassess</span></div>
           <div class="mq-play" id="mqPlay4"></div>
           <div class="mq-tiles" id="mqQ4"></div>
         </div>
@@ -1317,11 +1317,11 @@ async function loadBank(ik){
       el.innerHTML='';
       const qBrs = brs.filter(b=>(b.matrix_quadrant||'').startsWith(q))
                       .sort((a,b)=>(+b.opportunity_score||0)-(+a.opportunity_score||0));
-      // Dominant play for header
-      const pc={};qBrs.forEach(b=>{const p=b.campaign||'';if(p)pc[p]=(pc[p]||0)+1;});
-      const topPlay=Object.entries(pc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-      const playEl=g('mqPlay'+q.slice(1));
-      if(playEl)playEl.textContent=topPlay;
+      // Quadrant tagline is now fixed in the header markup (Market Domination /
+      // Grow and Perform / Maintain and Improve / Reassess), not the dynamic
+      // per-bank dominant play — that used to make the same box read a
+      // different name for every bank, which isn't a stable customer-facing
+      // label. mqPlay elements are left empty on purpose.
 
       if(!qBrs.length){el.innerHTML='<div class="mq-empty">No branches</div>';return;}
 

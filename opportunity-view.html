@@ -1265,15 +1265,31 @@ function renderActionsRow() {
 // sparkline off vw_rate_radar_history (req #4). ──
 async function loadRateRadar(ik) {
   const norm = s => (s || '').trim().toLowerCase();
-  // Same source and ranking as the Hub's "Top Competitor Targets" —
-  // vw_network_top_targets, averaged vulnerability across this
-  // institution's whole branch network, not a single branch's peak
-  // score. Previously this queried branch_target_competitors directly
-  // (each branch's individual top-3), which meant "top competitor"
-  // could mean something different here than on the Hub. This view is
-  // already one row per competitor institution, so no dedupe needed.
-  const compForRR = await api('vw_network_top_targets', `my_inst_key=eq.${ik}&select=target_institution,avg_vuln_score&order=network_rank.asc&limit=10`);
-  const namedComps = (compForRR || []).filter(c => c.target_institution).map(c => ({ target_namefull: c.target_institution, vuln_score: c.avg_vuln_score }));
+  // Same LIVE aggregation as the Hub's WF05 "Top competitors" export
+  // widget (loadRRWidget): group branch_target_competitors by
+  // target_inst_key, average vuln_score per competitor, sort, take the
+  // top 10. Deliberately NOT vw_network_top_targets/network_top_targets
+  // — that table is a stale, pre-computed snapshot capped at exactly 10
+  // rows per institution with a slightly different grouping key
+  // (target_inst_key + target_namefull + target_institution_type
+  // combined, not target_inst_key alone), so it looked like the right
+  // shared source but wasn't guaranteed to match. Computing it the same
+  // way, live, here is the only way "top competitor" reliably means the
+  // same thing on both screens.
+  const rawComp = await api('branch_target_competitors', `my_inst_key=eq.${ik}&select=target_inst_key,target_namefull,vuln_score&order=vuln_score.desc&limit=1000`);
+  const grouped = {};
+  (rawComp || []).forEach(r => {
+    const k = r.target_inst_key;
+    if (!k) return;
+    if (!r.target_namefull) return;
+    if (!grouped[k]) grouped[k] = { name: r.target_namefull, vuln_scores: [] };
+    if (r.vuln_score != null) grouped[k].vuln_scores.push(+r.vuln_score);
+  });
+  const namedComps = Object.values(grouped)
+    .map(g => ({ target_namefull: g.name, vuln_score: g.vuln_scores.length ? g.vuln_scores.reduce((a, v) => a + v, 0) / g.vuln_scores.length : null }))
+    .filter(c => c.vuln_score != null)
+    .sort((a, b) => b.vuln_score - a.vuln_score)
+    .slice(0, 10);
   if (!namedComps.length) { g('rrBody').innerHTML = '<div class="rr-empty">No named competitors computed for this institution yet.</div>'; return; }
 
   const rrAll = await api('vw_rate_radar_latest', `select=bank_name,cd_apy,cd_term,cd_provenance,cd_verified,savings_apy,savings_provenance,savings_verified,high_yield_savings_apy,high_yield_savings_provenance,high_yield_savings_verified,checking_apy,checking_provenance,checking_verified,money_market_apy,money_market_provenance,money_market_verified,vulnerability_flag,data_quality,run_at&order=run_at.desc&limit=2000`);

@@ -499,7 +499,8 @@ function depositRadiusScale(values,minR,maxR){
 }
 
 function initMap(){
-  map=L.map('map',{zoomControl:true}).setView([37.8,-96],4);
+  map=L.map('map',{zoomControl:true,attributionControl:false}).setView([37.8,-96],4);
+  L.control.attribution({prefix:false}).addTo(map);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; OpenStreetMap contributors',subdomains:'abc',maxZoom:19
   }).addTo(map);

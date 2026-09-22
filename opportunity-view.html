@@ -867,6 +867,13 @@ function renderRadius() {
 
   const compInRadius = enriched.filter(c => c.distance_miles <= mi);
   const mineInRadius = myNearby.filter(b => b.dist <= mi);
+  // Market share is a bank-to-bank comparison — CUs report at the institution
+  // level, not per branch, so mixing them into one ranked deposit list (and
+  // one share %) compares numbers that aren't on the same basis. CUs get
+  // their own section below instead: total deposits + branch count, not
+  // folded into the bank market-share math.
+  const bankCompInRadius = compInRadius.filter(c => c.institution_type !== 'cu');
+  const cuCompInRadius = compInRadius.filter(c => c.institution_type === 'cu');
 
   if (compInRadius.length) {
     const rScale = depositRadiusScale(compInRadius.map(c => c.deposits), 8, 22);
@@ -877,20 +884,33 @@ function renderRadius() {
     });
   }
 
-  const compTotal = compInRadius.reduce((a, c) => a + (+c.deposits || 0), 0);
+  const compTotal = bankCompInRadius.reduce((a, c) => a + (+c.deposits || 0), 0);
   const mineTotal = mineInRadius.reduce((a, b) => a + (+b.latest_dep || 0), 0);
   const total = compTotal + mineTotal;
   const sharePct = total > 0 ? (mineTotal / total * 100) : null;
-  const branchCount = compInRadius.length + mineInRadius.length;
+  const branchCount = bankCompInRadius.length + mineInRadius.length;
 
   const compGroups = {};
-  compInRadius.forEach(c => {
+  bankCompInRadius.forEach(c => {
     const key = c.bank_id;
     if (!compGroups[key]) compGroups[key] = { type: c.institution_type, name: c.bank_name, deposits: 0, yoyVals: [] };
     compGroups[key].deposits += (+c.deposits || 0);
     if (c.yoy_deposits != null) compGroups[key].yoyVals.push(+c.yoy_deposits);
   });
   const compList = Object.values(compGroups).sort((a, b) => b.deposits - a.deposits);
+
+  // CUs: one row per institution, not per branch. Every branch row of the
+  // same CU already carries that CU's true institution-wide total (not a
+  // per-branch split), so take the deposit figure once and just count how
+  // many of its branches fall in this radius — never sum across branches,
+  // that would multiply the same total by branch count.
+  const cuGroups = {};
+  cuCompInRadius.forEach(c => {
+    const key = c.bank_id;
+    if (!cuGroups[key]) cuGroups[key] = { name: c.bank_name, deposits: +c.deposits || 0, branches: 0 };
+    cuGroups[key].branches += 1;
+  });
+  const cuList = Object.values(cuGroups).sort((a, b) => b.deposits - a.deposits);
   const fmtM = v => {
     const m = v / 1e6;
     return Math.abs(m) >= 1000 ? '$' + (m / 1000).toFixed(2) + 'B' : '$' + m.toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';
@@ -919,7 +939,7 @@ function renderRadius() {
         const shr = total > 0 ? (c.deposits / total * 100) : null;
         return `<div class="radius-row">
           <div class="radius-row-top">
-            <span class="radius-row-name" title="${c.name}">${c.name}${c.type === 'cu' ? '<span class="radius-cu-badge">CU</span>' : ''}</span>
+            <span class="radius-row-name" title="${c.name}">${c.name}</span>
             <span class="radius-row-dep">${fmtM(c.deposits)}</span>
           </div>
           <div class="radius-row-sub">
@@ -927,7 +947,19 @@ function renderRadius() {
             <span>${shr != null ? shr.toFixed(1) + '% share' : '— share'}</span>
           </div>
         </div>`;
-      }).join('')}</div>` : `<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within ${mi} mi.</div>`}`;
+      }).join('')}</div>` : `<div style="padding:12px;color:var(--muted);font-size:11.5px">No competitor branches within ${mi} mi.</div>`}
+    ${cuList.length ? `
+    <div style="padding:10px 10px 2px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--border);margin-top:6px">Credit Unions in the area (${cuList.length})</div>
+    <div>${cuList.map(c => `<div class="radius-row">
+          <div class="radius-row-top">
+            <span class="radius-row-name" title="${c.name}">${c.name}</span>
+            <span class="radius-row-dep">${fmtM(c.deposits)}</span>
+          </div>
+          <div class="radius-row-sub">
+            <span>${c.branches} branch${c.branches !== 1 ? 'es' : ''} in radius</span>
+            <span>Total institution deposits</span>
+          </div>
+        </div>`).join('')}</div>` : ''}`;
 }
 
 function clearRadius() {

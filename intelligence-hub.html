@@ -516,8 +516,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
         <button class="qx-btn" id="qxBtn" onclick="qxToggle()">⬇ Quick Export <span style="font-size:9px">▾</span></button>
         <div class="qx-menu" id="qxMenu">
           <div class="qx-opt" onclick="qxRun('snapshot')">⬇ Snapshot PPTX</div>
-          <div class="qx-opt" onclick="qxRun('brief')">⬇ Board Brief PDF</div>
           <div class="qx-opt" onclick="qxRun('assessment')">⬇ BMAP Assessment DOCX</div>
+          <div class="qx-opt" onclick="qxRun('brief')">⬇ Board Brief PDF</div>
         </div>
       </div>
     </div>
@@ -1294,10 +1294,7 @@ async function loadBank(ik){
     const dep=((+b.latest_dep||0)/1e6).toFixed(0);
     const yoyC=+yoy>=0?'#27500A':'#A32D2D';
     const shortName=b.namebr.replace(/\b(Branch|Financial Center|Center|Office)\b/gi,'').trim().replace(/\s+/g,' ');
-    const pTier = TOP_PRIORITY_PLAYS.has(b.campaign) ? ['#B8860B','Top priority']
-      : NEXT_PLAYS.has(b.campaign) ? ['#27500A','Next']
-      : OPPORTUNITY_PLAYS.has(b.campaign) ? ['#185FA5','Opportunity']
-      : null;
+    const pTier = priorityDotMap.get(b.uninumbr) || null;
     const dotHtml = pTier ? `<span class="mq-tile-dot" style="background:${pTier[0]}" title="${pTier[1]}"></span>` : '';
     const tile=document.createElement('div');
     tile.className='mq-tile';
@@ -1359,6 +1356,10 @@ async function loadBank(ik){
   const TOP_PRIORITY_PLAYS = new Set(['Aggressive Acquisition','Urgent Competitive Push']);
   const NEXT_PLAYS         = new Set(['Market Domination','Grow Share']);
   const OPPORTUNITY_PLAYS  = new Set(['Growth Opportunity','Niche Opportunity']);
+  // Shared with buildTile()'s quadrant-tile dot — only the exact branches
+  // that made it into this panel's top-10 get flagged in the matrix too,
+  // not every branch anywhere that happens to match a priority play.
+  let priorityDotMap = new Map();
 
   const renderPriority = (brs) => {
     const byDep=(a,b)=>(+b.latest_dep||0)-(+a.latest_dep||0);
@@ -1367,6 +1368,11 @@ async function loadBank(ik){
     const top = brs.filter(b=>TOP_PRIORITY_PLAYS.has(b.campaign)).sort(byDep).slice(0,4);
     const next = brs.filter(b=>NEXT_PLAYS.has(b.campaign)).sort(byScr).slice(0,3);
     const opp = brs.filter(b=>OPPORTUNITY_PLAYS.has(b.campaign)).sort(byScr).slice(0,3);
+
+    priorityDotMap = new Map();
+    top.forEach(b=>priorityDotMap.set(b.uninumbr, ['#B8860B','Top priority']));
+    next.forEach(b=>priorityDotMap.set(b.uninumbr, ['#27500A','Next']));
+    opp.forEach(b=>priorityDotMap.set(b.uninumbr, ['#185FA5','Opportunity']));
 
     const row = (b,cls,dotColor,tipLabel) => {
       const y=((+b.yoy_deposits||0)*100).toFixed(1), d=((+b.latest_dep||0)/1e6).toFixed(0);
@@ -1559,8 +1565,8 @@ async function loadBank(ik){
       (!metroV || b.metro===metroV)
     );
     const scopeLabel = [stateV,metroV].filter(Boolean).join(' · ');
-    renderMatrix(brs, scopeLabel);
     renderPriority(brs);
+    renderMatrix(brs, scopeLabel);
     renderCities(brs);
     renderTargets(brs);
   };

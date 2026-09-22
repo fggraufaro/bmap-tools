@@ -1150,8 +1150,8 @@ async function loadBank(ik){
     // branch_target_competitors, which turned out to be a curated top-3 sales-
     // target shortlist, not a competitor census — it undercounted competitors
     // and didn't match BMAP's Power BI Deep Dive numbers for the same branch.
-    const RADII = [0.5, 1, 2, 5, 10];
-    let selectedRadius = 5;
+    const RADII = [1, 3, 10];
+    let selectedRadius = 3;
     let compRows = [];
     const locLookup = await api('branch_opportunity_base',
       `uninumbr=eq.${b.uninumbr}&select=sims_latitude,sims_longitude,inst_key&limit=1`);

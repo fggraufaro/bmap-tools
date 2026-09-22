@@ -341,7 +341,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .hs-lbl{font-size:10px;color:var(--muted)}
 .hs-peer-lbl{font-size:10px;color:var(--muted);border-bottom:1px dashed var(--muted);cursor:default;position:relative}
 .hs-peer-lbl:hover .hs-tooltip{display:block}
-.hs-tooltip{display:none;position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text);white-space:nowrap;z-index:50;max-width:240px;white-space:normal;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.hs-tooltip{display:none;position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text);white-space:nowrap;z-index:50;width:max-content;max-width:340px;white-space:normal;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .hs-vs{font-size:13px;color:var(--muted)}
 .health-risk{border-left:1px solid var(--border);padding-left:16px;flex-shrink:0}
 .risk-val{font-size:14px;font-weight:700;color:var(--red)}
@@ -418,6 +418,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .mq-tile{border-radius:5px;padding:4px 7px;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:5px;transition:background .1s}
 .mq-tile-info{flex:1;min-width:0}
 .mq-tile-name{font-size:11px;font-weight:600;color:var(--navy);white-space:normal;word-break:break-word;line-height:1.3}
+.mq-tile-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
 .mq-tile-city{font-size:9px;color:var(--muted);margin-top:1px}
 .mq-tile-right{text-align:right;flex-shrink:0}
 .mq-tile-dep{font-size:11px;font-weight:700;color:var(--navy)}
@@ -1078,7 +1079,9 @@ async function loadBank(ik){
   g('peerYoy').textContent = avgPeerYoy.toFixed(1) + '%';
   g('yoyGap').textContent = gap != null ? (gap >= 0 ? '+' : '') + gap.toFixed(1) + 'pp' : '—';
   g('yoyGap').style.color = gapColor;
-  g('atRisk').textContent = '$' + (justifyDep/1e6).toFixed(0) + 'M at risk';
+  g('atRisk').textContent = justifyDep >= 1e9
+    ? '$' + (justifyDep/1e9).toFixed(1) + 'B at risk'
+    : '$' + (justifyDep/1e6).toFixed(0) + 'M at risk';
   g('atRisk').style.color = justifyDep > 0 ? '#A32D2D' : '#27500A';
 
   // ── TILE MATRIX ─────────────────────────────────────────────────────────────
@@ -1291,9 +1294,14 @@ async function loadBank(ik){
     const dep=((+b.latest_dep||0)/1e6).toFixed(0);
     const yoyC=+yoy>=0?'#27500A':'#A32D2D';
     const shortName=b.namebr.replace(/\b(Branch|Financial Center|Center|Office)\b/gi,'').trim().replace(/\s+/g,' ');
+    const pTier = TOP_PRIORITY_PLAYS.has(b.campaign) ? ['#B8860B','Top priority']
+      : NEXT_PLAYS.has(b.campaign) ? ['#27500A','Next']
+      : OPPORTUNITY_PLAYS.has(b.campaign) ? ['#185FA5','Opportunity']
+      : null;
+    const dotHtml = pTier ? `<span class="mq-tile-dot" style="background:${pTier[0]}" title="${pTier[1]}"></span>` : '';
     const tile=document.createElement('div');
     tile.className='mq-tile';
-    tile.innerHTML=`<div class="mq-tile-info"><div class="mq-tile-name">${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyC}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
+    tile.innerHTML=`<div class="mq-tile-info"><div class="mq-tile-name">${dotHtml}${shortName}</div><div class="mq-tile-city">${b.citybr||''}</div></div><div class="mq-tile-right"><div class="mq-tile-dep">$${dep}M</div><div class="mq-tile-yoy" style="color:${yoyC}">${+yoy>=0?'+':''}${yoy}%</div></div>`;
     tile.onclick=()=>{
       if(_selTile)_selTile.classList.remove('sel');
       tile.classList.add('sel');_selTile=tile;
@@ -1366,7 +1374,7 @@ async function loadBank(ik){
       const gap=(((+b.yoy_deposits||0)*100)-((+b.avg_comp_yoy||0)*100)).toFixed(1);
       const q=(b.matrix_quadrant||'').match(/Q\d/)?.[0]||'—';
       const play=b.campaign||'—';
-      return `<div class="pri-row ${cls}"><div class="pri-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:${dotColor}">${+y>=0?'+':''}${y}% YoY</div></div><div class="pri-tip"><b>${tipLabel}</b>Deposits: ${+y>=0?'+':''}${y}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap>=0?'+':''}${gap}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
+      return `<div class="pri-row ${cls}"><div class="pri-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${b.citybr||'—'} · ${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:${dotColor}">${+y>=0?'+':''}${y}% YoY</div></div><div class="pri-tip"><b>${tipLabel}</b>Deposits: ${+y>=0?'+':''}${y}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap>=0?'+':''}${gap}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
     };
 
     let h='';

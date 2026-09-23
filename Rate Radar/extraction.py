@@ -39,13 +39,17 @@ SAVINGS_PAT_WIDEGAP = re.compile(
 # the true start of the whole string, not pos, and silently never match here.
 HYS_LABEL_PAT = re.compile(r'high[\s-]?yield', re.I)
 
-# Fix 3: checking — catches iChecking, eChecking, Rewards Checking, Interest Checking
+# Fix 3: checking — catches iChecking, eChecking, Rewards Checking, Interest Checking.
+# The "i"/"e" prefix must actually be present (not i?e?-? as before) — every
+# component of that alternative being optional meant it silently collapsed
+# to matching bare "checking" too, exactly as broad as CHECKING_PAT_PLAIN
+# below despite being meant as the safe, specifically-labeled tier.
 CHECKING_PAT        = re.compile(
-    r'(?:i?e?-?\s*checking|interest\s+checking|reward(?:s)?\s+checking)'
+    r'(?:[ie]-?checking|interest\s+checking|reward(?:s)?\s+checking)'
     r'(?!.*?(?:cd|certificate|loan|mortgage).*?\d+\.\d+\s*%\s*APY)'
     r'[^\n]{0,60}?(\d+\.\d+)\s*%\s*APY', re.I)
 CHECKING_PAT_NEXTLN = re.compile(
-    r'(?:i?e?-?\s*checking|interest\s+checking|reward(?:s)?\s+checking)'
+    r'(?:[ie]-?checking|interest\s+checking|reward(?:s)?\s+checking)'
     r'[^\n]*\n\s*(\d+\.\d+)\s*%\s*APY', re.I)
 # Plain "checking" — broader catch for "Personal Checking 2.00% APY", still CD-guarded
 CHECKING_PAT_PLAIN  = re.compile(
@@ -84,6 +88,31 @@ TABLE_PAT_NEXTLN = re.compile(
     r'(\d{1,3})\s*[-]?\s*(month|mo|year|day)s?\b[^\n]{0,60}\n'
     r'(?![^\n]*(?:saving|checking|money\s*market))'
     r'[^\n]{0,40}?(\d+\.\d+)\s*%\s*APY', re.I)
+
+# Product-specific plausibility bands, separate from the generic 0.05-15%
+# extraction bound used to accept a regex match at all. A value inside the
+# generic bound but outside its own product's band is still kept — rejecting
+# it outright risks silently dropping a real, unusual outlier — but gets an
+# "implausible" tag so it surfaces for manual review instead of being shown
+# with the same confidence as a normal rate. Checking accounts essentially
+# never legitimately exceed ~4% even in promotional rewards-checking
+# programs; CDs and HYS products can reasonably run higher in a high-rate
+# environment. A generic 15% ceiling shared by every product is exactly how
+# a mis-extracted "6.00% checking" reads as plausible when it's actually
+# CD/promo-range for the wrong product.
+PLAUSIBLE_RANGE = {
+    "checking":           (0.0, 4.0),
+    "savings":            (0.0, 6.0),
+    "high_yield_savings": (0.0, 6.0),
+    "money_market":       (0.0, 6.0),
+    "cd":                 (0.0, 8.0),
+}
+
+
+def _is_plausible(product, val):
+    lo, hi = PLAUSIBLE_RANGE.get(product, (0.0, 15.0))
+    return lo <= val <= hi
+
 
 # Fix 4: detect jumbo/promo context to deprioritise those CD rates
 JUMBO_PAT    = re.compile(r'jumbo|special\s+rate|limited\s+time|promo|\$\s*(?:100|150|200|250)\s*[,k]|\$\s*\d{3},\d{3}', re.I)
@@ -434,53 +463,73 @@ def extract_rates(text):
     # "savings" vs "high yield savings" by what the match's own label text
     # says (Phase 5). A page with both a low plain-savings rate and a
     # separate high-yield product reports both instead of only the higher one.
-    all_sav_matches = [m for m in SAVINGS_PAT.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
-    all_sav_matches += [m for m in SAVINGS_PAT_NEXTLN.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
-    all_sav_matches += [m for m in SAVINGS_PAT_WIDEGAP.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
+    # Each match also carries a priority (0=same-line label, safest; higher
+    # numbers = progressively riskier cross-line matches) so the best pick is
+    # chosen by pattern confidence first and value only as a tiebreak within
+    # the same tier — picking the single largest number across all tiers
+    # combined is exactly how an unrelated, larger rate elsewhere on the page
+    # gets mis-attributed to this product.
+    all_sav_matches  = [(float(m.group(1)), m.start(), 0) for m in SAVINGS_PAT.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
+    all_sav_matches += [(float(m.group(1)), m.start(), 1) for m in SAVINGS_PAT_NEXTLN.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
+    all_sav_matches += [(float(m.group(1)), m.start(), 2) for m in SAVINGS_PAT_WIDEGAP.finditer(text) if 0.05 <= float(m.group(1)) <= 15]
     sav_matches, hys_matches = [], []
-    for m in all_sav_matches:
-        bucket = hys_matches if HYS_LABEL_PAT.match(text, m.start()) else sav_matches
-        bucket.append((float(m.group(1)), m.start()))
+    for val, pos, prio in all_sav_matches:
+        bucket = hys_matches if HYS_LABEL_PAT.match(text, pos) else sav_matches
+        bucket.append((val, pos, prio))
     if sav_matches:
-        best_sav = max(sav_matches, key=lambda x: x[0])
+        best_sav = min(sav_matches, key=lambda x: (x[2], -x[0]))
         r["savings"] = best_sav[0]
         tags = tag_rate_context(text, best_sav[1])
+        if not _is_plausible("savings", best_sav[0]):
+            tags = tags + ["implausible"]
         if tags:
             r["rate_tags"]["savings"] = tags
     if hys_matches:
-        best_hys = max(hys_matches, key=lambda x: x[0])
+        best_hys = min(hys_matches, key=lambda x: (x[2], -x[0]))
         r["high_yield_savings"] = best_hys[0]
         tags = tag_rate_context(text, best_hys[1])
+        if not _is_plausible("high_yield_savings", best_hys[0]):
+            tags = tags + ["implausible"]
         if tags:
             r["rate_tags"]["high_yield_savings"] = tags
 
-    # Checking — collect ALL matches with positions, take highest
-    chk_matches = [(float(m.group(1)), m.start()) for m in CHECKING_PAT.finditer(text)
+    # Checking — collect ALL matches with positions, priority by pattern
+    # specificity (0=safest labeled match ... 3=hero-banner fallback), pick
+    # the best-tier match and only break ties within a tier by value. Same
+    # reasoning as savings above — checking is the product this bit off
+    # hardest in practice (a generic "checking...X% APY" match sharing a
+    # window with a much larger CD/promo rate elsewhere on the page).
+    chk_matches = [(float(m.group(1)), m.start(), 0) for m in CHECKING_PAT.finditer(text)
                    if 0.05 <= float(m.group(1)) <= 15]
-    chk_matches += [(float(m.group(1)), m.start()) for m in CHECKING_PAT_NEXTLN.finditer(text)
+    chk_matches += [(float(m.group(1)), m.start(), 1) for m in CHECKING_PAT_NEXTLN.finditer(text)
                     if 0.05 <= float(m.group(1)) <= 15]
-    chk_matches += [(float(m.group(1)), m.start()) for m in CHECKING_PAT_PLAIN.finditer(text)
+    chk_matches += [(float(m.group(1)), m.start(), 2) for m in CHECKING_PAT_PLAIN.finditer(text)
                     if 0.05 <= float(m.group(1)) <= 15]
     if not chk_matches:
         m = HERO_CHECKING_PAT.search(text)
         if m:
-            chk_matches.append((float(m.group(1)), m.start()))
+            chk_matches.append((float(m.group(1)), m.start(), 3))
     if chk_matches:
-        best_chk = max(chk_matches, key=lambda x: x[0])
+        best_chk = min(chk_matches, key=lambda x: (x[2], -x[0]))
         r["checking"] = best_chk[0]
         tags = tag_rate_context(text, best_chk[1])
+        if not _is_plausible("checking", best_chk[0]):
+            tags = tags + ["implausible"]
         if tags:
             r["rate_tags"]["checking"] = tags
 
-    # Money market — collect ALL matches, take highest
-    mm_matches = [(float(m.group(1)), m.start()) for m in MM_PAT.finditer(text)
+    # Money market — collect ALL matches, priority by pattern specificity,
+    # same reasoning as savings/checking above.
+    mm_matches = [(float(m.group(1)), m.start(), 0) for m in MM_PAT.finditer(text)
                   if 0.05 <= float(m.group(1)) <= 15]
-    mm_matches += [(float(m.group(1)), m.start()) for m in MM_PAT_NEXTLN.finditer(text)
+    mm_matches += [(float(m.group(1)), m.start(), 1) for m in MM_PAT_NEXTLN.finditer(text)
                    if 0.05 <= float(m.group(1)) <= 15]
     if mm_matches:
-        best_mm = max(mm_matches, key=lambda x: x[0])
+        best_mm = min(mm_matches, key=lambda x: (x[2], -x[0]))
         r["money_market"] = best_mm[0]
         tags = tag_rate_context(text, best_mm[1])
+        if not _is_plausible("money_market", best_mm[0]):
+            tags = tags + ["implausible"]
         if tags:
             r["rate_tags"]["money_market"] = tags
 
@@ -541,6 +590,8 @@ def extract_rates(text):
         best_cd = max(cd_candidates, key=cd_score)
         r["cd"], r["cd_term"] = best_cd[0], best_cd[1]
         tags = tag_rate_context(text, best_cd[3])
+        if not _is_plausible("cd", best_cd[0]):
+            tags = tags + ["implausible"]
         if tags:
             r["rate_tags"]["cd"] = tags
 

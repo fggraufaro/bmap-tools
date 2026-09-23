@@ -737,6 +737,46 @@ async def validate_banks_preflight(banks):
     return warnings
 
 
+KNOWN_AGGREGATOR_DOMAINS = (
+    "bankrate.com", "depositaccounts.com", "nerdwallet.com", "smartasset.com",
+    "bestcashcow.com", "hustlermoneyblog.com", "branchspot.com",
+    "doctorofcredit.com", "mybanktracker.com",
+)
+
+
+def classify_source(bank_url, source_type, source_domain, source_note):
+    """
+    Turn the AI's self-reported source_type/source_domain (or, if it left
+    those blank, whatever source_note text it gave) into one consistent,
+    always-present label. Cross-checked against the bank's own known domain
+    rather than trusting the model's source_type flag blindly — a model
+    that says "bank_website" but names a domain that isn't the bank's is
+    still worth flagging.
+
+    Three distinct outcomes, not two — a domain that's neither the bank's
+    own nor a recognized aggregator is NOT the same finding as a genuine
+    aggregator hit. It's the "FirstBank" problem: a different domain than
+    the one on file could be a real rate-comparison site, or it could be an
+    entirely different, same-named bank — that's a data-identity question,
+    not a "check three sites and average them" quality question, and
+    labeling it "aggregator" would hide exactly the risk worth surfacing.
+    """
+    bank_domain = extract_domain(bank_url) if bank_url else ""
+    domain = (source_domain or "").strip().lower().replace("www.", "")
+    if not domain:
+        # Fall back to sniffing a domain-looking token out of the free-text
+        # note (e.g. "smartasset.com official rates page").
+        m = re.search(r'([a-z0-9-]+\.(?:com|bank|org|net))', (source_note or ""), re.I)
+        domain = m.group(1).lower() if m else ""
+    if not domain:
+        return f"Unverified source ({source_note})" if source_note else "Unverified source"
+    if bank_domain and (bank_domain in domain or domain in bank_domain):
+        return f"Bank's own site ({domain})"
+    if any(agg in domain for agg in KNOWN_AGGREGATOR_DOMAINS):
+        return f"Third-party aggregator ({domain})"
+    return f"Different domain than {bank_domain or 'the bank'}'s known site ({domain}) — verify"
+
+
 # ── v3: Preflight search for clean rate hits ─────────────────────────────────
 
 async def preflight_search(bank_name, bank_url, session, focus=None):
@@ -787,11 +827,18 @@ From the search results, extract deposit rates. Return ONLY valid JSON:
   "cd_term": <"12-month" or null>,
   "money_market": <float APY% or null>,
   "confidence": <"high" if rates found in official bank source, "low" if aggregator only>,
-  "source_note": <short string like "rollstonebank.com rates page" or null>,
+  "source_type": <"bank_website" if the rate came from the bank's own site (any page on
+   {domain or "the bank's domain"}), or "aggregator" if it came from any other site>,
+  "source_domain": <the actual domain the rate was found on, e.g. "{domain or 'rollstonebank.com'}"
+   or "bankrate.com" or "depositaccounts.com" - always the real domain, not a description>,
+  "source_note": <short string like "rates page" describing which page, or null>,
   "rebrand_hint": <string if bank appears to have rebranded, else null>
 }}
 Rules:
-- Only extract rates from official bank websites or well-known aggregators (Bankrate, DA, NerdWallet)
+- Only extract rates from official bank websites or well-known rate aggregators (Bankrate,
+  DepositAccounts) - never NerdWallet, its rate data is proprietary and off-limits
+- source_type and source_domain must always be filled in whenever any rate is found -
+  never leave them null if checking/savings/high_yield_savings/cd/money_market has a value
 - DO NOT cross-assign rates between product types
 - If only one savings-type product exists, put it in whichever field describes it, leave the other null
 - If no rates found return all nulls with confidence "low"
@@ -828,6 +875,8 @@ Rules:
             "money_market":      float(result["money_market"])       if result.get("money_market")      else None,
             "_confidence":       result.get("confidence", "low"),
             "_source_note":      result.get("source_note", ""),
+            "_source_type":      result.get("source_type") or "",
+            "_source_domain":    result.get("source_domain") or "",
             "_rebrand_hint":     result.get("rebrand_hint"),
         }
         # Only return if at least one rate found
@@ -2527,7 +2576,10 @@ async def run_crawler(banks):
                                         result["note"] = (result.get("note","") +
                                             f" | {k} from search retry: {retry[k]}").strip(" |")
                             if filled:
-                                src = retry.get("_source_note","search")
+                                src = classify_source(bank.get("bank_url",""),
+                                                       retry.get("_source_type",""),
+                                                       retry.get("_source_domain",""),
+                                                       retry.get("_source_note",""))
                                 crawl_state["log"].append(
                                     f"    [Search-retry] ✓ recovered {', '.join(filled)} ({src})")
                                 if not result.get("source_url"):
@@ -2713,7 +2765,8 @@ def _build_result_from_preflight(bank, pre):
     if pre.get("checking"):rate_parts.append(f"Checking {pre['checking']:.2f}%")
     if rate_parts: parts.append(", ".join(rate_parts))
     if not parts: parts.append("Rates not publicly listed")
-    src = pre.get("_source_note","search")
+    src = classify_source(bank.get("bank_url",""), pre.get("_source_type",""),
+                           pre.get("_source_domain",""), pre.get("_source_note",""))
     rssdid = bank.get("RSSDID") or ""
     cr, prev_cr = {}, {}
     if rssdid:

@@ -79,6 +79,7 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .panel-t{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em}
 .panel-tag{font-size:10px;color:var(--muted)}
 #map{height:600px;width:100%}
+.leaflet-control-attribution{font-size:8px;padding:0 4px;line-height:1.4}
 .map-wrap{position:relative;overflow:hidden}
 .map-filters{padding:8px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px}
 .map-filters select{border:1.5px solid var(--border);border-radius:7px;padding:6px 10px;font-size:11.5px;font-family:'Inter',sans-serif;color:var(--navy);background:#fff}
@@ -742,7 +743,7 @@ function depositRadiusScale(values, minR, maxR) {
 }
 function initMap() {
   map = L.map('map', { zoomControl: true, attributionControl: false }).setView([37.8, -96], 4);
-  L.control.attribution({ prefix: false }).addTo(map);
+  L.control.attribution({ prefix: false, position: 'topleft' }).addTo(map);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', subdomains: 'abc', maxZoom: 19 }).addTo(map);
   branchLayer = L.layerGroup().addTo(map);
   competitorLayer = L.layerGroup().addTo(map);

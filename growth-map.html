@@ -33,6 +33,7 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 
 .body{position:relative;height:calc(100vh - 60px)}
 #map{position:absolute;inset:0;background:#e8ebee}
+.leaflet-control-attribution{font-size:8px;padding:0 4px;line-height:1.4}
 
 .panel{position:absolute;top:14px;left:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);width:220px;font-size:12.5px}
 .panel-hd{padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -500,7 +501,7 @@ function depositRadiusScale(values,minR,maxR){
 
 function initMap(){
   map=L.map('map',{zoomControl:true,attributionControl:false}).setView([37.8,-96],4);
-  L.control.attribution({prefix:false}).addTo(map);
+  L.control.attribution({prefix:false,position:'topleft'}).addTo(map);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; OpenStreetMap contributors',subdomains:'abc',maxZoom:19
   }).addTo(map);

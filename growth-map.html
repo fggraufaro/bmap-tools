@@ -46,7 +46,6 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 
 .legend{position:absolute;bottom:14px;left:14px;z-index:1000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:10px 14px;font-size:11px;max-width:220px;display:none}
 .legend.on{display:block}
-#legendTopCities{bottom:176px}
 .legend-title{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .legend-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
@@ -526,12 +525,40 @@ function initMap(){
   // permanently, independent of toggle order.
   map.createPane('personaPane');
   map.getPane('personaPane').style.zIndex=350;
+  // Same click-eating problem as personaPane above, same fix: the Top Cities
+  // highlight circles (showTopCityHeatmap's L.circle per city) also default
+  // to the shared overlayPane, so toggling City on after Branches put its
+  // translucent halo on top and ate clicks meant for the branch dot
+  // underneath -- confirmed live (Panama City Beach, FL) with City + Persona
+  // both on. Below personaPane too so Branches > Persona > Top Cities holds
+  // regardless of toggle order.
+  map.createPane('topCitiesPane');
+  map.getPane('topCitiesPane').style.zIndex=340;
   radiusLayer=L.layerGroup().addTo(map);
   heatLayer=L.layerGroup();
+
+  // Zones/Priority/Persona/Top Cities legends all anchor bottom-left and any
+  // combination can be on at once (Zones+Priority are mutually exclusive,
+  // but either can coexist with Persona and/or Top Cities) -- Persona's list
+  // alone runs ~12 items, taller than a fixed pixel offset can account for,
+  // so each toggle re-stacks whichever legends are actually .on by their
+  // real rendered height instead of guessing a fixed gap. Confirmed live:
+  // Branches+Persona+Top Cities together were overlapping into one
+  // unreadable block before this.
+  function layoutLegends(){
+    let offset=14;
+    ['legendZones','legendPriority','legendPersona','legendTopCities'].forEach(id=>{
+      const el=g(id);
+      if(!el.classList.contains('on')) return;
+      el.style.bottom=offset+'px';
+      offset+=el.getBoundingClientRect().height+14;
+    });
+  }
 
   g('toggleBranches').addEventListener('change',e=>{
     if(e.target.checked){branchLayer.addTo(map);g('legendZones').classList.add('on');}
     else{map.removeLayer(branchLayer);g('legendZones').classList.remove('on');}
+    layoutLegends();
   });
   g('toggleCompetitors').addEventListener('change',e=>{
     if(e.target.checked) competitorLayer.addTo(map); else map.removeLayer(competitorLayer);
@@ -546,18 +573,26 @@ function initMap(){
       g('legendPriority').classList.remove('on');
       if(g('toggleBranches').checked) g('legendZones').classList.add('on');
     }
+    layoutLegends();
   });
   g('togglePersona').addEventListener('change',async e=>{
     if(e.target.checked){
       await renderPersonaLayer(getFilteredBranches());
       personaLayer.addTo(map);g('legendPersona').classList.add('on');
     } else {map.removeLayer(personaLayer);g('legendPersona').classList.remove('on');}
+    layoutLegends();
   });
   g('toggleHeatmap').addEventListener('change',e=>{
     if(e.target.checked){showTopCityHeatmap();g('legendTopCities').classList.add('on');}
     else{hideTopCityHeatmap();g('legendTopCities').classList.remove('on');}
+    layoutLegends();
   });
   g('legendZones').classList.add('on');
+  layoutLegends();
+  // Inter loads async (display=swap) -- the fallback-font layout used to
+  // compute the stack above can be a different height than the real one,
+  // so re-stack once the swap actually happens.
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(layoutLegends);
 
   g('storyBtn').addEventListener('click',generateMarketStory);
 
@@ -702,6 +737,7 @@ async function showTopCityHeatmap(){
       );
       const fillOpacity=Math.max(0.06, 0.18-(city.rank-1)*0.035);
       L.circle([centerLat,centerLon],{
+        pane:'topCitiesPane',
         radius:(spreadMi+14)*1609.34, // bigger, lighter halo -- a highlight, not a boundary
         color:style.border,weight:1.5,opacity:0.45,fillColor:style.fill,fillOpacity
       }).bindTooltip(`${style.label} #${city.rank} — ${city.name}`,{sticky:true}).addTo(heatLayer);

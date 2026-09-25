@@ -172,6 +172,11 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
       <span class="lbl">Priority Branches</span>
       <span class="count" id="countPriority">—</span>
     </div>
+    <div class="layer-row" id="rowYoyDelta">
+      <input type="checkbox" id="toggleYoyDelta">
+      <span class="dot" style="background:var(--green)"></span>
+      <span class="lbl">YoY Change (vs 2025)</span>
+    </div>
     <div class="layer-row" id="rowPersona">
       <input type="checkbox" id="togglePersona">
       <span class="dot" style="background:#6366F1"></span>
@@ -216,6 +221,13 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
   <div class="legend" id="legendPersona">
     <div class="legend-title">Zip Persona</div>
     <div id="legendPersonaItems"></div>
+  </div>
+
+  <div class="legend" id="legendYoy">
+    <div class="legend-title">Opportunity Score vs 2025</div>
+    <div class="legend-item"><span class="legend-sw" style="background:var(--green)"></span>Improved</div>
+    <div class="legend-item"><span class="legend-sw" style="background:var(--red)"></span>Declined</div>
+    <div class="legend-item"><span class="legend-sw" style="background:#8B93A0"></span>New branch (no 2025 data)</div>
   </div>
 
   <div class="card" id="zipCard">
@@ -328,6 +340,8 @@ let map, branchLayer, competitorLayer, personaLayer, radiusLayer, heatLayer;
 let topoData=null, branches=[], competitors=[], coordMap={}, selInstKey=null, ddIdx=-1, ddItems=[];
 let zipCityCache={};
 let priorityHighlightOn=false;
+let yoyDeltaOn=false;
+let yoyDeltaLayer=null; // small badge markers, separate from branchLayer so toggling doesn't force a full circle-marker redraw
 let stateVal='', cityVal='';
 const ZONE_COLOR={Invest:'#66CC99',Analyze:'#02A7C2',Defend:'#854F0B',Justify:'#B84A3E'};
 const PERSONA_COLOR={
@@ -536,6 +550,7 @@ function initMap(){
   map.getPane('topCitiesPane').style.zIndex=340;
   radiusLayer=L.layerGroup().addTo(map);
   heatLayer=L.layerGroup();
+  yoyDeltaLayer=L.layerGroup();
 
   // Zones/Priority/Persona/Top Cities legends all anchor bottom-left and any
   // combination can be on at once (Zones+Priority are mutually exclusive,
@@ -547,7 +562,7 @@ function initMap(){
   // unreadable block before this.
   function layoutLegends(){
     let offset=14;
-    ['legendZones','legendPriority','legendPersona','legendTopCities'].forEach(id=>{
+    ['legendZones','legendPriority','legendYoy','legendPersona','legendTopCities'].forEach(id=>{
       const el=g(id);
       if(!el.classList.contains('on')) return;
       el.style.bottom=offset+'px';
@@ -572,6 +587,18 @@ function initMap(){
     } else {
       g('legendPriority').classList.remove('on');
       if(g('toggleBranches').checked) g('legendZones').classList.add('on');
+    }
+    layoutLegends();
+  });
+  g('toggleYoyDelta').addEventListener('change',e=>{
+    yoyDeltaOn=e.target.checked;
+    if(yoyDeltaOn){
+      drawBranches(getFilteredBranches());
+      yoyDeltaLayer.addTo(map);
+      g('legendYoy').classList.add('on');
+    } else {
+      map.removeLayer(yoyDeltaLayer);
+      g('legendYoy').classList.remove('on');
     }
     layoutLegends();
   });
@@ -1287,7 +1314,7 @@ function drawBranches(list){
     m.bindPopup(`
       <div class="pop-t">${b.namebr}</div>
       <div class="pop-r">${b.citybr}, ${b.stalpbr} ${b.zipbr||''}</div>
-      <div class="pop-r">Zone: <b>${b.opportunity_zone||'—'}</b> · Score: <b>${(+b.opportunity_score||0).toFixed(1)}</b></div>
+      <div class="pop-r">Zone: <b>${b.opportunity_zone||'—'}</b> · Score: <b>${(+b.opportunity_score||0).toFixed(1)}</b>${yoyDeltaBadgeText(b)}</div>
       <div class="pop-r">Play: <b>${b.campaign||'—'}</b>${tier?` · <span style="color:${PRIORITY_TIER_COLOR[tier]}">${PRIORITY_TIER_LABEL[tier]}</span>`:''}</div>
       <div class="pop-r">Deposits: <b>$${((+b.latest_dep||0)/1e6).toFixed(1)}M</b> · YoY: <b>${((+b.yoy_deposits||0)*100).toFixed(1)}%</b></div>
       ${audience?`<div class="pop-r" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">🎯 <b>${audience}</b></div>`:''}
@@ -1298,6 +1325,48 @@ function drawBranches(list){
   });
   g('countBranches').textContent=list.length;
   g('countPriority').textContent=priorityCount;
+  if(yoyDeltaOn) drawYoyDeltaBadges(list);
+}
+
+// Small " (▲ +8.1 vs 2025)" / " (▼ -3.2 vs 2025)" / " (New)" fragment for the
+// popup — shown regardless of the YoY toggle, since it's cheap context once
+// you've already opened a branch's popup.
+function yoyDeltaBadgeText(b){
+  if(b.is_new_branch) return ' <span style="color:var(--muted);font-weight:400">(New)</span>';
+  const d=+b.score_delta;
+  if(!isFinite(d) || b.score_delta==null) return '';
+  const up=d>=0;
+  return ` <span style="color:${up?'var(--green)':'var(--red)'};font-weight:400">(${up?'▲':'▼'} ${up?'+':''}${d.toFixed(1)} vs 2025)</span>`;
+}
+
+// YoY delta overlay — small floating badges near each branch dot, only drawn
+// when the toggle is on (see rationale at the toggleYoyDelta listener: every
+// other optional layer in this map is toggle-gated, so badges on all 2000
+// branches by default would be the odd one out and clutter the base view).
+function drawYoyDeltaBadges(list){
+  yoyDeltaLayer.clearLayers();
+  list.forEach(b=>{
+    if(!b.sims_latitude || !b.sims_longitude) return;
+    let label, bg;
+    if(b.is_new_branch){
+      label='New'; bg='#8B93A0';
+    } else {
+      const d=+b.score_delta;
+      if(!isFinite(d) || b.score_delta==null) return;
+      bg = d>=0 ? '#639922' : '#D85A30';
+      label = (d>=0?'+':'')+d.toFixed(1);
+    }
+    const m=L.marker([b.sims_latitude,b.sims_longitude],{
+      icon:L.divIcon({
+        className:'',
+        iconSize:null,
+        iconAnchor:[-10,-10],
+        html:`<div style="display:inline-block;background:${bg};color:#fff;font-weight:700;font-size:10px;padding:1px 5px;border-radius:99px;white-space:nowrap;border:1px solid rgba(0,0,0,.25);box-shadow:0 1px 3px rgba(0,0,0,.35);font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums">${label}</div>`
+      }),
+      interactive:false
+    });
+    m.addTo(yoyDeltaLayer);
+  });
 }
 
 function drawCompetitors(list){
@@ -1393,6 +1462,7 @@ async function loadBank(ik){
   branchLayer.clearLayers();competitorLayer.clearLayers();personaLayer.clearLayers();
   g('togglePersona').checked=false; map.removeLayer(personaLayer); g('legendPersona').classList.remove('on');
   g('togglePriority').checked=false; priorityHighlightOn=false; g('legendPriority').classList.remove('on');
+  g('toggleYoyDelta').checked=false; yoyDeltaOn=false; yoyDeltaLayer.clearLayers(); map.removeLayer(yoyDeltaLayer); g('legendYoy').classList.remove('on');
   closeRadiusCard();
   g('toggleHeatmap').checked=false; hideTopCityHeatmap(); g('legendTopCities').classList.remove('on'); topCitiesInfo=null;
   topoData=null;
@@ -1402,6 +1472,25 @@ async function loadBank(ik){
     `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,opportunity_score,opportunity_zone,matrix_quadrant,campaign,priority_tier,priority_score,latest_dep,yoy_deposits,deposit_size_norm,avg_comp_yoy,total_deposits_10mi&limit=2000`);
   branches = branches.filter(b=>b.sims_latitude && b.sims_longitude);
   populateFilters();
+
+  // YoY delta overlay data — fetched alongside branches so it's ready the
+  // moment the user flips the toggle, not a separate slow round-trip on
+  // first click. Server-side view (vw_branch_opportunity_yoy_delta) does the
+  // 2026-vs-2025 join, so this is just one small merge, not a second full
+  // history fetch.
+  const brUninumbrs=branches.map(b=>b.uninumbr).filter(Boolean);
+  const yoyMap={};
+  for(let i=0;i<brUninumbrs.length;i+=400){
+    const chunk=brUninumbrs.slice(i,i+400);
+    const rows=await api('vw_branch_opportunity_yoy_delta',
+      `uninumbr=in.(${chunk.join(',')})&select=uninumbr,score_delta,is_new`);
+    (Array.isArray(rows)?rows:[]).forEach(r=>yoyMap[r.uninumbr]=r);
+  }
+  branches.forEach(b=>{
+    const y=yoyMap[b.uninumbr];
+    b.score_delta = y ? y.score_delta : null;
+    b.is_new_branch = y ? y.is_new : false;
+  });
 
   topCitiesInfo=computeTopCities(branches, 3);
 

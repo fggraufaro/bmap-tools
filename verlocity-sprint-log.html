@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 
 <title>Verlocity Sprint Log</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,560;9..144,650&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -157,6 +157,92 @@
       <div class="sprint-card">
         <div class="sprint-hdr">
           <div class="sprint-id">
+            <span class="sprint-num">Sprint 7</span>
+            <span class="sprint-range num">Sep 25, 2026</span>
+          </div>
+          <div class="sprint-focus">Platform-wide 2026 SOD refresh, live end to end + the pipeline command center (a16)</div>
+        </div>
+        <div class="sprint-body">
+          <div class="sprint-col shipped">
+            <div class="sprint-col-t"><span class="dot"></span>Shipped</div>
+            <ul>
+              <li><b>Full 2026 annual FDIC SOD refresh, run end to end and verified live at every stage.</b> <code class="num">raw.raw_sod</code> (2026) → <code class="num">geo.branches_master_v2</code> rebuilt via a new procedure, <code class="num">geo.refresh_branches_master_v2(p_year)</code> (94,076 rows: 73,049 bank + 21,027 CU) → <code class="num">geo.branch_competitors_tiered_v1</code> / <code class="num">branch_radius_stats_tiered_v1</code> rebuilt (3,923,975 / 94,076 rows) → <code class="num">analytics.branch_opportunity_base</code> rebuilt (94,072 rows, fully scored/zoned/campaign-assigned, 100% year=2026) → <code class="num">analytics.branch_target_competitors</code> rebuilt via the new <code class="num">analytics.refresh_branch_target_competitors()</code> (256,384 rows, 100% match to the 2026 branch universe, up from 97.7% before). All six tables archived to new <code class="num">*_history</code> tables for year=2026 via <code class="num">public.archive_bmap_year_snapshot(2026)</code>. Every row count above independently re-verified by Session 4 directly against Supabase before being marked done here.</li>
+              <li><code class="num">geo.branch_competitors_10mi_v2</code> rebuilt then capped to the top 50 nearest competitors per branch, per Francisco's design call (12.6M → 3,428,648 rows) — confirmed zero effect on scoring, since <code class="num">inverted_density</code> reads from the tiered system, not this table.</li>
+              <li>a14 extended: <code class="num">raw.raw_cu_branches</code> (branch-level CU locations, a hard dependency of <code class="num">branches_master_v2</code>) had zero ingestion script despite the table already existing — added to <code class="num">ingestion/ncua_fs220_ingest.py</code>, run live for the 2026-06 cycle. Verified: 22,837 rows (up from 22,068 at the prior cycle).</li>
+              <li><b>a16 done, built beyond original scope per Francisco's explicit call:</b> a manual click-to-run panel, not blind auto-scheduling, since sources refresh on different real-world cadences. Separate Railway service <code class="num">bmap-pipeline-command-center</code> (own password, not the Hub's); backend at <code class="num">ingestion/pipeline_api.py</code> + <code class="num">ingestion/pipeline_steps.py</code> on <code class="num">feature/data-ingestion</code>; frontend at <code class="num">bmap-tools/command-center.html</code> on <code class="num">main</code>. Verified live end to end: login, step trigger, status polling via <code class="num">public.pipeline_jobs</code>, job history persistence — all against the real deployed service, not just locally.</li>
+              <li>Dead <code class="num">public.refresh_spatial_tables()</code> (referenced tables that no longer existed, would have errored on call) superseded with working replacements: <code class="num">geo.refresh_branch_competitors_10mi_v2()</code> / <code class="num">geo.refresh_branch_radius_stats_10mi_v2()</code>, live and tested.</li>
+              <li>Missing <code class="num">ref.dim_institutions</code> refresh path fixed at the root, twice, by removing the dependency rather than patching it — the tiered competitor system and <code class="num">branch_target_competitors</code> now both batch off <code class="num">branch_opportunity_base</code>'s own distinct <code class="num">inst_key</code>s directly, which is always current.</li>
+              <li>Growth Map YoY delta overlay (2026 vs 2025), <code class="num">bmap-tools</code> commit <code class="num">bd87abd</code>.</li>
+            </ul>
+          </div>
+          <div class="sprint-col found">
+            <div class="sprint-col-t"><span class="dot"></span>Found</div>
+            <ul>
+              <li><b>Two real production blockers, invisible via the Supabase MCP tool's owner-level access, surfaced only because the command center called these procedures the real way (PostgREST/service_role, not MCP):</b> (1) PostgREST's <code class="num">authenticator</code> role has a hard, unfixable-from-inside-a-function 8-second <code class="num">statement_timeout</code> — every long rebuild procedure this sprint would have failed via any real caller (Railway, cron) despite working fine at owner level. Fixed with a direct Postgres connection (<code class="num">SUPABASE_DB_URL</code>), not a <code class="num">SECURITY DEFINER</code> + <code class="num">pg_cron</code> workaround that was correctly self-blocked as a privilege-escalation surface. (2) <code class="num">service_role</code> was missing INSERT/UPDATE/DELETE/TRUNCATE on 7 tables (6 new history tables + 2 live tiered-system tables) — every refresh procedure this sprint had only ever been tested at owner level, never the real <code class="num">service_role</code> path.</li>
+              <li>A live regression scare that turned out not to be one: <code class="num">geo.branches_master_v2</code>'s CU deposits (the same institution-wide total repeated on every branch) looked like a55/a63's fix had reverted — one CU's branch count changed 9→10, no backup table existed anywhere to compare against, Session 1 had independently recorded 9 distinct per-branch values earlier this week. Resolved by finding a11/a63's actual, documented intent in a live code comment (<code class="num">growth-map.html</code>), attributed directly to Francisco on 2026-09-18, the exact date in question: NCUA doesn't publish real per-branch CU deposit data the way FDIC SOD does for banks, so a55/a63's real fix was to stop <i>fabricating</i> a per-branch split, not to compute a better one. The current flat-total state is correct, not reverted — Session 1's earlier "9 distinct values" observation predated the fix landing that same day.</li>
+              <li>A draft script found in Downloads (<code class="num">rebuild_branches_master_v2.sql</code>, header says "not executed anywhere") matches the live table's CU <code class="num">deposit_is_estimated</code>/NULL fingerprint exactly, including its specific "Future %" <code class="num">SiteName</code> edge case — strong evidence an earlier revision of it (or equivalent logic) already ran once, though the exact mechanism and timing were never fully pinned down.</li>
+            </ul>
+          </div>
+          <div class="sprint-col open">
+            <div class="sprint-col-t"><span class="dot"></span>Open questions</div>
+            <ul>
+              <li>The command center's "Run all" chained-sequence button — individual steps tested live, the full chain not yet clicked end to end.</li>
+              <li>GDELT ingestion — standalone, known slow/rate-limited, deliberately left out of scope this pass.</li>
+              <li>The old, now-dead <code class="num">public.refresh_spatial_tables()</code> function still physically exists, unused — small cleanup item to drop it, not urgent.</li>
+              <li><code class="num">ref.dim_institutions</code> was found to be missing 260 real institutions when checked. The two specific bugs that depended on it are fixed by removing the dependency, but a broader audit of who else reads that table wasn't done — could still be worth its own action item.</li>
+              <li><b>Process gap, flagged directly by Session 1:</b> this sprint's rebuilds ran without Session 4 sign-off per the production-safety rule, because Session 1 didn't have <code class="num">SESSION_COORDINATION.md</code> loaded until partway through the day. Each swap independently followed the project's backup-first + row-count-guard pattern anyway, and every number above was re-verified independently by Session 4 before being recorded here — but the sign-off step itself was skipped, not just delayed.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">Core data pipeline · full 2026 refresh live, a13–a17 all closed, real production gaps found only by testing the real service_role path</span>
+        </div>
+      </div>
+
+      <div class="sprint-card">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
+            <span class="sprint-num">Sprint 9</span>
+            <span class="sprint-range num">Sep 19, 2026</span>
+          </div>
+          <div class="sprint-focus">Live first-time-CMO stress test on Opportunity View + the Hub</div>
+        </div>
+        <div class="sprint-body">
+          <div class="sprint-col shipped">
+            <div class="sprint-col-t"><span class="dot"></span>Win</div>
+            <ul>
+              <li>Live test on the real deployment, real bank, caught 7 real issues before a customer did.</li>
+              <li>6 actions opened and dispatched same day (a66–a71).</li>
+            </ul>
+          </div>
+          <div class="sprint-col found">
+            <div class="sprint-col-t"><span class="dot"></span>Risk</div>
+            <ul>
+              <li><b>Opportunity View and the Hub show opposite deposit-growth signs for the same bank, same quarter.</b> Trust-breaking if a customer sees it. (a66)</li>
+              <li>Same branch quadrant shows two different recommended plays depending which screen you're on. (a66)</li>
+              <li>No way to compare branches side by side; only 1 of 38 qualifying branches ever shown per tier. (a67)</li>
+              <li>Flagship "Game Plan" export displays raw markdown instead of formatted text — cheap fix. (a68)</li>
+              <li>The branches most needing help get no recommended action at all — needs your call, not an engineering fix. (a69)</li>
+              <li>The two tools use different scoring language, forcing a customer to translate between them. (a70)</li>
+              <li>Confusing empty states, plus the map hijacks scroll. (a71)</li>
+            </ul>
+          </div>
+          <div class="sprint-col open">
+            <div class="sprint-col-t"><span class="dot"></span>Blocker</div>
+            <ul>
+              <li>a66 root cause not yet found — holding any new demo until it is.</li>
+              <li>a59 (rate engine) still stalled, unscoped.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sprint-footer">
+          <span class="rdy-tag none">6 actions open, Session 3 on a66 first</span>
+        </div>
+      </div>
+
+      <div class="sprint-card">
+        <div class="sprint-hdr">
+          <div class="sprint-id">
             <span class="sprint-num">Sprint 8</span>
             <span class="sprint-range num">Sep 13–14, 2026</span>
           </div>
@@ -290,34 +376,6 @@
         </div>
         <div class="sprint-footer">
           <span class="rdy-tag none">Not started — full detail lives in Open Actions on the main Roadmap</span>
-        </div>
-      </div>
-
-      <div class="sprint-card planned">
-        <div class="sprint-hdr">
-          <div class="sprint-id">
-            <span class="sprint-num">Sprint 7</span>
-            <span class="sprint-range num">Planned · following</span>
-          </div>
-          <div class="sprint-focus">Automate the core data pipeline, add free datasets</div>
-        </div>
-        <div class="sprint-body single-col">
-          <div class="sprint-col planned">
-            <div class="sprint-col-t"><span class="dot"></span>Committed</div>
-            <ul>
-              <li>Audited the current pipeline first — found there's no ingestion code anywhere for <code class="num">raw.raw_sod</code>, <code class="num">raw.raw_income</code>, <code class="num">raw.raw_population</code>, <code class="num">raw.raw_zhvi</code>, or <code class="num">analytics.bank_financial_snapshot_latest</code>. Every refresh today is a manual CSV load; <code class="num">pg_cron</code> is installed on the Supabase project but has zero scheduled jobs.</li>
-              <li>Build the <b>Zillow ZHVI</b> ingestion script first (monthly) — the most stale source today (~5 months behind) and the simplest to automate.</li>
-              <li>Build the <b>Call Reports / UBPR / NCUA FS220</b> ingestion script (quarterly) — replaces <code class="num">call_reports.py</code>'s manual folder-drop + hardcoded quarter-list pattern.</li>
-              <li>Build <b>FDIC SOD</b> and <b>Census ACS</b> ingestion scripts (annual) — lower urgency since current lag is small, but needed to close out full automation.</li>
-              <li>Wire real scheduling via <code class="num">pg_cron</code> or a Railway cron service, and auto-invoke <code class="num">refresh_bmap_after_upload</code> / <code class="num">refresh_branch_opportunity_base</code> after each load instead of manual calls.</li>
-              <li>Provision a Census API key — none of the 5 sources have programmatic credentials set up anywhere today.</li>
-              <li>Add 6 new free datasets, each mapped to a specific scoring improvement (full detail in Open Actions on the main Roadmap): <b>IRS SOI</b> migration data (leading indicator ahead of SOD deposit growth), <b>HMDA</b> loan data (competitor mortgage-share signal), <b>CFPB complaints</b> (real-time competitor attrition risk), <b>Census Business Formation Statistics</b> (leading indicator vs. the static SMB snapshot), <b>BLS QCEW</b> (refreshes the persona layer's stale ACS occupation data), and <b>FDIC enforcement actions</b> (free early-warning layer on capital-ratio vulnerability scoring).</li>
-              <li>Correct CLAUDE.md's reference to <code class="num">schedule_rate_radar.py</code> — confirmed it doesn't exist in either repo or their git history.</li>
-            </ul>
-          </div>
-        </div>
-        <div class="sprint-footer">
-          <span class="rdy-tag none">Not started — paid options (S&amp;P Global/SNL deposit rankings, Placer.ai/Advan foot traffic) researched but deliberately left out of this scope, budget/vendor-gated</span>
         </div>
       </div>
 

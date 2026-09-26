@@ -941,6 +941,7 @@ window.selBank = null; window.bankData = null;
 // size/opportunity_score alone while Opportunity View blends in pool size.
 // Rebuilt from allComp (already fetched in loadBank, no extra network call).
 let branchPoolM = {};
+let branchYoyMap = {};
 function cardRank(b){
   return (+b.opportunity_score||0) * Math.log10((branchPoolM[b.uninumbr]||0)+1);
 }
@@ -1040,7 +1041,7 @@ g('si').addEventListener('blur',()=>setTimeout(closeDd,150));
 
 async function loadBank(ik){
   show('bp');set('bn','Loading...');
-  const [rows,br,tgt,compRaw,bankFinRows]=await Promise.all([
+  const [rows,br,tgt,compRaw,bankFinRows,yoyRows]=await Promise.all([
     api('branch_opportunity_base',`inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,market_growth_score,inv_density_norm_winsor`),
     api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,namefull,citybr,stalpbr,zipbr,metro,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,total_population,adult_population,yoy_pop_growth,zhvi_yoy_pct,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,smb_index,total_deposits_10mi&order=opportunity_score.desc`),
     api('vw_network_top_targets',`my_inst_key=eq.${ik}&select=target_institution,branches_in_radius,avg_vuln_score,avg_yoy_pct,target_roa,target_efficiency_ratio,dominant_zone&order=network_rank.asc&limit=3`),
@@ -1051,11 +1052,18 @@ async function loadBank(ik){
     // where the alternative (running branches_within_radius for every
     // branch) isn't practical to do live for a whole network on page load.
     api('branch_target_competitors',`my_inst_key=eq.${ik}&select=my_branch_id,target_inst_key,target_namefull,vuln_score,target_dep_m,target_yoy_pct,target_zone,target_uninumbr,target_roa&order=vuln_score.desc&limit=5000`),
-    api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=dep_yoy_pct`)
+    api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=dep_yoy_pct`),
+    // 2026 vs 2025 per-branch movement -- server-side view (joins live
+    // scoring against the 2025 pre-refresh archive), so the browser never
+    // diffs two years of data itself. First year this is possible at all;
+    // the archive didn't exist before this year's SOD refresh.
+    api('vw_branch_opportunity_yoy_delta',`inst_key=eq.${ik}&select=uninumbr,score_delta,zone_2025,zone_2026,play_2025,play_2026,is_new`)
   ]);
   allBr=br||[];allComp=compRaw||[];bankData={rows,allBr,tgt:tgt||[],ik};
   branchPoolM = {};
   allComp.forEach(r=>{ branchPoolM[r.my_branch_id] = (branchPoolM[r.my_branch_id]||0) + (+r.target_dep_m||0); });
+  branchYoyMap = {};
+  (yoyRows||[]).forEach(r=>{ branchYoyMap[r.uninumbr] = r; });
   if(!rows||!rows.length){set('bn','No branch data found');return;}
   const tot=rows.reduce((a,r)=>a+(+r.latest_dep||0),0);
   const avg=v=>rows.reduce((a,r)=>a+(+r[v]||0),0)/rows.length;
@@ -1400,7 +1408,24 @@ async function loadBank(ik){
       const gap=(((+b.yoy_deposits||0)*100)-((+b.avg_comp_yoy||0)*100)).toFixed(1);
       const q=(b.matrix_quadrant||'').match(/Q\d/)?.[0]||'—';
       const play=b.campaign||'—';
-      return `<div class="pri-row ${cls}"><div class="pri-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${b.citybr||'—'} · ${play} · ${q} · ${b.opportunity_zone}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:${dotColor}">${+y>=0?'+':''}${y}% YoY</div></div><div class="pri-tip"><b>${tipLabel}</b>Deposits: ${+y>=0?'+':''}${y}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap>=0?'+':''}${gap}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}</div></div>`;
+      // 2026 vs 2025 movement -- first year this comparison is possible at
+      // all, since the pre-refresh archive only started existing this SOD
+      // cycle. Compact badge inline in the row; full before/after only in
+      // the tooltip, to keep the row itself scannable.
+      const yoy=branchYoyMap[b.uninumbr];
+      const yoyBadge = !yoy ? ''
+        : yoy.is_new ? ` · <span style="color:#5C6B75">new 2026</span>`
+        : yoy.score_delta==null ? ''
+        : (+yoy.score_delta>=0
+            ? ` · <span style="color:#27500A">▲${(+yoy.score_delta).toFixed(1)} YoY</span>`
+            : ` · <span style="color:#A32D2D">▼${Math.abs(+yoy.score_delta).toFixed(1)} YoY</span>`);
+      const movedZone = yoy && yoy.zone_2025 && yoy.zone_2025!==yoy.zone_2026;
+      const movedPlay = yoy && yoy.play_2025 && yoy.play_2025!==yoy.play_2026;
+      const yoyTip = !yoy ? ''
+        : yoy.is_new ? '<br><b>New in 2026</b> — no 2025 branch to compare'
+        : (movedZone||movedPlay) ? `<br><b>2025 → 2026:</b> ${yoy.zone_2025||'—'} · ${yoy.play_2025||'—'} → ${yoy.zone_2026||'—'} · ${yoy.play_2026||'—'}`
+        : '';
+      return `<div class="pri-row ${cls}"><div class="pri-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="pri-name">${b.namebr}</div><div class="pri-sub">${b.citybr||'—'} · ${play} · ${q} · ${b.opportunity_zone}${yoyBadge}</div></div><div style="text-align:right"><div class="pri-dep">$${d}M</div><div class="pri-yoy" style="color:${dotColor}">${+y>=0?'+':''}${y}% YoY</div></div><div class="pri-tip"><b>${tipLabel}</b>Deposits: ${+y>=0?'+':''}${y}% vs peers ${+cYoy>=0?'+':''}${cYoy}%<br>Gap: ${+gap>=0?'+':''}${gap}pp vs competitors<br>Score: ${(+b.opportunity_score).toFixed(1)} · Play: ${play}${yoyTip}</div></div>`;
     };
 
     let h='';

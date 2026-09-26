@@ -1,4 +1,5 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
 
 <title>Verlocity Platform Roadmap</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,560;9..144,650&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -296,14 +297,12 @@
     .sprint-focus{text-align:left;}
   }
 
-  /* ── Access gate — same shared growth-stack password as Hub, Opportunity
-     View, Growth Map, and Rate Radar Validator, checked the same way: a
-     POST to the Railway /auth/login endpoint, not a value compared in
-     page source. This page has no data of its own behind that endpoint,
-     but the endpoint only validates a password and returns a token — it
-     doesn't need to be tied to a specific page's data to be a real check.
-     Session persists via the same 'hub_token' key, so a browser already
-     signed into another tool skips this gate too. Skipped
+  /* ── Access gate — a passkey distinct from the shared growth-stack code
+     (Hub, Opportunity View, Growth Map, Rate Radar Validator all use the
+     one Railway-verified team password; the Roadmap uses its own). This
+     page has no backend of its own, so the check is client-side only —
+     readable in page source by anyone who looks, same tradeoff as the
+     internal picker gate that used to live on Opportunity View. Skipped
      automatically when rendered inside a Claude Artifact, since that
      surface already has its own real access control (private, owner-
      shared) — a gate there would just be able to lock the owner out. ── */
@@ -326,7 +325,7 @@
 </div>
 <script>
 (function(){
-  const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+  const ROADMAP_PASSKEY = '02191994';
   const g = id => document.getElementById(id);
 
   function afterAuth(){
@@ -336,27 +335,14 @@
 
   window.checkAccess = function checkAccess(){
     const input = g('tokenInput').value.trim();
-    const btn = document.querySelector('#authGate button');
-    if (btn) btn.disabled = true;
-    fetch(`${HUB_API}/auth/login`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({password: input})
-    }).then(async r => {
-      if (!r.ok) {
-        g('authErr').style.display = 'block';
-        g('tokenInput').value = '';
-        g('tokenInput').focus();
-        if (btn) btn.disabled = false;
-        return;
-      }
-      const data = await r.json();
-      try { sessionStorage.setItem('hub_token', data.token); } catch (e) {}
+    if (input === ROADMAP_PASSKEY) {
+      try { sessionStorage.setItem('roadmap_ok', '1'); } catch (e) {}
       afterAuth();
-    }).catch(() => {
+    } else {
       g('authErr').style.display = 'block';
-      if (btn) btn.disabled = false;
-    });
+      g('tokenInput').value = '';
+      g('tokenInput').focus();
+    }
   };
 
   // Deferred to DOMContentLoaded: #appWrap is declared further down in the
@@ -370,7 +356,7 @@
       return;
     }
     let saved = null;
-    try { saved = sessionStorage.getItem('hub_token'); } catch (e) {}
+    try { saved = sessionStorage.getItem('roadmap_ok'); } catch (e) {}
     if (saved) { afterAuth(); }
   });
 })();
@@ -744,11 +730,13 @@
 
   // Top Priorities — 3-Month Plan, added 2026-09-13, P4 added 2026-09-17.
   // a38 appears in both P1 and P3 deliberately (per-customer access
-  // separation serves both).
-  const P1_IDS = ['a1','a2','a37','a38','a39','a47','a57','a58','a62','a66','a67','a68'];
+  // separation serves both). a77 added to P1 2026-09-26 (GTM/sales
+  // differentiation angle on the elasticity tool); a74-a76 added to P4
+  // 2026-09-26 (Pete Hallen's SOC2 review, phased per his own sequencing).
+  const P1_IDS = ['a1','a2','a37','a38','a39','a47','a57','a58','a62','a66','a67','a68','a77'];
   const P2_IDS = ['a19','a25','a27','a28','a22','a40','a63','a70','a71'];
   const P3_IDS = ['a30','a35','a36','a38','a41'];
-  const P4_IDS = ['a51','a52','a53','a54'];
+  const P4_IDS = ['a51','a52','a53','a54','a74','a75','a76'];
 
   let db;
   try { db = await claude.use('db'); } catch(e) { db = null; }

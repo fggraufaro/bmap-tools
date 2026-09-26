@@ -784,7 +784,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <div class="mp-field"><label>Avg funded balance</label><input type="number" id="mpAvgBalance" value="8500" oninput="mpCalc()"><div class="mp-hint">Per new funded account</div></div>
           <div class="mp-field"><label>12mo value per account</label><input type="number" id="mpValuePerAcct" value="350" oninput="mpCalc()"><div class="mp-hint">Contribution value, not just deposit</div></div>
           <div class="mp-field"><label>Branch capacity</label><input type="number" id="mpCapacity" value="300" oninput="mpCalc()"><div class="mp-hint">Net-new accounts branch can service</div></div>
-          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="27382" oninput="mpCalc()"><div class="mp-hint">BMAP adult population (18+) for branch ZIP, from Census age brackets — swap for a refined audience count once available</div></div>
+          <div class="mp-field"><label>Qualified audience (est.)</label><input type="number" id="mpAudience" value="27382" oninput="mpCalc()"><div class="mp-hint">BMAP adult population (18+) for branch ZIP, from Census age brackets — swap for a refined audience count once available</div><div class="mp-hint" id="mpPersonaLine" style="margin-top:4px"></div></div>
         </div>
         <div class="mp-hint" style="margin-top:14px">These are pre-loaded with an example benchmark case — edit anything and the forecast recalculates live. Conversion rates and channel mix live under "Assumptions &amp; Benchmarks" — set those once and leave them unless you're deliberately tuning the model.</div>
       </div>
@@ -1776,6 +1776,18 @@ function bselFilterChanged(which){
   if(selWfN===7)mpOnBranchChange();
 }
 
+// Jumps from an Audience Generator segment card straight into MediaPredict
+// for that same branch -- #bselect is shared across workflows, so setting
+// it before switching tabs is enough; selWf(7) already calls
+// mpOnBranchChange()+mpCalc() itself. Only works if the branch is still in
+// #bselect's current option list (state/city filters can exclude it) --
+// known limitation, not handled here.
+function agOpenInMediaPredict(uid){
+  const sel=g('bselect');
+  if(sel)sel.value=String(uid);
+  selWf(7);
+}
+
 function selWf(n){
   selWfN=n;
   document.querySelectorAll('.wf').forEach(c=>c.classList.remove('on'));
@@ -1990,10 +2002,29 @@ function mpRenderQual(){
       if(b.adult_population)aud.value=Math.round(+b.adult_population);
       else if(b.total_population)aud.value=Math.round(+b.total_population*0.76); // fallback: national avg adult share
     }
+    mpFetchPersona(b);
   } else {
     nameEl.textContent='Daphne Branch (example — select a branch above)';
     metaEl.textContent='Zone: Invest · Opportunity Score: 71 · Play: Grow Share · Household Income: $89,000 · Population: 36,484 (+5.6% YoY)';
+    const pl=g('mpPersonaLine');if(pl)pl.textContent='';
   }
+}
+
+// Real context already computed for this branch's ZIP (same source Growth
+// Map uses), shown alongside the audience count -- not yet a way to narrow
+// the count itself (vw_zip_persona gives one dominant persona per ZIP, not
+// a % breakdown across personas), so this is context, not a refined number.
+async function mpFetchPersona(b){
+  const pl=g('mpPersonaLine');
+  if(!pl)return;
+  if(!b.zipbr){pl.textContent='';return;}
+  pl.textContent='Loading persona…';
+  try{
+    const rows=await api('vw_zip_persona',`zip=eq.${b.zipbr}&select=persona,est_households`);
+    const r=(rows||[])[0];
+    if(r) pl.textContent=`Persona: ${r.persona||'—'} · Est. households in ZIP: ${r.est_households?Math.round(+r.est_households).toLocaleString():'—'}`;
+    else pl.textContent='';
+  }catch(e){pl.textContent='';}
 }
 
 function mpNum(id){const el=g(id);return el?(parseFloat(el.value)||0):0;}
@@ -2295,7 +2326,8 @@ function agRenderSegGrid(focusRows,personaMap){
     const bulletHtml=bullets.map(bl=>`<li>${bl}</li>`).join('');
     const personaLine=personaMap[b.uninumbr];
     const personaHtml=personaLine?`<div class="ag-seg-persona">Audience read: ${personaLine}</div>`:'';
-    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${b.namebr}</div><div class="ag-seg-desc">${city}</div><div class="ag-seg-sentence">${sentence}</div><ul class="ag-seg-bullets">${bulletHtml}</ul>${personaHtml}</div>`;
+    const mpLink=`<div style="margin-top:8px"><a href="#" onclick="event.preventDefault();agOpenInMediaPredict('${b.uninumbr}')" style="color:var(--blue);font-weight:600;font-size:11px">Open in MediaPredict →</a></div>`;
+    return`<div class="ag-seg ${cls}">${badge}<div class="ag-seg-name">${b.namebr}</div><div class="ag-seg-desc">${city}</div><div class="ag-seg-sentence">${sentence}</div><ul class="ag-seg-bullets">${bulletHtml}</ul>${personaHtml}${mpLink}</div>`;
   }).join('');
 }
 

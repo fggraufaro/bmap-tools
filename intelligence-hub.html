@@ -775,6 +775,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <div class="mp-tabs">
         <div class="mp-tab active" id="mpTabBtnInput" onclick="mpSwitchTab('input')">Campaign Input</div>
         <div class="mp-tab" id="mpTabBtnSetup" onclick="mpSwitchTab('setup')">Assumptions &amp; Benchmarks</div>
+        <div class="mp-tab" id="mpTabBtnElas" onclick="mpSwitchTab('elasticity')">Rate vs. Media</div>
       </div>
 
       <div class="card-pad mp-tabpanel" id="mpTabInput">
@@ -820,6 +821,17 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           </tbody>
         </table>
         <div class="mp-hint" style="margin-top:10px">Set these once per bank/market — they shouldn't need editing on every campaign.</div>
+      </div>
+
+      <div class="card-pad mp-tabpanel dn" id="mpTabElas">
+        <div class="label" style="margin-bottom:10px">Two ways to hit the same deposit goal: raise the rate, or spend on media</div>
+        <div class="mp-hint" id="mpElasRateContext" style="margin-bottom:14px">Select a branch above to see its most vulnerable named competitor's current rates (Rate Radar).</div>
+        <div class="mp-grid">
+          <div class="mp-field"><label>Your current rate offered (APY)</label><input type="number" step="0.01" id="mpElasCurRate" value="4.00" oninput="mpCalcElasticity()"><div class="mp-hint">What you're paying today on the relevant product</div></div>
+          <div class="mp-field"><label>Assumed rate increase (bps)</label><input type="number" id="mpElasBps" value="25" oninput="mpCalcElasticity()"><div class="mp-hint">Editable assumption — not derived from BMAP data</div></div>
+        </div>
+        <div class="mp-elas-compare" id="mpElasCompare"></div>
+        <div class="mp-hint" style="margin-top:12px">Simplified comparison: assumes the full deposit goal (Campaign Input tab) is achieved either way — via the rate increase alone, or via the media plan already calculated. Real-world response to a rate change is a separate, unmodeled assumption; this shows the raw cost trade-off for the same outcome, not a prediction of which one actually gets there.</div>
       </div>
 
       <div class="mp-funnel" id="mpFunnel"></div>
@@ -878,11 +890,12 @@ if (CUSTOMER_FACING_MODE) {
   // nothing gated right now
 }
 // ── TILES OFF FOR NOW ──────────────────────────────────────────
-// Branch Text Brief (w4) and MediaPredict ROI Calculator (w7) deactivated
-// per Francisco -- Branch Text Brief wasn't earning its place, MediaPredict
-// paused for now. Independent of CUSTOMER_FACING_MODE and WEBINAR_MODE
-// above; remove ids from this array to bring a tile back.
-['w4', 'w7'].forEach(id => {
+// Branch Text Brief (w4) deactivated per Francisco -- wasn't earning its
+// place. MediaPredict ROI Calculator (w7) re-enabled 2026-09-26 -- was
+// paused, now shipping the elasticity tool alongside it. Independent of
+// CUSTOMER_FACING_MODE and WEBINAR_MODE above; remove ids from this array
+// to bring a tile back.
+['w4'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.classList.add('dn');
 });
@@ -1975,8 +1988,10 @@ let mpBranch=null;
 function mpSwitchTab(tab){
   g('mpTabBtnInput').classList.toggle('active',tab==='input');
   g('mpTabBtnSetup').classList.toggle('active',tab==='setup');
+  g('mpTabBtnElas').classList.toggle('active',tab==='elasticity');
   g('mpTabInput').classList.toggle('dn',tab!=='input');
   g('mpTabSetup').classList.toggle('dn',tab!=='setup');
+  g('mpTabElas').classList.toggle('dn',tab!=='elasticity');
 }
 
 function mpOnBranchChange(){
@@ -2003,11 +2018,63 @@ function mpRenderQual(){
       else if(b.total_population)aud.value=Math.round(+b.total_population*0.76); // fallback: national avg adult share
     }
     mpFetchPersona(b);
+    mpFetchRateContext(b);
   } else {
     nameEl.textContent='Daphne Branch (example — select a branch above)';
     metaEl.textContent='Zone: Invest · Opportunity Score: 71 · Play: Grow Share · Household Income: $89,000 · Population: 36,484 (+5.6% YoY)';
     const pl=g('mpPersonaLine');if(pl)pl.textContent='';
+    const rc=g('mpElasRateContext');if(rc)rc.textContent='Select a branch above to see its most vulnerable named competitor\'s current rates (Rate Radar).';
   }
+}
+
+// Real named-competitor rates for this branch's top vulnerability match --
+// same allComp/branch_target_competitors source the Hub's other Rate Radar
+// panels use, not a new fetch pattern. Institution-level rates (Rate Radar
+// tracks a bank's published rate sheet, not per-branch pricing), so this is
+// market context for the branch, not a branch-specific rate.
+async function mpFetchRateContext(b){
+  const rc=g('mpElasRateContext');
+  if(!rc)return;
+  const matches=(allComp||[]).filter(c=>String(c.my_branch_id)===String(b.uninumbr)).sort((a,b2)=>(+b2.vuln_score||0)-(+a.vuln_score||0));
+  const top=matches[0];
+  if(!top||!top.target_inst_key){rc.textContent='No named competitor on file for this branch.';return;}
+  const rssdid=top.target_inst_key.startsWith('bank_')?top.target_inst_key.slice(5):null;
+  if(!rssdid){rc.textContent=`Top competitor: ${top.target_namefull||'—'} (credit union — no Rate Radar coverage).`;return;}
+  rc.textContent='Loading competitor rates…';
+  try{
+    const rows=await api('vw_rate_radar_latest',`rssdid=eq.${rssdid}&select=bank_name,savings_apy,checking_apy,cd_apy,high_yield_savings_apy,data_quality&order=run_date.desc&limit=1`);
+    const r=(rows||[])[0];
+    if(!r){rc.textContent=`Top competitor: ${top.target_namefull||'—'} — no Rate Radar data on file yet.`;return;}
+    const fmtR=v=>v!=null?`${(+v).toFixed(2)}%`:'—';
+    rc.textContent=`Most vulnerable named competitor: ${r.bank_name||top.target_namefull} — Savings ${fmtR(r.savings_apy)} · HY Savings ${fmtR(r.high_yield_savings_apy)} · Checking ${fmtR(r.checking_apy)} · CD ${fmtR(r.cd_apy)}${r.data_quality?` (${r.data_quality})`:''}`;
+  }catch(e){rc.textContent=`Top competitor: ${top.target_namefull||'—'} — rate lookup failed.`;}
+}
+
+function mpCalcElasticity(){
+  const el=g('mpElasCompare');
+  if(!el)return;
+  const last=window._mpLast;
+  if(!last){el.innerHTML='';return;}
+  const bps=parseFloat(g('mpElasBps').value)||0;
+  const curRate=parseFloat(g('mpElasCurRate').value)||0;
+  const newRate=curRate+bps/100;
+  const mediaCost=last.annualSpend;
+  const rateCost=Math.round(last.depositGoal*(bps/10000));
+  const cheaper=rateCost<mediaCost?'rate':'media';
+  const fmtM=n=>'$'+Math.round(n).toLocaleString();
+  el.innerHTML=
+    `<div style="display:flex;gap:16px;margin-top:6px">`+
+      `<div style="flex:1;background:${cheaper==='rate'?'#EAF7F0':'#F5F5F2'};border:1px solid ${cheaper==='rate'?'#66CC99':'#E0DED8'};border-radius:8px;padding:14px 16px">`+
+        `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5C6B75">Rate-led path</div>`+
+        `<div style="font-size:20px;font-weight:800;margin-top:4px">${fmtM(rateCost)}<span style="font-size:11px;font-weight:600;color:#5C6B75">/yr</span></div>`+
+        `<div style="font-size:11px;color:#5C6B75;margin-top:4px">${curRate.toFixed(2)}% &rarr; ${newRate.toFixed(2)}% (+${bps}bps) on ${fmtM(last.depositGoal)} deposit goal</div>`+
+      `</div>`+
+      `<div style="flex:1;background:${cheaper==='media'?'#EAF7F0':'#F5F5F2'};border:1px solid ${cheaper==='media'?'#66CC99':'#E0DED8'};border-radius:8px;padding:14px 16px">`+
+        `<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5C6B75">Media-led path</div>`+
+        `<div style="font-size:20px;font-weight:800;margin-top:4px">${fmtM(mediaCost)}<span style="font-size:11px;font-weight:600;color:#5C6B75">/yr</span></div>`+
+        `<div style="font-size:11px;color:#5C6B75;margin-top:4px">From the Campaign Input funnel</div>`+
+      `</div>`+
+    `</div>`;
 }
 
 // Real context already computed for this branch's ZIP (same source Growth
@@ -2096,6 +2163,11 @@ function mpCalc(){
   vEl.textContent=go
     ?`GO — ${valueToCAC.toFixed(1)}x value-to-CAC, ${capacityUtil.toFixed(0)}% capacity utilization, audience covers required reach`
     :`NEEDS REVIEW — ${!capacityPass?'exceeds branch capacity. ':''}${valueToCAC<3?'value-to-CAC below 3x guardrail. ':''}${!audienceOK?'qualified audience below required reach.':''}`;
+
+  // Shared with the Rate vs. Media tab -- same funnel output, not a
+  // separate calculation, so the two tabs can never disagree.
+  window._mpLast={depositGoal,annualSpend};
+  mpCalcElasticity();
 }
 
 

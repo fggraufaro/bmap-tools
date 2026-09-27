@@ -684,7 +684,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
     <button class="ag-gen-btn" id="agGenBtn" onclick="agGenerate()">Generate audience brief →</button>
     <div class="loading" id="agLd"><span class="spin"></span>Building audience brief...</div>
     <div class="out-card dn" id="agOut">
-      <div class="out-hdr"><div class="out-t">AUDIENCE BRIEF</div><div style="display:flex;gap:8px"><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button><a href="https://mediathesis.cortex.resonate.com/campaigns/new" target="_blank" class="copy-btn" style="text-decoration:none;display:inline-flex;align-items:center">Open Resonate →</a></div></div>
+      <div class="out-hdr"><div class="out-t">AUDIENCE BRIEF</div><div style="display:flex;gap:8px"><button class="copy-btn" id="agCb" onclick="agCopyOut()">Copy to clipboard</button><button class="copy-btn" onclick="agOpenResonate()">Open Resonate →</button></div></div>
       <div class="out-body"><div class="out-txt" id="agOutTxt"></div></div>
     </div>
   </div>
@@ -2488,6 +2488,49 @@ async function agGenerate(){
   txt+=`Source: BMAP · Verlocity Intelligence Hub · Live data`;
   g('agOutTxt').textContent=txt;show('agOut');
   g('agLd').classList.remove('on');g('agGenBtn').disabled=false;
+  // Auto handoff: download the CSV and open Resonate in the same click --
+  // no await above this point, so this still runs inside the click's user
+  // gesture (won't get popup-blocked).
+  downloadAudienceCsv(focusRows);
+  window.open(RESONATE_URL,'_blank');
+}
+
+const RESONATE_URL='https://mediathesis.cortex.resonate.com/campaigns/new';
+
+// CSV columns are the same fields already in the text brief above -- not
+// validated against Resonate's actual import spec (no template on file yet).
+// If Resonate needs specific column names/order for upload, update this map.
+function buildAudienceCsv(focusRows){
+  const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const header='branch,city,state,zip,household_income,population,population_yoy_pct,home_value,home_value_yoy_pct,opportunity_score,opportunity_zone,selection';
+  const rows=focusRows.map(b=>{
+    const inc=b.household_income?Math.round(+b.household_income):'';
+    const pop=b.total_population?Math.round(+b.total_population):'';
+    const popYoy=b.yoy_pop_growth!=null?(+b.yoy_pop_growth*100).toFixed(1):'';
+    const zhvi=b.zhvi?Math.round(+b.zhvi):'';
+    const zhviYoy=b.zhvi_yoy_pct!=null?(+b.zhvi_yoy_pct).toFixed(1):'';
+    const score=b.opportunity_score!=null?(+b.opportunity_score).toFixed(0):'';
+    const sel=b._selReason||b.opportunity_zone||'';
+    return [b.namebr,b.citybr,b.stalpbr,b.zipbr,inc,pop,popYoy,zhvi,zhviYoy,score,b.opportunity_zone,sel].map(esc).join(',');
+  });
+  return [header,...rows].join('\n');
+}
+
+function downloadAudienceCsv(focusRows){
+  if(!focusRows?.length)return;
+  const csv=buildAudienceCsv(focusRows);
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const bankName=(bankData?.rows?.[0]?.namefull||'bank').replace(/[^a-z0-9]/gi,'_');
+  a.download=`audience_brief_${bankName}.csv`;
+  a.click();
+}
+
+function agOpenResonate(){
+  const s=window._agState;
+  if(s?.focusRows)downloadAudienceCsv(s.focusRows);
+  window.open(RESONATE_URL,'_blank');
 }
 
 function agCopyOut(){navigator.clipboard.writeText(g('agOutTxt').textContent).then(()=>{g('agCb').textContent='✓ Copied';g('agCb').classList.add('ok');setTimeout(()=>{g('agCb').textContent='Copy to clipboard';g('agCb').classList.remove('ok');},2000);});}

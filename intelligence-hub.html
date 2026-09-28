@@ -2178,7 +2178,7 @@ async function agLoadAndCompute(){
   if(!agBranchData||agBranchData.ik!==ik){
     agBranchData=null;
     agCityResetOnBankChange();
-    const rows=await api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=namebr,citybr,stalpbr,zipbr,metro,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
+    const rows=await api('vw_branch_opportunity_cbsa',`inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,opportunity_zone,opportunity_score,latest_dep,yoy_deposits,avg_comp_yoy,household_income,zhvi,zhvi_yoy_pct,total_population,yoy_pop_growth,smb_index,smb_zone,smb_establishments,estab_per_1k_pop,market_growth_score,branches_in_radius&order=opportunity_score.desc&limit=300`);
     agBranchData={ik,rows};
   }
   agCompute();

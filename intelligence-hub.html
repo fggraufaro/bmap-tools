@@ -2356,7 +2356,13 @@ function agCompute(){
   g('agSegLabel').textContent=`${focusRows.length} branch${focusRows.length!==1?'es':''} selected`;
   agRenderSegGrid(focusRows,{});
   window._agPersonaData=null;
-  agRenderPersona(focusRows,d).catch(()=>{});
+  // a76 point 4 fix (2026-09-28): this call is fire-and-forget (real AI
+  // round-trip, several seconds) so the config panel doesn't hang waiting
+  // on it. But agGenerate()'s CSV/creative_brief handoff can fire before it
+  // resolves if the user clicks Generate quickly -- confirmed live,
+  // creative_brief came through empty on every row. Tracking the promise so
+  // agGenerate can wait on it specifically, without blocking anything here.
+  window._agPersonaPromise=agRenderPersona(focusRows,d).catch(()=>{});
 
   const hasSmbData=focusRows.some(r=>r.smb_index!=null);
   g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
@@ -2510,11 +2516,18 @@ async function agGenerate(){
   txt+=`Source: BMAP · Verlocity Intelligence Hub · Live data`;
   g('agOutTxt').textContent=txt;show('agOut');
   g('agLd').classList.remove('on');g('agGenBtn').disabled=false;
-  // Auto handoff: download the CSV and open Resonate in the same click --
-  // no await above this point, so this still runs inside the click's user
-  // gesture (won't get popup-blocked).
-  downloadAudienceCsv(focusRows,flightStartStr,flightEndStr);
+  // Auto handoff: open Resonate first, no await above this point, so it
+  // still runs inside the click's user gesture (won't get popup-blocked).
+  // a76 point 4 fix (2026-09-28): the CSV download used to fire immediately
+  // too, racing agRenderPersona's un-awaited AI call -- confirmed live,
+  // creative_brief came through empty because the persona data hadn't
+  // landed yet. CSV download (a synthetic <a> click, not a new window) isn't
+  // subject to the same popup-block timing, so it's safe to wait here --
+  // capped at 8s so a slow/failed AI call doesn't hang the download
+  // indefinitely, since creative_brief degrades to empty rather than error.
   window.open(RESONATE_URL,'_blank');
+  await Promise.race([window._agPersonaPromise,new Promise(r=>setTimeout(r,8000))]);
+  downloadAudienceCsv(focusRows,flightStartStr,flightEndStr);
 }
 
 const RESONATE_URL='https://mediathesis.cortex.resonate.com/campaigns/new';
@@ -2595,10 +2608,15 @@ function downloadAudienceCsv(focusRows,flightStartStr,flightEndStr){
   a.click();
 }
 
-function agOpenResonate(){
+async function agOpenResonate(){
   const s=window._agState;
-  if(s?.focusRows)downloadAudienceCsv(s.focusRows);
+  // Same fix as agGenerate() (a76 point 4, 2026-09-28) -- open first to stay
+  // inside the click's user gesture, then wait briefly for any in-flight
+  // persona generation so creative_brief isn't empty if this is clicked
+  // before agRenderPersona resolves.
   window.open(RESONATE_URL,'_blank');
+  await Promise.race([window._agPersonaPromise,new Promise(r=>setTimeout(r,8000))]);
+  if(s?.focusRows)downloadAudienceCsv(s.focusRows);
 }
 
 function agCopyOut(){navigator.clipboard.writeText(g('agOutTxt').textContent).then(()=>{g('agCb').textContent='✓ Copied';g('agCb').classList.add('ok');setTimeout(()=>{g('agCb').textContent='Copy to clipboard';g('agCb').classList.remove('ok');},2000);});}

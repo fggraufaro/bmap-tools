@@ -2530,6 +2530,28 @@ function agComputeFlightDates(){
   return{start:fmt(start),end:fmt(end)};
 }
 
+// a76 follow-up (2026-09-28): Resonate's own import isn't a dumb 1:1 column
+// map -- the "Target Audiences" field it produced from our earlier CSV
+// contained natural-language descriptions, not raw values, so it's doing
+// some interpretive parsing on the way in. We don't have their field schema,
+// so rather than guess where persona/creative content SHOULD go, add it as
+// one plain-text column and see empirically what Resonate does with it --
+// same live-test approach that confirmed the targeting_/KPIs fix. Condensed
+// from window._agPersonaData (set by agRenderPersona) -- paragraph, each
+// persona's name + switch driver, and the targeting angle. Same text
+// repeated on every row, same pattern as flight_start_date/flight_end_date.
+function agBuildCreativeBriefText(){
+  const p=window._agPersonaData;
+  if(!p)return'';
+  const parts=[];
+  if(p.paragraph)parts.push(p.paragraph);
+  (p.personas||[]).forEach(ps=>{
+    if(ps.name)parts.push(`${ps.name}: ${ps.switchDriver||ps.tagline||''}`);
+  });
+  if(p.asymmetric)parts.push(p.asymmetric);
+  return parts.join(' ');
+}
+
 // CSV columns are the same fields already in the text brief above -- not
 // validated against Resonate's actual import spec (no template on file yet).
 // If Resonate needs specific column names/order for upload, update this map.
@@ -2546,7 +2568,8 @@ function agComputeFlightDates(){
 // contradictory-numbers failure mode as a66.
 function buildAudienceCsv(focusRows,flightStartStr,flightEndStr){
   const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const header='branch,city,state,zip,targeting_household_income,targeting_population,targeting_population_yoy_pct,targeting_home_value,targeting_home_value_yoy_pct,targeting_opportunity_score,opportunity_zone,selection,flight_start_date,flight_end_date';
+  const header='branch,city,state,zip,targeting_household_income,targeting_population,targeting_population_yoy_pct,targeting_home_value,targeting_home_value_yoy_pct,targeting_opportunity_score,opportunity_zone,selection,flight_start_date,flight_end_date,creative_brief';
+  const creativeBrief=agBuildCreativeBriefText();
   const rows=focusRows.map(b=>{
     const inc=b.household_income?Math.round(+b.household_income):'';
     const pop=b.total_population?Math.round(+b.total_population):'';
@@ -2555,7 +2578,7 @@ function buildAudienceCsv(focusRows,flightStartStr,flightEndStr){
     const zhviYoy=b.zhvi_yoy_pct!=null?(+b.zhvi_yoy_pct).toFixed(1):'';
     const score=b.opportunity_score!=null?(+b.opportunity_score).toFixed(0):'';
     const sel=b._selReason||b.opportunity_zone||'';
-    return [b.namebr,b.citybr,b.stalpbr,b.zipbr,inc,pop,popYoy,zhvi,zhviYoy,score,b.opportunity_zone,sel,flightStartStr||'',flightEndStr||''].map(esc).join(',');
+    return [b.namebr,b.citybr,b.stalpbr,b.zipbr,inc,pop,popYoy,zhvi,zhviYoy,score,b.opportunity_zone,sel,flightStartStr||'',flightEndStr||'',creativeBrief].map(esc).join(',');
   });
   return [header,...rows].join('\n');
 }

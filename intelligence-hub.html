@@ -2551,17 +2551,34 @@ function agComputeFlightDates(){
 // one plain-text column and see empirically what Resonate does with it --
 // same live-test approach that confirmed the targeting_/KPIs fix. Condensed
 // from window._agPersonaData (set by agRenderPersona) -- paragraph, each
-// persona's name + switch driver, and the targeting angle. Same text
-// repeated on every row, same pattern as flight_start_date/flight_end_date.
-function agBuildCreativeBriefText(){
+// persona's name + switch driver, and the targeting angle -- SCOPED PER
+// BRANCH, not blindly repeated (2026-09-28 follow-up): the first version
+// repeated the exact same text on every row, and Resonate's import took
+// that literally -- "target Prattville specifically" from the asymmetric
+// line showed up on Demopolis/Columbia/Greenville/Panama City too, wrong
+// for four of the five. The composite paragraph is legitimately shared
+// (it's a read across the whole set), but the asymmetric single-branch call
+// and each persona's own market focus are matched to this branch by name/
+// city before being included -- omitted for a row if they're about somewhere
+// else, rather than stamped everywhere.
+function agTextMentionsBranch(text,b){
+  if(!text)return false;
+  const t=text.toLowerCase();
+  return(b.namebr&&t.includes(b.namebr.toLowerCase()))||(b.citybr&&t.includes(b.citybr.toLowerCase()));
+}
+function agBuildCreativeBriefText(b){
   const p=window._agPersonaData;
   if(!p)return'';
   const parts=[];
   if(p.paragraph)parts.push(p.paragraph);
   (p.personas||[]).forEach(ps=>{
-    if(ps.name)parts.push(`${ps.name}: ${ps.switchDriver||ps.tagline||''}`);
+    if(!ps.name)return;
+    // Include if this persona's stated markets name this branch, or if it
+    // names no specific markets at all (a composite-level persona) --
+    // otherwise it's about a different branch, leave it off this row.
+    if(!ps.markets||agTextMentionsBranch(ps.markets,b))parts.push(`${ps.name}: ${ps.switchDriver||ps.tagline||''}`);
   });
-  if(p.asymmetric)parts.push(p.asymmetric);
+  if(p.asymmetric&&agTextMentionsBranch(p.asymmetric,b))parts.push(p.asymmetric);
   return parts.join(' ');
 }
 
@@ -2582,7 +2599,6 @@ function agBuildCreativeBriefText(){
 function buildAudienceCsv(focusRows,flightStartStr,flightEndStr){
   const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const header='branch,city,state,zip,targeting_household_income,targeting_population,targeting_population_yoy_pct,targeting_home_value,targeting_home_value_yoy_pct,targeting_opportunity_score,opportunity_zone,selection,flight_start_date,flight_end_date,creative_brief';
-  const creativeBrief=agBuildCreativeBriefText();
   const rows=focusRows.map(b=>{
     const inc=b.household_income?Math.round(+b.household_income):'';
     const pop=b.total_population?Math.round(+b.total_population):'';
@@ -2591,6 +2607,7 @@ function buildAudienceCsv(focusRows,flightStartStr,flightEndStr){
     const zhviYoy=b.zhvi_yoy_pct!=null?(+b.zhvi_yoy_pct).toFixed(1):'';
     const score=b.opportunity_score!=null?(+b.opportunity_score).toFixed(0):'';
     const sel=b._selReason||b.opportunity_zone||'';
+    const creativeBrief=agBuildCreativeBriefText(b);
     return [b.namebr,b.citybr,b.stalpbr,b.zipbr,inc,pop,popYoy,zhvi,zhviYoy,score,b.opportunity_zone,sel,flightStartStr||'',flightEndStr||'',creativeBrief].map(esc).join(',');
   });
   return [header,...rows].join('\n');

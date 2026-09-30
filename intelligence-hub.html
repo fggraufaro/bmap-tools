@@ -656,6 +656,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
           <div class="ag-field"><label>Max audiences to generate</label><select id="agMaxAud"><option value="2">2 audiences</option><option value="3" selected>3 audiences</option><option value="4">4 audiences</option></select></div>
           <div class="ag-field"><label>Zone focus</label><select id="agZoneFocus" onchange="agCompute()"><option value="both" selected>Invest + Analyze</option><option value="invest">Invest only</option></select></div>
           <div class="ag-field"><label>CRM suppression list</label><select id="agCrm"><option value="no">Not yet uploaded</option><option value="yes">Bank CRM provided</option></select></div>
+          <div class="ag-field"><label>Flight duration</label><select id="agFlightDays"><option value="30">30 days</option><option value="60" selected>60 days</option><option value="90">90 days</option></select></div>
         </div>
         <div class="ag-city-wrap">
           <div class="ag-city-label">Filter by city <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;opacity:.6">(leave empty to use all branches)</span></div>
@@ -2355,7 +2356,13 @@ function agCompute(){
   g('agSegLabel').textContent=`${focusRows.length} branch${focusRows.length!==1?'es':''} selected`;
   agRenderSegGrid(focusRows,{});
   window._agPersonaData=null;
-  agRenderPersona(focusRows,d).catch(()=>{});
+  // a76 point 4 fix (2026-09-28): this call is fire-and-forget (real AI
+  // round-trip, several seconds) so the config panel doesn't hang waiting
+  // on it. But agGenerate()'s CSV/creative_brief handoff can fire before it
+  // resolves if the user clicks Generate quickly -- confirmed live,
+  // creative_brief came through empty on every row. Tracking the promise so
+  // agGenerate can wait on it specifically, without blocking anything here.
+  window._agPersonaPromise=agRenderPersona(focusRows,d).catch(()=>{});
 
   const hasSmbData=focusRows.some(r=>r.smb_index!=null);
   g('agNote').textContent=hasSmbData?`SMB index from Census Business Patterns. ${d.smbEstab} avg establishments in priority markets.`:`SMB index unavailable — run vw_smb_index_by_zip in Supabase to upgrade.`;
@@ -2434,17 +2441,38 @@ async function agGenerate(){
   const{rows}=bankData;
   const date=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const cityStr=agSelectedCities.size?[...agSelectedCities].join(', '):metro;
+  // a76 (Trustmark Resonate review, 2026-09-28): Resonate's campaign form has
+  // start/end date fields and nothing in this pipeline produced a flight
+  // window at all -- they were just blank. Default is a duration off today,
+  // not a real media-planned schedule; the brief says so explicitly so it
+  // isn't mistaken for one.
+  const flightDays=parseInt(g('agFlightDays').value);
+  const flightStart=new Date();
+  const flightEnd=new Date(flightStart.getTime()+flightDays*86400000);
+  const fmtFlightDate=dt=>dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+  const flightStartStr=fmtFlightDate(flightStart),flightEndStr=fmtFlightDate(flightEnd);
   let txt='';
   txt+=`AUDIENCE BRIEF\n`;
   txt+=`${rows[0]?.namefull}\n`;
   txt+=`Prepared by Verlocity · ${date}\n`;
   txt+=`${'─'.repeat(52)}\n\n`;
-  txt+=`MARKET SNAPSHOT\n`;
+  // a76 (Trustmark Resonate review, 2026-09-28): Resonate's KPIs field got
+  // auto-filled with these figures -- but they're what we used to SELECT
+  // this market, not campaign success metrics. Real KPIs (funded accounts,
+  // CAC, net contribution, value-to-CAC) come from MediaPredict, which is a
+  // manual per-branch calculator tuned to the specific campaign's own
+  // assumptions -- auto-computing a default version here would risk showing
+  // a different number than what MediaPredict gives when actually run,
+  // which is the same contradictory-numbers problem as a66. So: labeled
+  // explicitly as targeting criteria, with a pointer to where real KPIs
+  // come from, rather than guessed at.
+  txt+=`TARGETING CRITERIA (used to select this market -- NOT campaign KPIs; run MediaPredict per branch for real funded-accounts/CAC/net-contribution/value-to-CAC figures)\n`;
   txt+=`Priority market: ${cityStr}\n`;
   txt+=`Avg household income: $${Math.round(d.income)}k\n`;
   txt+=`Median home value (ZHVI): $${Math.round(d.zhvi)}k (+${d.zhviYoy.toFixed(1)}% YoY)\n`;
   txt+=`Deposit gap vs competitors: ${(d.bankYoy-d.compYoy)>=0?'+':''}${(d.bankYoy-d.compYoy).toFixed(1)}pp\n`;
   txt+=`Opportunity score: ${Math.round(d.oppScore)}/100\n`;
+  txt+=`Suggested flight window: ${flightStartStr} – ${flightEndStr} (${flightDays} days from generation — adjust to your actual media plan)\n`;
   if(crm==='yes') txt+=`CRM suppression: provided\n`;
   const persona=window._agPersonaData;
   if(persona?.paragraph){
@@ -2488,21 +2516,89 @@ async function agGenerate(){
   txt+=`Source: BMAP · Verlocity Intelligence Hub · Live data`;
   g('agOutTxt').textContent=txt;show('agOut');
   g('agLd').classList.remove('on');g('agGenBtn').disabled=false;
-  // Auto handoff: download the CSV and open Resonate in the same click --
-  // no await above this point, so this still runs inside the click's user
-  // gesture (won't get popup-blocked).
-  downloadAudienceCsv(focusRows);
+  // Auto handoff: open Resonate first, no await above this point, so it
+  // still runs inside the click's user gesture (won't get popup-blocked).
+  // a76 point 4 fix (2026-09-28): the CSV download used to fire immediately
+  // too, racing agRenderPersona's un-awaited AI call -- confirmed live,
+  // creative_brief came through empty because the persona data hadn't
+  // landed yet. CSV download (a synthetic <a> click, not a new window) isn't
+  // subject to the same popup-block timing, so it's safe to wait here --
+  // capped at 8s so a slow/failed AI call doesn't hang the download
+  // indefinitely, since creative_brief degrades to empty rather than error.
   window.open(RESONATE_URL,'_blank');
+  await Promise.race([window._agPersonaPromise,new Promise(r=>setTimeout(r,8000))]);
+  downloadAudienceCsv(focusRows,flightStartStr,flightEndStr);
 }
 
 const RESONATE_URL='https://mediathesis.cortex.resonate.com/campaigns/new';
 
+// Reads the same Flight duration selector agGenerate() uses, for the
+// standalone "Open Resonate" button (agOpenResonate) which doesn't go
+// through agGenerate's own date computation.
+function agComputeFlightDates(){
+  const flightDays=parseInt(g('agFlightDays')?.value||'60');
+  const start=new Date();
+  const end=new Date(start.getTime()+flightDays*86400000);
+  const fmt=dt=>dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+  return{start:fmt(start),end:fmt(end)};
+}
+
+// a76 follow-up (2026-09-28): Resonate's own import isn't a dumb 1:1 column
+// map -- the "Target Audiences" field it produced from our earlier CSV
+// contained natural-language descriptions, not raw values, so it's doing
+// some interpretive parsing on the way in. We don't have their field schema,
+// so rather than guess where persona/creative content SHOULD go, add it as
+// one plain-text column and see empirically what Resonate does with it --
+// same live-test approach that confirmed the targeting_/KPIs fix. Condensed
+// from window._agPersonaData (set by agRenderPersona) -- paragraph, each
+// persona's name + switch driver, and the targeting angle -- SCOPED PER
+// BRANCH, not blindly repeated (2026-09-28 follow-up): the first version
+// repeated the exact same text on every row, and Resonate's import took
+// that literally -- "target Prattville specifically" from the asymmetric
+// line showed up on Demopolis/Columbia/Greenville/Panama City too, wrong
+// for four of the five. The composite paragraph is legitimately shared
+// (it's a read across the whole set), but the asymmetric single-branch call
+// and each persona's own market focus are matched to this branch by name/
+// city before being included -- omitted for a row if they're about somewhere
+// else, rather than stamped everywhere.
+function agTextMentionsBranch(text,b){
+  if(!text)return false;
+  const t=text.toLowerCase();
+  return(b.namebr&&t.includes(b.namebr.toLowerCase()))||(b.citybr&&t.includes(b.citybr.toLowerCase()));
+}
+function agBuildCreativeBriefText(b){
+  const p=window._agPersonaData;
+  if(!p)return'';
+  const parts=[];
+  if(p.paragraph)parts.push(p.paragraph);
+  (p.personas||[]).forEach(ps=>{
+    if(!ps.name)return;
+    // Include if this persona's stated markets name this branch, or if it
+    // names no specific markets at all (a composite-level persona) --
+    // otherwise it's about a different branch, leave it off this row.
+    if(!ps.markets||agTextMentionsBranch(ps.markets,b))parts.push(`${ps.name}: ${ps.switchDriver||ps.tagline||''}`);
+  });
+  if(p.asymmetric&&agTextMentionsBranch(p.asymmetric,b))parts.push(p.asymmetric);
+  return parts.join(' ');
+}
+
 // CSV columns are the same fields already in the text brief above -- not
 // validated against Resonate's actual import spec (no template on file yet).
 // If Resonate needs specific column names/order for upload, update this map.
-function buildAudienceCsv(focusRows){
+// flight_start_date/flight_end_date added per a76 (Trustmark Resonate review,
+// 2026-09-28) -- these are a default duration off the generation date, not a
+// real media-planned schedule; label says so in the brief.
+// Numeric columns prefixed targeting_* (same a76 review): Resonate's KPIs
+// field got auto-filled with these on import -- they're what selected this
+// market, not campaign success metrics. Real KPIs (funded accounts, CAC,
+// net contribution, value-to-CAC) come from MediaPredict, a manual
+// per-branch calculator tuned to the specific campaign -- deliberately not
+// auto-computed here, since a default-assumption estimate could disagree
+// with what MediaPredict gives when actually run for the campaign, the same
+// contradictory-numbers failure mode as a66.
+function buildAudienceCsv(focusRows,flightStartStr,flightEndStr){
   const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const header='branch,city,state,zip,household_income,population,population_yoy_pct,home_value,home_value_yoy_pct,opportunity_score,opportunity_zone,selection';
+  const header='branch,city,state,zip,targeting_household_income,targeting_population,targeting_population_yoy_pct,targeting_home_value,targeting_home_value_yoy_pct,targeting_opportunity_score,opportunity_zone,selection,flight_start_date,flight_end_date,creative_brief';
   const rows=focusRows.map(b=>{
     const inc=b.household_income?Math.round(+b.household_income):'';
     const pop=b.total_population?Math.round(+b.total_population):'';
@@ -2511,14 +2607,16 @@ function buildAudienceCsv(focusRows){
     const zhviYoy=b.zhvi_yoy_pct!=null?(+b.zhvi_yoy_pct).toFixed(1):'';
     const score=b.opportunity_score!=null?(+b.opportunity_score).toFixed(0):'';
     const sel=b._selReason||b.opportunity_zone||'';
-    return [b.namebr,b.citybr,b.stalpbr,b.zipbr,inc,pop,popYoy,zhvi,zhviYoy,score,b.opportunity_zone,sel].map(esc).join(',');
+    const creativeBrief=agBuildCreativeBriefText(b);
+    return [b.namebr,b.citybr,b.stalpbr,b.zipbr,inc,pop,popYoy,zhvi,zhviYoy,score,b.opportunity_zone,sel,flightStartStr||'',flightEndStr||'',creativeBrief].map(esc).join(',');
   });
   return [header,...rows].join('\n');
 }
 
-function downloadAudienceCsv(focusRows){
+function downloadAudienceCsv(focusRows,flightStartStr,flightEndStr){
   if(!focusRows?.length)return;
-  const csv=buildAudienceCsv(focusRows);
+  if(!flightStartStr||!flightEndStr){const d=agComputeFlightDates();flightStartStr=d.start;flightEndStr=d.end;}
+  const csv=buildAudienceCsv(focusRows,flightStartStr,flightEndStr);
   const blob=new Blob([csv],{type:'text/csv'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -2527,10 +2625,15 @@ function downloadAudienceCsv(focusRows){
   a.click();
 }
 
-function agOpenResonate(){
+async function agOpenResonate(){
   const s=window._agState;
-  if(s?.focusRows)downloadAudienceCsv(s.focusRows);
+  // Same fix as agGenerate() (a76 point 4, 2026-09-28) -- open first to stay
+  // inside the click's user gesture, then wait briefly for any in-flight
+  // persona generation so creative_brief isn't empty if this is clicked
+  // before agRenderPersona resolves.
   window.open(RESONATE_URL,'_blank');
+  await Promise.race([window._agPersonaPromise,new Promise(r=>setTimeout(r,8000))]);
+  if(s?.focusRows)downloadAudienceCsv(s.focusRows);
 }
 
 function agCopyOut(){navigator.clipboard.writeText(g('agOutTxt').textContent).then(()=>{g('agCb').textContent='✓ Copied';g('agCb').classList.add('ok');setTimeout(()=>{g('agCb').textContent='Copy to clipboard';g('agCb').classList.remove('ok');},2000);});}

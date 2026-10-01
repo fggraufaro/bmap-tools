@@ -521,7 +521,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 
 <div id="panelHub">
 <div class="wrap">
-  <div class="card card-pad">
+  <div class="card card-pad" id="searchCard">
     <div class="label">Search institution</div>
     <div class="search-row">
       <div class="inp-wrap">
@@ -966,6 +966,7 @@ let _inviteAccessToken = null;
   if(stored){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
+    if(sessionStorage.getItem('hub_role') === 'bank_user') autoLoadOwnInstitution();
   }
 })();
 
@@ -1091,6 +1092,7 @@ async function checkEmailLogin(){
     if(data.email) sessionStorage.setItem('hub_email', data.email);
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
+    if(data.role === 'bank_user') autoLoadOwnInstitution();
   }catch(e){
     errEl.textContent = 'Login service unavailable — try again';
     errEl.style.display = 'block';
@@ -1200,6 +1202,20 @@ async function doSearch(q){
 
 function pick(i){const b=ddItems[i];if(!b)return;g('si').value=b.institution_name;closeDd();selBank=b;loadBank(b.inst_key);}
 function closeDd(){g('dd').classList.remove('open');ddIdx=-1;}
+
+// A bank_user only ever has one institution to look at (server-side
+// scoping guarantees it) -- searching for it is pure friction, so skip
+// the search card entirely and load it straight away.
+async function autoLoadOwnInstitution(){
+  const ik = sessionStorage.getItem('hub_inst_key');
+  if(!ik) return;
+  const card = g('searchCard');
+  if(card) card.style.display = 'none';
+  const rows = await api('dim_institutions', `inst_key=eq.${ik}&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=1`);
+  const b = Array.isArray(rows) && rows[0];
+  if(b) selBank = b;
+  loadBank(ik);
+}
 
 g('si').addEventListener('input',e=>{clearTimeout(timer);const v=e.target.value.trim();if(v.length<2){closeDd();return;}timer=setTimeout(()=>doSearch(v),250);});
 g('si').addEventListener('keydown',e=>{

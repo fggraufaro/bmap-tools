@@ -478,6 +478,16 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <button id="emailLoginBtn" onclick="checkEmailLogin()" style="width:100%;background:#02A7C2;color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.02em;margin-bottom:12px">Log in →</button>
       <a href="#" onclick="event.preventDefault();gateSwitchMode('passcode')" style="color:rgba(255,255,255,.4);font-size:11px;font-family:'Inter',system-ui,sans-serif;text-decoration:underline">Use the shared access code instead</a>
     </div>
+    <div id="gateSetPasswordMode" style="display:none">
+      <div style="color:rgba(255,255,255,.5);font-size:11px;font-family:'Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;margin-bottom:14px;letter-spacing:.05em">SET YOUR PASSWORD</div>
+      <input id="newPasswordInput" type="password" placeholder="New password" autocomplete="new-password"
+        style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-family:'Inter',system-ui,sans-serif;font-size:13px;outline:none;margin-bottom:8px">
+      <input id="newPasswordConfirmInput" type="password" placeholder="Confirm password" autocomplete="new-password"
+        style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-family:'Inter',system-ui,sans-serif;font-size:13px;outline:none;margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')submitNewPassword()">
+      <div id="setPasswordErr" style="display:none;color:#02A7C2;font-size:11px;font-family:'Inter',system-ui,sans-serif;margin-bottom:10px"></div>
+      <button id="setPasswordBtn" onclick="submitNewPassword()" style="width:100%;background:#02A7C2;color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.02em">Set password →</button>
+    </div>
   </div>
 </div>
 
@@ -926,13 +936,88 @@ const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
 window.AI_PROXY = AI_PROXY;
 
+// After an invite or password-reset email link, Supabase redirects here
+// with the real work done server-side already -- it just hands back an
+// access_token (and type=invite/recovery) in the URL fragment. Until this
+// ran, the Hub had no idea that fragment existed and just showed the
+// normal gate, which is why clicking a real invite link silently dropped
+// straight into "please log in" with nothing set up yet.
+let _inviteAccessToken = null;
 (function(){
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const accessToken = hash.get('access_token');
+  const type = hash.get('type');
+  if(accessToken && (type === 'invite' || type === 'recovery')){
+    _inviteAccessToken = accessToken;
+    document.getElementById('gatePasscodeMode').style.display = 'none';
+    document.getElementById('gateEmailMode').style.display = 'none';
+    document.getElementById('gateSetPasswordMode').style.display = 'block';
+    // Pre-fill the email field for the login step right after, by reading
+    // the JWT payload client-side. This is just a display convenience --
+    // the payload is signed, not encrypted, so it's already readable in
+    // the URL anyone can see; nothing here is trusted for access control.
+    try{
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      if(payload.email) document.getElementById('emailInput').value = payload.email;
+    }catch(e){}
+    return;
+  }
   const stored = sessionStorage.getItem('hub_token');
   if(stored){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
   }
 })();
+
+async function submitNewPassword(){
+  const pw = document.getElementById('newPasswordInput').value;
+  const pwConfirm = document.getElementById('newPasswordConfirmInput').value;
+  const errEl = document.getElementById('setPasswordErr');
+  const btn = document.getElementById('setPasswordBtn');
+  errEl.style.display = 'none';
+  if(pw.length < 8){
+    errEl.textContent = 'Password must be at least 8 characters';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(pw !== pwConfirm){
+    errEl.textContent = "Passwords don't match";
+    errEl.style.display = 'block';
+    return;
+  }
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch(`${HUB_API}/auth/set-password`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({access_token: _inviteAccessToken, new_password: pw})
+    });
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok){
+      errEl.textContent = data.error || 'Could not set password — try again';
+      errEl.style.display = 'block';
+      if(btn) btn.disabled = false;
+      return;
+    }
+    // Password set -- clear the token from the URL so a refresh doesn't
+    // re-trigger this screen, then drop into the normal email login with
+    // the address already filled in, so one more submit (typing the
+    // password they just chose) gets them a real Hub session the same
+    // way checkEmailLogin() always has.
+    history.replaceState(null, '', location.pathname + location.search);
+    _inviteAccessToken = null;
+    document.getElementById('gateSetPasswordMode').style.display = 'none';
+    document.getElementById('gateEmailMode').style.display = 'block';
+    document.getElementById('emailAuthErr').style.display = 'none';
+    document.getElementById('emailPasswordInput').value = '';
+    document.getElementById('emailPasswordInput').focus();
+  }catch(e){
+    errEl.textContent = 'Service unavailable — try again';
+    errEl.style.display = 'block';
+    if(btn) btn.disabled = false;
+  }
+}
+
 async function checkAccess(){
   const input = document.getElementById('tokenInput').value.trim();
   const btn = document.getElementById('passcodeBtn');

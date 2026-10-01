@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Data Pipeline</title>
+<title>Command Center</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -62,6 +62,28 @@
   .login-err{color:var(--red);font-size:12.5px;margin-top:10px;min-height:16px;}
 
   /* Dashboard */
+  .cc-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:28px;}
+  .cc-tab{padding:10px 4px;margin-right:22px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .cc-tab:hover{color:var(--text);}
+  .cc-tab.active{color:var(--navy);border-bottom:2px solid var(--blue);}
+
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+  .field input, .field select{padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13.5px;font-family:inherit;}
+  .add-user-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+  .add-user-row .field{flex:1;min-width:200px;}
+  .inst-wrap{position:relative;}
+  .inst-dd{display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:9px;margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:var(--shadow);z-index:5;}
+  .inst-dd.open{display:block;}
+  .inst-dd-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);}
+  .inst-dd-item:last-child{border-bottom:none;}
+  .inst-dd-item:hover{background:var(--blue-soft);}
+  .inst-dd-item .meta{font-size:11px;color:var(--muted);}
+  .inst-dd-msg{padding:9px 12px;font-size:12.5px;color:var(--muted);}
+  .form-msg{font-size:12.5px;margin-top:10px;min-height:16px;}
+  .users-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:18px;}
+  .users-table th{text-align:left;padding:7px 10px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+  .users-table td{padding:8px 10px;border-bottom:1px solid var(--border);}
   .intro{margin-bottom:24px;}
   .intro .eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:8px;}
   .intro h2{font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em;}
@@ -101,8 +123,8 @@
   <div class="brand">
     <div class="logo-plate"><img src="Verlocity-Logo.png" alt="Verlocity"></div>
     <div class="brand-text">
-      <h1>Data Pipeline</h1>
-      <p>Data refresh, on demand</p>
+      <h1>Command Center</h1>
+      <p>Pipeline runs & Hub user access</p>
     </div>
   </div>
   <button class="logout-btn" id="logoutBtn" style="display:none;" onclick="logout()">Log out</button>
@@ -111,28 +133,73 @@
 <main>
   <div id="loginScreen" class="login-wrap">
     <h2>Sign in</h2>
-    <p>Separate from the team Hub — this panel triggers real data rebuilds.</p>
+    <p>Separate from the team Hub — this panel triggers real data rebuilds and manages who gets Hub access.</p>
     <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password">
     <button onclick="login()">Sign in</button>
     <div class="login-err" id="loginErr"></div>
   </div>
 
   <div id="dashboard" style="display:none;">
-    <div class="intro">
-      <div class="eyebrow">Data pipeline</div>
-      <h2>Refresh the data pipeline</h2>
-      <p>Each step runs on Railway, not in your browser — you can close this tab once a run starts and check back later. Steps run in order top to bottom; later steps read what earlier ones just wrote.</p>
+    <div class="cc-tabs">
+      <div class="cc-tab active" id="ccTabPipeline" onclick="switchCCTab('pipeline')">Pipeline</div>
+      <div class="cc-tab" id="ccTabUsers" onclick="switchCCTab('users')">Users</div>
     </div>
 
-    <div class="run-all-bar">
-      <div>
-        <div class="label">Run everything, in order</div>
-        <div class="sub">Ingest all sources, then rebuild every table through to archiving the year — no GDELT (separate, runs for hours).</div>
+    <div id="panelPipeline">
+      <div class="intro">
+        <div class="eyebrow">Data pipeline</div>
+        <h2>Refresh the data pipeline</h2>
+        <p>Each step runs on Railway, not in your browser — you can close this tab once a run starts and check back later. Steps run in order top to bottom; later steps read what earlier ones just wrote.</p>
       </div>
-      <button class="btn btn-primary" id="runAllBtn" onclick="runStep('__all__')">Run all</button>
+
+      <div class="run-all-bar">
+        <div>
+          <div class="label">Run everything, in order</div>
+          <div class="sub">Ingest all sources, then rebuild every table through to archiving the year — no GDELT (separate, runs for hours).</div>
+        </div>
+        <button class="btn btn-primary" id="runAllBtn" onclick="runStep('__all__')">Run all</button>
+      </div>
+
+      <div class="step-list" id="stepList"></div>
     </div>
 
-    <div class="step-list" id="stepList"></div>
+    <div id="panelUsers" style="display:none;">
+      <div class="intro">
+        <div class="eyebrow">Hub access</div>
+        <h2>Assign users to a bank</h2>
+        <p>Invites a real Hub account (Supabase Auth) and sets its role and institution in one step. "Admin" sees every bank; "Bank user" is scoped to the one institution picked below.</p>
+      </div>
+
+      <div class="run-all-bar" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div class="add-user-row">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="newUserEmail" placeholder="name@bank.com" autocomplete="off">
+          </div>
+          <div class="field" style="flex:0 0 170px;">
+            <label>Role</label>
+            <select id="newUserRole" onchange="onRoleChange()">
+              <option value="bank_user">Bank user</option>
+              <option value="admin">Admin (internal)</option>
+            </select>
+          </div>
+          <div class="field inst-wrap" id="instWrap">
+            <label>Institution</label>
+            <input type="text" id="instSearch" placeholder="Start typing a bank name..." autocomplete="off">
+            <div class="inst-dd" id="instDd"></div>
+          </div>
+          <button class="btn btn-primary" id="inviteBtn" onclick="inviteUser()">Invite</button>
+        </div>
+        <div class="form-msg" id="formMsg"></div>
+      </div>
+
+      <table class="users-table" id="usersTable">
+        <thead>
+          <tr><th>Email</th><th>Role</th><th>Institution</th><th>Added</th></tr>
+        </thead>
+        <tbody id="usersTbody"><tr><td colspan="4" style="padding:14px 10px;color:var(--muted)">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </main>
 
@@ -289,6 +356,118 @@ function pollJobUntilDone(jobId, onDone){
 document.getElementById("passwordInput").addEventListener("keydown", e => {
   if (e.key === "Enter") login();
 });
+
+// ── Users tab ────────────────────────────────────────────────────────
+let usersLoaded = false;
+let instResults = [];
+let selectedInst = null;
+let instSearchTimer = null;
+
+function switchCCTab(tab){
+  document.getElementById("panelPipeline").style.display = tab === "pipeline" ? "block" : "none";
+  document.getElementById("panelUsers").style.display = tab === "users" ? "block" : "none";
+  document.getElementById("ccTabPipeline").classList.toggle("active", tab === "pipeline");
+  document.getElementById("ccTabUsers").classList.toggle("active", tab === "users");
+  if (tab === "users" && !usersLoaded) loadUsers();
+}
+
+function onRoleChange(){
+  const isAdmin = document.getElementById("newUserRole").value === "admin";
+  document.getElementById("instWrap").style.display = isAdmin ? "none" : "flex";
+  if (isAdmin){ selectedInst = null; document.getElementById("instSearch").value = ""; }
+}
+
+async function searchInstitutions(q){
+  const dd = document.getElementById("instDd");
+  if (!q || q.length < 2){ dd.classList.remove("open"); return; }
+  dd.innerHTML = '<div class="inst-dd-msg">Searching…</div>';
+  dd.classList.add("open");
+  try{
+    const r = await fetch(API_BASE + "/admin/institutions?q=" + encodeURIComponent(q), {headers: authHeaders()});
+    if (r.status === 401) { logout(); return; }
+    instResults = await r.json();
+  }catch(e){
+    dd.innerHTML = '<div class="inst-dd-msg">Search failed</div>';
+    return;
+  }
+  if (!instResults.length){ dd.innerHTML = '<div class="inst-dd-msg">No results</div>'; return; }
+  dd.innerHTML = instResults.map((b, i) => `
+    <div class="inst-dd-item" onmousedown="pickInstitution(${i})">
+      <div>${escapeHtml(b.institution_name)}</div>
+      <div class="meta">${escapeHtml([b.city_hq, b.state_hq].filter(Boolean).join(", "))}</div>
+    </div>`).join("");
+}
+function pickInstitution(i){
+  const b = instResults[i]; if (!b) return;
+  selectedInst = b;
+  document.getElementById("instSearch").value = b.institution_name;
+  document.getElementById("instDd").classList.remove("open");
+}
+document.getElementById("instSearch").addEventListener("input", e => {
+  selectedInst = null;
+  clearTimeout(instSearchTimer);
+  const v = e.target.value.trim();
+  instSearchTimer = setTimeout(() => searchInstitutions(v), 250);
+});
+
+function showFormMsg(text, isError){
+  const el = document.getElementById("formMsg");
+  el.textContent = text;
+  el.style.color = isError ? "var(--red)" : "var(--green)";
+}
+
+async function inviteUser(){
+  const btn = document.getElementById("inviteBtn");
+  const email = document.getElementById("newUserEmail").value.trim();
+  const role = document.getElementById("newUserRole").value;
+  const inst_key = role === "admin" ? "" : (selectedInst ? selectedInst.inst_key : "");
+  showFormMsg("", false);
+
+  if (!email || !email.includes("@")){ showFormMsg("Enter a valid email", true); return; }
+  if (role === "bank_user" && !inst_key){ showFormMsg("Pick an institution from the dropdown", true); return; }
+
+  btn.disabled = true;
+  try{
+    const r = await fetch(API_BASE + "/admin/invite-user", {
+      method: "POST", headers: authHeaders(),
+      body: JSON.stringify({email, role, inst_key})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok){ showFormMsg(d.error || "Could not invite user", true); btn.disabled = false; return; }
+    showFormMsg(`Invited ${email}`, false);
+    document.getElementById("newUserEmail").value = "";
+    document.getElementById("instSearch").value = "";
+    selectedInst = null;
+    loadUsers();
+  }catch(e){
+    showFormMsg("Invite service unavailable", true);
+  }
+  btn.disabled = false;
+}
+
+async function loadUsers(){
+  usersLoaded = true;
+  const tbody = document.getElementById("usersTbody");
+  tbody.innerHTML = '<tr><td colspan="4" style="padding:14px 10px;color:var(--muted)">Loading…</td></tr>';
+  try{
+    const r = await fetch(API_BASE + "/admin/profiles", {headers: authHeaders()});
+    if (r.status === 401) { logout(); return; }
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows.length){
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:14px 10px;color:var(--muted)">No users yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(p => `
+      <tr>
+        <td>${escapeHtml(p.email || "")}</td>
+        <td>${escapeHtml(p.role || "")}</td>
+        <td>${escapeHtml(p.institution_name || (p.role === "admin" ? "— all banks —" : ""))}</td>
+        <td style="color:var(--muted)">${p.created_at ? fmtTime(p.created_at) : ""}</td>
+      </tr>`).join("");
+  }catch(e){
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:14px 10px;color:var(--muted)">Could not load users</td></tr>';
+  }
+}
 
 if (token) showDashboard();
 </script>

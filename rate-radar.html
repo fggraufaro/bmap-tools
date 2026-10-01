@@ -109,13 +109,26 @@ td{padding:8px 12px;vertical-align:middle}
 <body>
 
 <div id="authGate" style="position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999">
-  <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center">
+  <div id="gatePasscodeMode" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center">
     <div style="color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em;font-family:'DM Mono',monospace">ENTER ACCESS CODE</div>
     <input id="tokenInput" type="password" placeholder="••••••••••••"
       style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-size:14px;outline:none;text-align:center;letter-spacing:.1em;margin-bottom:10px;font-family:inherit"
       onkeydown="if(event.key==='Enter')checkAccess()">
     <div id="authErr" style="display:none;color:var(--amber);font-size:11px;margin-bottom:10px">Incorrect code — try again</div>
     <button onclick="checkAccess()" style="width:100%;background:var(--amber);color:var(--navy);border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">Access →</button>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer" onclick="gateSwitchMode('email')">Log in with email instead</div>
+  </div>
+  <div id="gateEmailMode" style="display:none;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center">
+    <div style="color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em;font-family:'DM Mono',monospace">LOG IN</div>
+    <input id="emailInput" type="email" placeholder="you@verlocity.ai"
+      style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-size:14px;outline:none;margin-bottom:10px;font-family:inherit"
+      onkeydown="if(event.key==='Enter')g('emailPasswordInput').focus()">
+    <input id="emailPasswordInput" type="password" placeholder="Password"
+      style="width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:10px 14px;color:#fff;font-size:14px;outline:none;margin-bottom:10px;font-family:inherit"
+      onkeydown="if(event.key==='Enter')checkEmailLogin()">
+    <div id="emailAuthErr" style="display:none;color:var(--amber);font-size:11px;margin-bottom:10px">Login failed</div>
+    <button id="emailLoginBtn" onclick="checkEmailLogin()" style="width:100%;background:var(--amber);color:var(--navy);border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">Log in →</button>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer" onclick="gateSwitchMode('passcode')">Use the shared access code instead</div>
   </div>
 </div>
 
@@ -200,7 +213,7 @@ let all=[],sortField='run_at',sortDir=-1;
 
 async function checkAccess(){
   const input=g('tokenInput').value.trim();
-  const btn=document.querySelector('#authGate button');
+  const btn=document.querySelector('#gatePasscodeMode button');
   if(btn)btn.disabled=true;
   try{
     const r=await fetch(`${HUB_API}/auth/login`,{
@@ -216,6 +229,58 @@ async function checkAccess(){
     afterAuth();
   }catch(e){
     g('authErr').style.display='block';if(btn)btn.disabled=false;
+  }
+}
+
+// Toggles passcode vs. real per-account email login -- both call the same
+// /auth/login, the backend tells them apart by whether email is present.
+function gateSwitchMode(mode){
+  const isEmail = mode === 'email';
+  g('gatePasscodeMode').style.display = isEmail ? 'none' : 'block';
+  g('gateEmailMode').style.display = isEmail ? 'block' : 'none';
+  g(isEmail ? 'emailInput' : 'tokenInput').focus();
+}
+
+// Admin-only for now (no per-bank scoping built for this tool yet) -- a
+// bank_user can authenticate but is rejected here before a token is ever
+// stored, same as the server already fails closed on tables this tool
+// would query for a non-admin role.
+async function checkEmailLogin(){
+  const email = g('emailInput').value.trim();
+  const password = g('emailPasswordInput').value;
+  const errEl = g('emailAuthErr');
+  const btn = g('emailLoginBtn');
+  errEl.style.display = 'none';
+  if(!email || !password){ errEl.textContent = 'Enter your email and password'; errEl.style.display = 'block'; return; }
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch(`${HUB_API}/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok){
+      errEl.textContent = data.error || 'Login failed — try again';
+      errEl.style.display = 'block';
+      g('emailPasswordInput').value = '';
+      if(btn) btn.disabled = false;
+      return;
+    }
+    if(data.role && data.role !== 'admin'){
+      errEl.textContent = 'This tool is for internal admin accounts only';
+      errEl.style.display = 'block';
+      g('emailPasswordInput').value = '';
+      if(btn) btn.disabled = false;
+      return;
+    }
+    sessionStorage.setItem('hub_token', data.token);
+    if(data.role) sessionStorage.setItem('hub_role', data.role);
+    if(data.email) sessionStorage.setItem('hub_email', data.email);
+    afterAuth();
+  }catch(e){
+    errEl.textContent = 'Login service unavailable — try again';
+    errEl.style.display = 'block';
+    if(btn) btn.disabled = false;
   }
 }
 

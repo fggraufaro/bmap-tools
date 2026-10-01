@@ -234,11 +234,20 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 <body>
 
 <div id="authGate">
-  <div class="gate-box">
+  <div class="gate-box" id="gatePasscodeMode">
     <div class="gate-lbl">ENTER ACCESS CODE</div>
     <input id="tokenInput" class="gate-inp" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')checkAccess()">
     <div id="authErr" class="gate-err">Incorrect code — try again</div>
     <button class="gate-btn" onclick="checkAccess()">Access →</button>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer" onclick="gateSwitchMode('email')">Log in with email instead</div>
+  </div>
+  <div class="gate-box" id="gateEmailMode" style="display:none">
+    <div class="gate-lbl">LOG IN</div>
+    <input id="emailInput" class="gate-inp" type="email" placeholder="you@verlocity.ai" style="text-align:left;letter-spacing:normal" onkeydown="if(event.key==='Enter')g('emailPasswordInput').focus()">
+    <input id="emailPasswordInput" class="gate-inp" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')checkEmailLogin()">
+    <div id="emailAuthErr" class="gate-err">Login failed</div>
+    <button class="gate-btn" id="emailLoginBtn" onclick="checkEmailLogin()">Log in →</button>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer" onclick="gateSwitchMode('passcode')">Use the shared access code instead</div>
   </div>
 </div>
 
@@ -425,7 +434,7 @@ const lockedBankIk = params.get('bank');
 
 function checkAccess() {
   const input = g('tokenInput').value.trim();
-  const btn = document.querySelector('#authGate button');
+  const btn = document.querySelector('#gatePasscodeMode button');
   if (btn) btn.disabled = true;
   fetch(`${HUB_API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: input }) })
     .then(async r => {
@@ -434,6 +443,49 @@ function checkAccess() {
       sessionStorage.setItem('hub_token', data.token);
       afterAuth();
     }).catch(() => { g('authErr').style.display = 'block'; if (btn) btn.disabled = false; });
+}
+
+// Toggles passcode vs. real per-account email login -- both call the same
+// /auth/login, the backend tells them apart by whether email is present.
+function gateSwitchMode(mode) {
+  const isEmail = mode === 'email';
+  g('gatePasscodeMode').style.display = isEmail ? 'none' : 'block';
+  g('gateEmailMode').style.display = isEmail ? 'block' : 'none';
+  g(isEmail ? 'emailInput' : 'tokenInput').focus();
+}
+
+// This tool is admin-only for now (no per-bank scoping built for it yet,
+// unlike the Hub) -- a bank_user account can authenticate but is rejected
+// here client-side, same as the server already fails closed on any table
+// this tool would try to query for a non-admin role.
+async function checkEmailLogin() {
+  const email = g('emailInput').value.trim();
+  const password = g('emailPasswordInput').value;
+  const errEl = g('emailAuthErr');
+  const btn = g('emailLoginBtn');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Enter your email and password'; errEl.style.display = 'block'; return; }
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`${HUB_API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { errEl.textContent = data.error || 'Login failed — try again'; errEl.style.display = 'block'; g('emailPasswordInput').value = ''; if (btn) btn.disabled = false; return; }
+    if (data.role && data.role !== 'admin') {
+      errEl.textContent = 'This tool is for internal admin accounts only';
+      errEl.style.display = 'block';
+      g('emailPasswordInput').value = '';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    sessionStorage.setItem('hub_token', data.token);
+    if (data.role) sessionStorage.setItem('hub_role', data.role);
+    if (data.email) sessionStorage.setItem('hub_email', data.email);
+    afterAuth();
+  } catch (e) {
+    errEl.textContent = 'Login service unavailable — try again';
+    errEl.style.display = 'block';
+    if (btn) btn.disabled = false;
+  }
 }
 
 function afterAuth() {

@@ -2140,14 +2140,21 @@ async function checkAssessmentPreflight(ik){
     .map(r=>r.rssdid));
   const missingNames = rssdList.filter(r=>!covered.has(r)).map(r=>rssdToName.get(r));
 
+  // "Good" = more than half of named competitors covered, not just 100% --
+  // and the status line deliberately never states the total/ratio, just
+  // the color and (when relevant) which specific banks are still missing.
   const total = rssdList.length, found = covered.size;
+  const isGood = total > 0 && found > total / 2;
+  const shown = missingNames.slice(0,6).join(', ') + (missingNames.length>6 ? `, +${missingNames.length-6} more` : '');
+
   if(found === total){
-    statusEl.innerHTML = `<b style="color:var(--teal)">&#10003; Rate Radar</b> — pricing found for all ${total} named competitors in this network.`;
+    statusEl.innerHTML = `<b style="color:var(--teal)">&#10003; Rate Radar</b> — pricing found for all named competitors in this network.`;
+  } else if(isGood){
+    statusEl.innerHTML = `<b style="color:var(--teal)">&#10003; Rate Radar</b> — pricing found for most named competitors. Missing: ${shown}.`;
   } else if(found === 0){
-    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — no pricing found for any of the ${total} named competitors. The assessment will generate without competitive pricing context.`;
+    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — no pricing found for named competitors. The assessment will generate without competitive pricing context.`;
   } else {
-    const shown = missingNames.slice(0,6).join(', ') + (missingNames.length>6 ? `, +${missingNames.length-6} more` : '');
-    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — pricing found for ${found} of ${total} named competitors. Missing: ${shown}.`;
+    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — limited pricing coverage for named competitors. Missing: ${shown}.`;
   }
   return promise;
 }

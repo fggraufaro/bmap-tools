@@ -493,6 +493,19 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 
 <div id="appWrap" style="display:none">
 
+<div class="dn" id="preflightBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999" onclick="preflightCancel()"></div>
+<div class="card card-pad dn" id="preflightModal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;width:420px;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+  <div class="label" style="margin-bottom:10px">Before generating the full assessment</div>
+  <div style="font-size:12px;line-height:1.6;margin-bottom:14px" id="preflightStatus">Checking Rate Radar coverage...</div>
+  <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:16px;cursor:pointer">
+    <input type="checkbox" id="preflightResonateCk"> Audience segments already built in Resonate for this bank
+  </label>
+  <div style="display:flex;gap:8px">
+    <button class="btn" style="flex:1;background:#E0DED8;color:var(--text)" onclick="preflightCancel()">Cancel</button>
+    <button class="btn" style="flex:1" id="preflightContinueBtn" onclick="preflightContinue()">Continue →</button>
+  </div>
+</div>
+
 <div class="header">
   <div style="display:flex;align-items:center;gap:16px">
     <div class="logo" style="background:#fff;padding:4px 10px;border-radius:10px">
@@ -2067,10 +2080,58 @@ async function branchPreviewExport() {
   ld.classList.remove('on');
 }
 
+// Pre-flight check before a full assessment run -- Rate Radar coverage is
+// real, queryable data (vw_rate_radar_latest), so that half is automated.
+// Resonate has no API integration at all (agOpenResonate() just opens the
+// site in a new tab with a CSV handoff) -- there's nothing to query, so
+// that half is a manual checkbox, not a real readiness check. Neither
+// blocks generation; this is informational, not a hard gate, since there
+// are legitimate cases (early pitch, no Resonate work yet) to proceed
+// without either.
+let _preflightResolve = null;
+function preflightShow(){
+  return new Promise(resolve=>{
+    _preflightResolve = resolve;
+    document.getElementById('preflightResonateCk').checked = false;
+    show('preflightModal'); show('preflightBackdrop');
+  });
+}
+function preflightCancel(){
+  hide('preflightModal'); hide('preflightBackdrop');
+  if(_preflightResolve) _preflightResolve(false);
+  _preflightResolve = null;
+}
+function preflightContinue(){
+  hide('preflightModal'); hide('preflightBackdrop');
+  if(_preflightResolve) _preflightResolve(true);
+  _preflightResolve = null;
+}
+async function checkAssessmentPreflight(ik){
+  const statusEl = document.getElementById('preflightStatus');
+  const promise = preflightShow();
+  statusEl.innerHTML = '<span class="spin"></span> Checking Rate Radar coverage...';
+  const rssd = String(ik || '').replace(/^(bank_|cu_)/, '');
+  const rrRows = await api('vw_rate_radar_latest',
+    `rssdid=eq.${rssd}&select=checking_apy,savings_apy,cd_apy,money_market_apy,data_quality,run_date&limit=1`);
+  const rr = Array.isArray(rrRows) && rrRows[0];
+  if(rr){
+    const fmt = v => v!=null ? v+'%' : '—';
+    statusEl.innerHTML = `<b style="color:var(--teal)">&#10003; Rate Radar</b> — data found (run ${rr.run_date||'—'}, quality: ${rr.data_quality||'—'}).<br>` +
+      `CD ${fmt(rr.cd_apy)} &middot; Savings ${fmt(rr.savings_apy)} &middot; MMA ${fmt(rr.money_market_apy)} &middot; Checking ${fmt(rr.checking_apy)}`;
+  } else {
+    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — no rate data found for this bank. The assessment will generate without pricing context. Consider running Rate Radar or <code>/add-bank</code> first.`;
+  }
+  return promise;
+}
+
 async function assessmentExport() {
   if (!window.selBank || !window.bankData) return;
   const btn=document.getElementById('assessBtn'),ld=document.getElementById('assessLd'),msg=document.getElementById('assessMsg');
   const {rows,ik}=window.bankData,bankName=rows[0]?.namefull||'—';
+
+  const proceed = await checkAssessmentPreflight(ik);
+  if(!proceed) return false;
+
   btn.disabled=true;ld.classList.add('on');msg.textContent='Starting assessment...';
   try{
     // Kick off the background job — returns almost instantly, real work happens server-side
@@ -2125,7 +2186,10 @@ async function qxRun(kind){
   btn.disabled=true;btn.innerHTML=kind==='snapshot'?'Building PPTX…':kind==='assessment'?'Building DOCX…':'Building PDF…';
   try{
     if(kind==='snapshot')await snapshotExport();
-    else if(kind==='assessment')await assessmentExport();
+    else if(kind==='assessment'){
+      const ok = await assessmentExport();
+      if(ok===false){ btn.innerHTML=orig; btn.disabled=false; return; } // cancelled at pre-flight, not an error
+    }
     else await boardBriefExport();
     btn.innerHTML='✓ Downloaded';
     setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2200);

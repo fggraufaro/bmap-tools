@@ -2109,17 +2109,45 @@ function preflightContinue(){
 async function checkAssessmentPreflight(ik){
   const statusEl = document.getElementById('preflightStatus');
   const promise = preflightShow();
-  statusEl.innerHTML = '<span class="spin"></span> Checking Rate Radar coverage...';
-  const rssd = String(ik || '').replace(/^(bank_|cu_)/, '');
+  statusEl.innerHTML = '<span class="spin"></span> Checking Rate Radar coverage for named competitors...';
+
+  // The assessment's competitive narrative needs pricing for the banks it
+  // NAMES as targets, not the subject bank's own rates -- checking the
+  // subject bank was the wrong scope (corrected 2026-10-02). Pull the real
+  // distinct competitor set this network's assessment actually draws from.
+  const compRows = await api('branch_target_competitors',
+    `my_inst_key=eq.${ik}&select=target_inst_key,target_namefull&limit=5000`);
+  const compMap = new Map();
+  (Array.isArray(compRows) ? compRows : []).forEach(r=>{
+    if(r.target_inst_key && !compMap.has(r.target_inst_key)) compMap.set(r.target_inst_key, r.target_namefull || r.target_inst_key);
+  });
+
+  if(compMap.size === 0){
+    statusEl.innerHTML = `<b style="color:var(--muted)">Rate Radar</b> — no named competitors found for this network to check pricing for.`;
+    return promise;
+  }
+
+  const rssdToName = new Map();
+  compMap.forEach((name, instKey)=>{
+    const rssd = String(instKey).replace(/^(bank_|cu_)/, '');
+    rssdToName.set(rssd, name);
+  });
+  const rssdList = [...rssdToName.keys()];
   const rrRows = await api('vw_rate_radar_latest',
-    `rssdid=eq.${rssd}&select=checking_apy,savings_apy,cd_apy,money_market_apy,data_quality,run_date&limit=1`);
-  const rr = Array.isArray(rrRows) && rrRows[0];
-  if(rr){
-    const fmt = v => v!=null ? v+'%' : '—';
-    statusEl.innerHTML = `<b style="color:var(--teal)">&#10003; Rate Radar</b> — data found (run ${rr.run_date||'—'}, quality: ${rr.data_quality||'—'}).<br>` +
-      `CD ${fmt(rr.cd_apy)} &middot; Savings ${fmt(rr.savings_apy)} &middot; MMA ${fmt(rr.money_market_apy)} &middot; Checking ${fmt(rr.checking_apy)}`;
+    `rssdid=in.(${rssdList.join(',')})&select=rssdid,data_quality`);
+  const covered = new Set((Array.isArray(rrRows) ? rrRows : [])
+    .filter(r=>r.data_quality && r.data_quality !== 'no-data')
+    .map(r=>r.rssdid));
+  const missingNames = rssdList.filter(r=>!covered.has(r)).map(r=>rssdToName.get(r));
+
+  const total = rssdList.length, found = covered.size;
+  if(found === total){
+    statusEl.innerHTML = `<b style="color:var(--teal)">&#10003; Rate Radar</b> — pricing found for all ${total} named competitors in this network.`;
+  } else if(found === 0){
+    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — no pricing found for any of the ${total} named competitors. The assessment will generate without competitive pricing context.`;
   } else {
-    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — no rate data found for this bank. The assessment will generate without pricing context. Consider running Rate Radar or <code>/add-bank</code> first.`;
+    const shown = missingNames.slice(0,6).join(', ') + (missingNames.length>6 ? `, +${missingNames.length-6} more` : '');
+    statusEl.innerHTML = `<b style="color:var(--amber)">&#10007; Rate Radar</b> — pricing found for ${found} of ${total} named competitors. Missing: ${shown}.`;
   }
   return promise;
 }

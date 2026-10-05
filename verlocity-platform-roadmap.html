@@ -371,22 +371,22 @@
       <p>Two products, one ledger — what's live, what's sequenced next, what it costs, and where SOC&nbsp;2 sits on the critical path. Revisit monthly, not daily.</p>
     </div>
     <div class="readiness-tag">
-      <span class="score num">3.3<span style="font-size:18px;">/10</span></span>
-      <span class="cap">Platform readiness</span>
+      <span class="score num">4.8<span style="font-size:18px;">/10</span></span>
+      <span class="cap">Platform readiness · mean of the four layers · 2026-10-05</span>
     </div>
   </div>
   <section class="readiness">
     <div class="section-head">
       <span class="tag">Where things stand</span>
       <h2>Readiness, by layer</h2>
-      <div class="sub">The intelligence core is the hard part, and it's furthest along. The productization layer around it is what's missing.</div>
+      <div class="sub">The intelligence core is the hard part, and it's furthest along. The productization layer around it is what's missing. Overall = plain mean of the four layers (judgment-scored; no weighting). 2026-10-05: Core 8→7 (unit/wording defects found, a86/a88; GDELT hold, a87); Infra 0→3 (per-account login + per-institution scoping live; billing, usage data, MFA, invite email still missing, a38/a89). Product A and B unchanged. The previous 3.3 did not reconcile to the gauges (mean was 4.25) — it was hand-set.</div>
     </div>
     <div class="gauges">
 
       <div class="gauge-card">
         <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="65.3"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">8/10</text>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="98.0"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">7/10</text>
         </svg>
         <div class="gauge-label">Core intelligence<br>BMAP + Rate Radar data &amp; logic</div>
       </div>
@@ -409,8 +409,8 @@
 
       <div class="gauge-card">
         <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="326.7"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">0/10</text>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
         </svg>
         <div class="gauge-label">Cross-cutting infra<br>Identity, billing, usage data</div>
       </div>
@@ -444,6 +444,8 @@
       <div class="nnl-card">
         <span class="tag">Now · through 10/7</span>
         <ul>
+          <li>Waiting on the DNS records from the team (a89) — add, verify, then real bank-user invite emails work; merge into the existing verlocity.ai SPF, don't duplicate it</li>
+          <li>Fix the MidFirst "stress signal" wording (a88) before the 10/2 Cattlemens assessment goes to anyone</li>
           <li>Polish the Growth Engine demo — Foundation-block walkthrough (Branch Deep Dive, Network Snapshot, Rate Radar, Financial Brief) before Activation, per Tom's 9/30 direction</li>
           <li>Close the deck's last real gap: swap the MediaPredict placeholder screenshots for real Prattville data</li>
           <li>Full live run-through of the connected Audience→MediaPredict handoff before it's shown live</li>
@@ -455,7 +457,8 @@
         <span class="tag">Next · 30–90 days</span>
         <ul>
           <li>Media Thesis meeting — flesh out the Activation journey (audience → media execution)</li>
-          <li>Ship accounts + Product A dashboard shell</li>
+          <li>Retire the shared passcode once invites work — per-customer separation isn't enforced until then (a38); then MFA/SSO</li>
+          <li>Ship accounts + Product A dashboard shell (accounts and per-bank scoping are live; billing and usage data are not)</li>
           <li>Recruit 3–5 pilot banks, outbound data only</li>
           <li>Pete Hallen's SOC2 deal-stoppers (a74/a75) — real, tracked, deliberately not the active focus per Francisco's 2026-09-30 call: "good insight, not a priority right now"</li>
         </ul>
@@ -547,7 +550,7 @@
       <div class="field-list">
         <div class="field-row"><span class="k">For</span><span class="v">Regional banks that already run their own marketing team</span></div>
         <div class="field-row"><span class="k">Stack</span><span class="v">BMAP + Rate Radar, as an ongoing login — not a one-time report</span></div>
-        <div class="field-row"><span class="k">Blocking</span><span class="v">Dashboard prototype exists (Opportunity View) — fine for one-off pitches today. Shared login and browser-only status become real problems once multiple live clients need independent access. Server-side status + billing remain either way</span></div>
+        <div class="field-row"><span class="k">Blocking</span><span class="v">Dashboard prototype exists (Opportunity View) — fine for one-off pitches today. Per-account login with per-bank data scoping is now live (admin-verified); the shared passcode still works in parallel and invite emails await DNS (a89). Server-side status + billing remain either way</span></div>
         <div class="field-row"><span class="k">Data flow</span><span class="v">Outbound only — safe to launch before SOC&nbsp;2</span></div>
       </div>
     </div>
@@ -739,9 +742,9 @@
   // Rate Radar / MediaPredict for the 10/7 Eggemeyer meeting). a37/a38/a39
   // are the only survivors still genuinely relevant; a82/a83 are the real
   // open work, a77 is the elasticity tool now correctly marked shipped.
-  const P1_IDS = ['a82','a77','a37','a38','a39'];
-  const P2_IDS = ['a19','a25','a27','a28','a22','a40','a63','a70','a71'];
-  const P3_IDS = ['a30','a35','a36','a38','a41','a78'];
+  const P1_IDS = ['a82','a88','a37','a38','a89','a39','a77'];
+  const P2_IDS = ['a86','a87','a84','a19','a25','a27','a28','a22','a40','a63','a70','a71'];
+  const P3_IDS = ['a30','a35','a36','a38','a89','a41','a78'];
   const P4_IDS = ['a51','a52','a53','a54','a74','a75','a76','a79','a80','a81'];
 
   let db;

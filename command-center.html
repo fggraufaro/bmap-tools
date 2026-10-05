@@ -115,6 +115,8 @@
   .step-actions{flex-shrink:0;}
   .run-btn{padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:var(--paper);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;}
   .run-btn:hover{border-color:var(--blue);color:var(--blue);}
+  .run-btn:disabled{opacity:.55;cursor:not-allowed;}
+  .run-btn:disabled:hover{border-color:var(--border);color:var(--text);}
   .run-btn:disabled{opacity:.5;cursor:not-allowed;}
   .err-detail{font-size:11.5px;color:var(--red-ink);background:var(--red-soft);border-radius:6px;padding:6px 9px;margin-top:6px;max-width:420px;overflow-wrap:break-word;}
 
@@ -272,24 +274,40 @@ function renderSteps(){
   const list = document.getElementById("stepList");
   list.innerHTML = "";
   const grouped = steps.some(s => s.group);
-  const chain = grouped ? steps.filter(s => s.group === "chain").sort((a,b) => a.seq - b.seq) : steps;
-  const alone = grouped ? steps.filter(s => s.group !== "chain") : [];
-  let lastPhase = null;
-  chain.forEach(s => {
-    if (grouped && s.phase !== lastPhase) {
-      lastPhase = s.phase;
-      const h = document.createElement("div");
-      h.className = "sec-head";
-      h.textContent = s.phase;
-      list.appendChild(h);
-    }
-    list.appendChild(stepRow(s, grouped ? s.seq : null));
-  });
-  if (alone.length) {
+  const bySeq = (a,b) => a.seq - b.seq;
+  const chain = grouped ? steps.filter(s => s.group === "chain").sort(bySeq) : steps;
+  const quarterly = grouped ? steps.filter(s => s.group === "quarterly").sort(bySeq) : [];
+  const alone = grouped ? steps.filter(s => s.group === "standalone") : [];
+  const head = (text, note) => {
     const h = document.createElement("div");
     h.className = "sec-head";
-    h.textContent = "Standalone — run on their own, not part of Run all";
+    h.textContent = text;
     list.appendChild(h);
+    if (note) {
+      const n = document.createElement("div");
+      n.className = "sec-note";
+      n.textContent = note;
+      list.appendChild(n);
+    }
+  };
+  let lastPhase = null;
+  chain.forEach(s => {
+    if (grouped && s.phase !== lastPhase) { lastPhase = s.phase; head(s.phase); }
+    list.appendChild(stepRow(s, grouped ? s.seq : null));
+  });
+  if (quarterly.length) {
+    lastPhase = null;
+    quarterly.forEach((s, i) => {
+      if (s.phase !== lastPhase) {
+        lastPhase = s.phase;
+        head(i === 0 ? "New quarter: " + s.phase : s.phase,
+             i === 0 ? "Run these in order when FFIEC publishes a quarter (about November for 9/30). Dry runs change nothing. The two swap steps are locked until signed off." : null);
+      }
+      list.appendChild(stepRow(s, s.seq));
+    });
+  }
+  if (alone.length) {
+    head("Standalone: run on their own, not part of Run all");
     alone.forEach(s => list.appendChild(stepRow(s, null)));
   }
 }
@@ -300,15 +318,16 @@ function stepRow(s, seq){
   div.className = "step";
   div.id = "step-" + s.id;
   const running = st.dot === "running";
+  const locked = !!s.locked;
   div.innerHTML = `
     <div class="step-info">
       <div class="name">${seq ? `<span class="seq">${seq}</span>` : ""}${s.label}</div>
-      <div class="status-line"><span class="dot ${st.dot}"></span>${st.text}</div>
+      <div class="status-line"><span class="dot ${st.dot}"></span>${st.text}${locked ? " · locked until sign-off" : ""}</div>
       ${s.last_run && s.last_run.status === "error" && s.last_run.error_message
         ? `<div class="err-detail">${escapeHtml(s.last_run.error_message)}</div>` : ""}
     </div>
     <div class="step-actions">
-      <button class="run-btn" ${running ? "disabled" : ""} onclick="runStep('${s.id}')">${running ? "Running…" : "Run"}</button>
+      <button class="run-btn" ${(running || locked) ? "disabled" : ""} onclick="runStep('${s.id}')">${running ? "Running…" : (locked ? "Locked" : "Run")}</button>
     </div>`;
   if (running) pollJobForStep(s.id, s.last_run);
   return div;

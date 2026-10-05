@@ -108,6 +108,10 @@
   .dot.running{background:var(--amber);animation:pulse 1.2s ease-in-out infinite;}
   .dot.none{background:var(--muted);opacity:.4;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .sec-head{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 0 2px;}
+  .sec-head:first-child{margin-top:0;}
+  .sec-note{font-size:12px;color:var(--muted);margin:0 0 4px;}
+  .seq{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;margin-right:9px;flex-shrink:0;}
   .step-actions{flex-shrink:0;}
   .run-btn{padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:var(--paper);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;}
   .run-btn:hover{border-color:var(--blue);color:var(--blue);}
@@ -149,13 +153,13 @@
       <div class="intro">
         <div class="eyebrow">Data pipeline</div>
         <h2>Refresh the data pipeline</h2>
-        <p>Each step runs on Railway, not in your browser — you can close this tab once a run starts and check back later. Steps run in order top to bottom; later steps read what earlier ones just wrote.</p>
+        <p>Each step runs on Railway, not in your browser — you can close this tab once a run starts and check back later. Steps 1-10 are one chain: run them in number order, because each step reads what the one before it just wrote. Steps below the chain run on their own.</p>
       </div>
 
       <div class="run-all-bar">
         <div>
           <div class="label">Run everything, in order</div>
-          <div class="sub">Ingest all sources, then rebuild every table through to archiving the year — no GDELT (separate, runs for hours).</div>
+          <div class="sub">Runs steps 1-10 in order: ingest all sources, rebuild every table, then archive the year. The standalone steps below are not included.</div>
         </div>
         <button class="btn btn-primary" id="runAllBtn" onclick="runStep('__all__')">Run all</button>
       </div>
@@ -267,25 +271,47 @@ function statusLine(lastRun){
 function renderSteps(){
   const list = document.getElementById("stepList");
   list.innerHTML = "";
-  steps.forEach(s => {
-    const st = statusLine(s.last_run);
-    const div = document.createElement("div");
-    div.className = "step";
-    div.id = "step-" + s.id;
-    const running = st.dot === "running";
-    div.innerHTML = `
-      <div class="step-info">
-        <div class="name">${s.label}</div>
-        <div class="status-line"><span class="dot ${st.dot}"></span>${st.text}</div>
-        ${s.last_run && s.last_run.status === "error" && s.last_run.error_message
-          ? `<div class="err-detail">${escapeHtml(s.last_run.error_message)}</div>` : ""}
-      </div>
-      <div class="step-actions">
-        <button class="run-btn" ${running ? "disabled" : ""} onclick="runStep('${s.id}')">${running ? "Running…" : "Run"}</button>
-      </div>`;
-    list.appendChild(div);
-    if (running) pollJobForStep(s.id, s.last_run);
+  const grouped = steps.some(s => s.group);
+  const chain = grouped ? steps.filter(s => s.group === "chain").sort((a,b) => a.seq - b.seq) : steps;
+  const alone = grouped ? steps.filter(s => s.group !== "chain") : [];
+  let lastPhase = null;
+  chain.forEach(s => {
+    if (grouped && s.phase !== lastPhase) {
+      lastPhase = s.phase;
+      const h = document.createElement("div");
+      h.className = "sec-head";
+      h.textContent = s.phase;
+      list.appendChild(h);
+    }
+    list.appendChild(stepRow(s, grouped ? s.seq : null));
   });
+  if (alone.length) {
+    const h = document.createElement("div");
+    h.className = "sec-head";
+    h.textContent = "Standalone — run on their own, not part of Run all";
+    list.appendChild(h);
+    alone.forEach(s => list.appendChild(stepRow(s, null)));
+  }
+}
+
+function stepRow(s, seq){
+  const st = statusLine(s.last_run);
+  const div = document.createElement("div");
+  div.className = "step";
+  div.id = "step-" + s.id;
+  const running = st.dot === "running";
+  div.innerHTML = `
+    <div class="step-info">
+      <div class="name">${seq ? `<span class="seq">${seq}</span>` : ""}${s.label}</div>
+      <div class="status-line"><span class="dot ${st.dot}"></span>${st.text}</div>
+      ${s.last_run && s.last_run.status === "error" && s.last_run.error_message
+        ? `<div class="err-detail">${escapeHtml(s.last_run.error_message)}</div>` : ""}
+    </div>
+    <div class="step-actions">
+      <button class="run-btn" ${running ? "disabled" : ""} onclick="runStep('${s.id}')">${running ? "Running…" : "Run"}</button>
+    </div>`;
+  if (running) pollJobForStep(s.id, s.last_run);
+  return div;
 }
 
 function escapeHtml(s){

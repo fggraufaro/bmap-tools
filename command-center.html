@@ -155,15 +155,7 @@
       <div class="intro">
         <div class="eyebrow">Data pipeline</div>
         <h2>Refresh the data pipeline</h2>
-        <p>Each step runs on Railway, not in your browser — you can close this tab once a run starts and check back later. Steps 1-10 are one chain: run them in number order, because each step reads what the one before it just wrote. Steps below the chain run on their own.</p>
-      </div>
-
-      <div class="run-all-bar">
-        <div>
-          <div class="label">Run everything, in order</div>
-          <div class="sub">Runs steps 1-10 in order: ingest all sources, rebuild every table, then archive the year. The standalone steps below are not included.</div>
-        </div>
-        <button class="btn btn-primary" id="runAllBtn" onclick="runStep('__all__')">Run all</button>
+        <p>Each step runs on Railway, not in your browser — you can close this tab once a run starts and check back later. Steps are grouped. Each group has one button that runs its steps in order and stops at the first failure; every step also has its own button. Within a group, the numbers are the order, because each step reads what the one before it just wrote.</p>
       </div>
 
       <div class="step-list" id="stepList"></div>
@@ -215,6 +207,7 @@
 const API_BASE = "https://bmap-pipeline-command-center-production.up.railway.app";
 let token = sessionStorage.getItem("pipeline_token") || "";
 let steps = [];
+let groups = [];
 let pollTimers = {};
 
 function authHeaders(){
@@ -273,11 +266,8 @@ function statusLine(lastRun){
 function renderSteps(){
   const list = document.getElementById("stepList");
   list.innerHTML = "";
-  const grouped = steps.some(s => s.group);
   const bySeq = (a,b) => a.seq - b.seq;
-  const chain = grouped ? steps.filter(s => s.group === "chain").sort(bySeq) : steps;
-  const quarterly = grouped ? steps.filter(s => s.group === "quarterly").sort(bySeq) : [];
-  const alone = grouped ? steps.filter(s => s.group === "standalone") : [];
+  const of = g => steps.filter(s => s.group === g).sort(bySeq);
   const head = (text, note) => {
     const h = document.createElement("div");
     h.className = "sec-head";
@@ -290,13 +280,20 @@ function renderSteps(){
       list.appendChild(n);
     }
   };
-  let lastPhase = null;
-  chain.forEach(s => {
-    if (grouped && s.phase !== lastPhase) { lastPhase = s.phase; head(s.phase); }
-    list.appendChild(stepRow(s, grouped ? s.seq : null));
+  groups.forEach((g, i) => {
+    head((i + 1) + ". " + g.label);
+    list.appendChild(groupBar(g));
+    of(g.id).forEach(s => list.appendChild(stepRow(s, s.seq)));
   });
+  const separate = of("separate");
+  if (separate.length) {
+    head("Separate buttons: run by hand, one at a time",
+         "Not part of a group. Institution directory feeds the tiered rebuild (it loops over the directory), so run it after the branch master step and before tiered. Top targets reads the target-competitor table and the directory, so run it after the rebuild group and after any directory refresh. Archive is once a year.");
+    separate.forEach(s => list.appendChild(stepRow(s, s.seq)));
+  }
+  const quarterly = of("quarterly");
   if (quarterly.length) {
-    lastPhase = null;
+    let lastPhase = null;
     quarterly.forEach((s, i) => {
       if (s.phase !== lastPhase) {
         lastPhase = s.phase;
@@ -306,10 +303,30 @@ function renderSteps(){
       list.appendChild(stepRow(s, s.seq));
     });
   }
+  const alone = steps.filter(s => s.group === "standalone");
   if (alone.length) {
-    head("Standalone: run on their own, not part of Run all");
+    head("Standalone: run on their own");
     alone.forEach(s => list.appendChild(stepRow(s, null)));
   }
+}
+
+function groupBar(g){
+  const st = statusLine(g.last_run);
+  const running = st.dot === "running";
+  const div = document.createElement("div");
+  div.className = "run-all-bar";
+  div.style.marginBottom = "10px";
+  div.innerHTML = `
+    <div>
+      <div class="label">Run group: ${escapeHtml(g.label)}</div>
+      <div class="sub">${escapeHtml(g.note)}</div>
+      <div class="status-line"><span class="dot ${st.dot}"></span>${st.text}</div>
+      ${g.last_run && g.last_run.status === "error" && g.last_run.error_message
+        ? `<div class="err-detail">${escapeHtml(g.last_run.error_message)}</div>` : ""}
+    </div>
+    <button class="btn btn-primary" ${running ? "disabled" : ""} onclick="runGroup('${g.id}')">${running ? "Running…" : "Run group"}</button>`;
+  if (running) pollGroup(g.id);
+  return div;
 }
 
 function stepRow(s, seq){
@@ -344,6 +361,8 @@ async function loadSteps(){
     const r = await fetch(API_BASE + "/steps", {headers: authHeaders()});
     if (r.status === 401) { logout(); return; }
     steps = await r.json();
+    const gr = await fetch(API_BASE + "/groups", {headers: authHeaders()});
+    groups = gr.ok ? await gr.json() : [];
     renderSteps();
   }catch(e){
     console.error("Failed to load steps", e);
@@ -351,23 +370,42 @@ async function loadSteps(){
 }
 
 async function runStep(stepId){
-  const isAll = stepId === "__all__";
-  const url = isAll ? API_BASE + "/run-all" : API_BASE + "/run/" + stepId;
-  const btn = isAll ? document.getElementById("runAllBtn") : null;
-  if (btn) btn.disabled = true;
   try{
-    const r = await fetch(url, {method: "POST", headers: authHeaders()});
+    const r = await fetch(API_BASE + "/run/" + stepId, {method: "POST", headers: authHeaders()});
     const d = await r.json();
-    if (!r.ok) { alert("Could not start: " + (d.error || r.status)); if (btn) btn.disabled = false; return; }
-    if (isAll){
-      pollJobUntilDone(d.job_id, () => { if (btn) btn.disabled = false; loadSteps(); });
-    } else {
-      await loadSteps();
-    }
+    if (!r.ok) { alert("Could not start: " + (d.error || r.status)); return; }
+    await loadSteps();
   }catch(e){
     alert("Could not reach the server.");
-    if (btn) btn.disabled = false;
   }
+}
+
+async function runGroup(groupId){
+  const g = groups.find(x => x.id === groupId);
+  const names = g.steps.map(id => (steps.find(s => s.id === id) || {label: id}).label);
+  if (!confirm("Run \"" + g.label + "\" now? It runs these in order and stops at the first failure:\n\n" +
+               names.map((n, i) => (i + 1) + ". " + n).join("\n"))) return;
+  try{
+    const r = await fetch(API_BASE + "/run-group/" + groupId, {method: "POST", headers: authHeaders()});
+    const d = await r.json();
+    if (!r.ok) { alert("Could not start: " + (d.error || r.status)); return; }
+    await loadSteps();
+  }catch(e){
+    alert("Could not reach the server.");
+  }
+}
+
+function pollGroup(groupId){
+  const key = "group_" + groupId;
+  if (pollTimers[key]) return;
+  pollTimers[key] = setInterval(async () => {
+    await loadSteps();
+    const cur = groups.find(g => g.id === groupId);
+    if (!cur || !cur.last_run || (cur.last_run.status !== "running" && cur.last_run.status !== "pending")){
+      clearInterval(pollTimers[key]);
+      delete pollTimers[key];
+    }
+  }, 8000);
 }
 
 function pollJobForStep(stepId, lastRun){
@@ -383,19 +421,6 @@ function pollJobForStep(stepId, lastRun){
       delete pollTimers[stepId];
     }
   }, 5000);
-}
-
-function pollJobUntilDone(jobId, onDone){
-  const timer = setInterval(async () => {
-    try{
-      const r = await fetch(API_BASE + "/status/" + jobId, {headers: authHeaders()});
-      const d = await r.json();
-      if (d.status === "done" || d.status === "error"){
-        clearInterval(timer);
-        onDone();
-      }
-    }catch(e){}
-  }, 8000);
 }
 
 document.getElementById("passwordInput").addEventListener("keydown", e => {

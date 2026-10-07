@@ -138,6 +138,22 @@
   .action-owner{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--accent-ink);background:var(--accent-soft);border:1px solid transparent;border-radius:100px;padding:2px 9px;cursor:text;min-width:70px;outline:none;}
   .action-owner:focus{border-color:var(--accent);}
   .action-owner::placeholder{color:var(--ink-faint);}
+  .action-head{display:flex;gap:9px;align-items:baseline;font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:2px;line-height:1.35;}
+  .action-idb{font-family:"IBM Plex Mono";font-weight:700;color:var(--accent-ink);flex-shrink:0;}
+  .action-ttl{font-weight:700;}
+  .action-line{font-size:13.5px;color:var(--ink);line-height:1.45;margin-bottom:7px;}
+  .pcr-wrap{display:grid;gap:3px;margin-bottom:2px;}
+  .pcr{display:grid;grid-template-columns:40px minmax(0,1fr);gap:8px;font-size:12.5px;line-height:1.45;color:var(--ink-soft);}
+  .lab{font-family:"IBM Plex Mono";font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding-top:2px;}
+  .lab.pro{color:var(--accent-ink);}.lab.con{color:var(--gold-ink);}.lab.risk{color:var(--red-ink);}
+  .action-more{flex-basis:100%;}
+  .action-more summary{cursor:pointer;font-size:11.5px;color:var(--ink-faint);list-style:none;}
+  .action-more summary::-webkit-details-marker{display:none;}
+  .action-more summary::before{content:"▸ ";}
+  .action-more[open] summary::before{content:"▾ ";}
+  .action-more .action-text{margin-top:6px;font-size:12.5px;max-width:78ch;white-space:pre-wrap;}
+  .done-row .action-head{color:var(--ink-soft);font-weight:600;}
+  .done-row{padding-top:9px;padding-bottom:9px;}
   .actions-empty{color:var(--ink-faint);font-size:13px;padding:20px 18px;}
   .actions-live-tag{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono";font-size:10.5px;color:var(--ink-faint);}
   .actions-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
@@ -588,6 +604,19 @@
     </div>
   </section>
 
+  <section class="done-actions collapsed">
+    <div class="section-head">
+      <span class="tag">Finished</span>
+      <h2>Done <span id="doneCount" class="num" style="font-size:15px;color:var(--ink-faint);"></span></h2>
+      <div class="sub">Closed actions live here, out of the way. Uncheck one to reopen it.</div>
+    </div>
+    <div class="actions-card">
+      <div class="actions-list" id="doneList">
+        <div class="actions-empty">Loading…</div>
+      </div>
+    </div>
+  </section>
+
   <section class="products">
     <div class="product-card">
       <div>
@@ -761,7 +790,7 @@
     if (!head) return;
     head.tabIndex = 0;
     head.setAttribute('role', 'button');
-    head.setAttribute('aria-expanded', 'true');
+    head.setAttribute('aria-expanded', String(!sec.classList.contains('collapsed')));
     const toggle = () => {
       const collapsed = sec.classList.toggle('collapsed');
       head.setAttribute('aria-expanded', String(!collapsed));
@@ -773,6 +802,7 @@
   });
 
   const listEl = document.getElementById('actionsList');
+  const doneEl = document.getElementById('doneList');
   const p1El = document.getElementById('p1List');
   const p2El = document.getElementById('p2List');
   const p3El = document.getElementById('p3List');
@@ -799,22 +829,54 @@
   try { db = await claude.use('db'); } catch(e) { db = null; }
   if (!db) {
     const msg = '<div class="actions-empty">Open-action tracking isn\'t available in this view. <a href="https://claude.ai/code/artifact/f2513088-1af1-43f5-a384-f59f2e32f79e" target="_blank" rel="noopener" style="color:var(--accent-ink);font-weight:600;">Open the live tracker →</a></div>';
-    listEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg; p4El.innerHTML = msg;
+    listEl.innerHTML = msg; doneEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg; p4El.innerHTML = msg;
     return;
   }
   const col = db.collection('actions');
 
+  function firstSentence(t){
+    t = (t || '').replace(/\s+/g, ' ').trim();
+    const m = t.match(/^(.{20,170}?[.!?])(\s|$)/);
+    return m ? m[1] : (t.length > 170 ? t.slice(0, 167) + '…' : t);
+  }
+  function titleOf(it){ return it.title || firstSentence(it.text).replace(/[.]$/, ''); }
+  function pcr(label, cls, v){ return v ? `<div class="pcr"><span class="lab ${cls}">${label}</span><span>${esc(v)}</span></div>` : ''; }
+  function notesHtml(it, summary){
+    const t = (it.text || '').trim();
+    if (!t || t === summary) return '';
+    return `<details class="action-more"><summary>Full notes</summary><div class="action-text">${esc(t)}</div></details>`;
+  }
+
   function rowHtml(it){
+    const summary = it.summary || (it.title ? firstSentence(it.text) : '');
     return `
       <div class="action-row">
-        <input type="checkbox" class="action-check" data-id="${esc(it.id)}" ${it.done ? 'checked' : ''} aria-label="Mark done">
+        <input type="checkbox" class="action-check" data-id="${esc(it.id)}" aria-label="Mark done">
         <div class="action-body">
-          ${it.title ? `<div class="action-title${it.done ? ' done' : ''}">${esc(it.title)}</div>` : ''}
-          <div class="action-text${it.done ? ' done' : ''}">${esc(it.text)}</div>
+          <div class="action-head"><span class="action-idb">${esc(it.id)}</span><span class="action-ttl">${esc(titleOf(it))}</span></div>
+          ${summary ? `<div class="action-line">${esc(summary)}</div>` : ''}
+          ${(it.pro || it.con || it.risk) ? `<div class="pcr-wrap">${pcr('Pro','pro',it.pro)}${pcr('Con','con',it.con)}${pcr('Risk','risk',it.risk)}</div>` : ''}
           <div class="action-meta">
-            <span class="action-id">${esc(it.id)}</span>
-            <span class="action-source">${esc(it.source || '')}</span>
             <input class="action-owner" data-id="${esc(it.id)}" placeholder="+ owner" value="${esc(it.owner || '')}" aria-label="Owner">
+            <span class="action-source">${esc(it.source || '')}</span>
+            ${notesHtml(it, summary)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function doneRowHtml(it){
+    const summary = it.summary && it.summary !== 'Closed.' ? it.summary : '';
+    return `
+      <div class="action-row done-row">
+        <input type="checkbox" class="action-check" data-id="${esc(it.id)}" checked aria-label="Reopen">
+        <div class="action-body">
+          <div class="action-head"><span class="action-idb">${esc(it.id)}</span><span class="action-ttl">${esc(titleOf(it))}</span></div>
+          ${summary ? `<div class="action-line">${esc(summary)}</div>` : ''}
+          <div class="action-meta">
+            <span class="action-source">${esc(it.owner || 'no owner')}${it.source ? ' · ' + esc(it.source) : ''}</span>
+            ${notesHtml(it, summary)}
           </div>
         </div>
       </div>
@@ -850,18 +912,24 @@
   }
 
   function render(docs){
+    const all = docs.map(d => ({ id: d.id, ...d.data() }));
     const byId = {};
-    docs.forEach(d => { byId[d.id] = { id: d.id, ...d.data() }; });
+    all.forEach(it => { byId[it.id] = it; });
+    const openOnly = id => { const it = byId[id]; return it && !it.done ? it : null; };
 
-    renderInto(p1El, P1_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
-    renderInto(p2El, P2_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
-    renderInto(p3El, P3_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
-    renderInto(p4El, P4_IDS.map(id => byId[id]).filter(Boolean), 'Nothing here yet.');
+    renderInto(p1El, P1_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
+    renderInto(p2El, P2_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
+    renderInto(p3El, P3_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
+    renderInto(p4El, P4_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
 
     const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...P4_IDS]);
-    const rest = docs.map(d => ({ id: d.id, ...d.data() })).filter(it => !shown.has(it.id));
-    rest.sort((a,b) => (a.done === b.done) ? ((a.order||0) - (b.order||0)) : (a.done ? 1 : -1));
+    const rest = all.filter(it => !it.done && !shown.has(it.id)).sort((a,b) => (a.order||0) - (b.order||0));
     renderInto(listEl, rest, 'No other open actions.');
+
+    const done = all.filter(it => it.done).sort((a,b) => (a.order||0) - (b.order||0));
+    document.getElementById('doneCount').textContent = '(' + done.length + ')';
+    if (!done.length){ doneEl.innerHTML = '<div class="actions-empty">Nothing done yet.</div>'; }
+    else { doneEl.innerHTML = done.map(doneRowHtml).join(''); wireList(doneEl); }
   }
 
   col.onSnapshot(

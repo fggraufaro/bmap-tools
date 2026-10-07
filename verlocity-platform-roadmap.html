@@ -297,15 +297,14 @@
     .sprint-focus{text-align:left;}
   }
 
-  /* ── Access gate — a passkey distinct from the shared growth-stack code
-     (Hub, Opportunity View, Growth Map, Rate Radar Validator all use the
-     one Railway-verified team password; the Roadmap uses its own). This
-     page has no backend of its own, so the check is client-side only —
-     readable in page source by anyone who looks, same tradeoff as the
-     internal picker gate that used to live on Opportunity View. Skipped
-     automatically when rendered inside a Claude Artifact, since that
-     surface already has its own real access control (private, owner-
-     shared) — a gate there would just be able to lock the owner out. ── */
+  /* ── Access gate — same sign-in as the Hub, Opportunity View, Growth Map
+     and Rate Radar: the shared team code is verified by the Railway server
+     (nothing secret is stored in this page), or an admin can log in with
+     email. Admin accounts only on the email path. Skipped automatically
+     when rendered inside a Claude Artifact, since that surface already has
+     its own real access control (private, owner-shared) — a gate there
+     would just be able to lock the owner out. Note: this page's content is
+     static HTML, so the gate is a front door, not encryption. ── */
   #authGate{position:fixed;inset:0;background:#083D5F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999}
   .gate-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:26px 30px;width:300px;text-align:center;font-family:"IBM Plex Sans",system-ui,sans-serif;}
   .gate-lbl{color:rgba(255,255,255,.5);font-size:11px;margin-bottom:12px;letter-spacing:.05em}
@@ -316,16 +315,25 @@
 </style>
 
 <div id="authGate">
-  <div class="gate-box">
+  <div class="gate-box" id="gatePasscodeMode">
     <div class="gate-lbl">ENTER ACCESS CODE</div>
     <input id="tokenInput" class="gate-inp" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')checkAccess()">
     <div id="authErr" class="gate-err">Incorrect code — try again</div>
     <button class="gate-btn" onclick="checkAccess()">Access →</button>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer" onclick="gateSwitchMode('email')">Log in with email instead</div>
+  </div>
+  <div class="gate-box" id="gateEmailMode" style="display:none">
+    <div class="gate-lbl">LOG IN</div>
+    <input id="emailInput" class="gate-inp" type="email" placeholder="you@verlocity.ai" style="text-align:left;letter-spacing:normal" onkeydown="if(event.key==='Enter')document.getElementById('emailPasswordInput').focus()">
+    <input id="emailPasswordInput" class="gate-inp" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')checkEmailLogin()">
+    <div id="emailAuthErr" class="gate-err">Login failed</div>
+    <button class="gate-btn" id="emailLoginBtn" onclick="checkEmailLogin()">Log in →</button>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer" onclick="gateSwitchMode('passcode')">Use the shared access code instead</div>
   </div>
 </div>
 <script>
 (function(){
-  const ROADMAP_PASSKEY = '02191994';
+  const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
   const g = id => document.getElementById(id);
 
   function afterAuth(){
@@ -333,15 +341,58 @@
     g('appWrap').style.display = 'block';
   }
 
+  // Shared team code: verified by the server, same call as the other tools.
   window.checkAccess = function checkAccess(){
     const input = g('tokenInput').value.trim();
-    if (input === ROADMAP_PASSKEY) {
-      try { sessionStorage.setItem('roadmap_ok', '1'); } catch (e) {}
+    const btn = document.querySelector('#gatePasscodeMode button');
+    if (btn) btn.disabled = true;
+    fetch(`${HUB_API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: input }) })
+      .then(async r => {
+        if (!r.ok) { g('authErr').style.display = 'block'; g('tokenInput').value = ''; g('tokenInput').focus(); if (btn) btn.disabled = false; return; }
+        const data = await r.json();
+        try { sessionStorage.setItem('hub_token', data.token); } catch (e) {}
+        afterAuth();
+      }).catch(() => { g('authErr').style.display = 'block'; if (btn) btn.disabled = false; });
+  };
+
+  window.gateSwitchMode = function gateSwitchMode(mode){
+    const isEmail = mode === 'email';
+    g('gatePasscodeMode').style.display = isEmail ? 'none' : 'block';
+    g('gateEmailMode').style.display = isEmail ? 'block' : 'none';
+    g(isEmail ? 'emailInput' : 'tokenInput').focus();
+  };
+
+  // Per-account login. The roadmap is internal: bank accounts can sign in
+  // elsewhere but are rejected here, same as Opportunity View.
+  window.checkEmailLogin = async function checkEmailLogin(){
+    const email = g('emailInput').value.trim();
+    const password = g('emailPasswordInput').value;
+    const errEl = g('emailAuthErr');
+    const btn = g('emailLoginBtn');
+    errEl.style.display = 'none';
+    if (!email || !password) { errEl.textContent = 'Enter your email and password'; errEl.style.display = 'block'; return; }
+    if (btn) btn.disabled = true;
+    try {
+      const r = await fetch(`${HUB_API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { errEl.textContent = data.error || 'Login failed — try again'; errEl.style.display = 'block'; g('emailPasswordInput').value = ''; if (btn) btn.disabled = false; return; }
+      if (data.role && data.role !== 'admin') {
+        errEl.textContent = 'This page is for internal admin accounts only';
+        errEl.style.display = 'block';
+        g('emailPasswordInput').value = '';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      try {
+        sessionStorage.setItem('hub_token', data.token);
+        if (data.role) sessionStorage.setItem('hub_role', data.role);
+        if (data.email) sessionStorage.setItem('hub_email', data.email);
+      } catch (e) {}
       afterAuth();
-    } else {
-      g('authErr').style.display = 'block';
-      g('tokenInput').value = '';
-      g('tokenInput').focus();
+    } catch (e) {
+      errEl.textContent = 'Login service unavailable — try again';
+      errEl.style.display = 'block';
+      if (btn) btn.disabled = false;
     }
   };
 
@@ -356,7 +407,7 @@
       return;
     }
     let saved = null;
-    try { saved = sessionStorage.getItem('roadmap_ok'); } catch (e) {}
+    try { saved = sessionStorage.getItem('hub_token'); } catch (e) {}
     if (saved) { afterAuth(); }
   });
 })();

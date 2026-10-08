@@ -435,18 +435,18 @@
     <div>
       <div class="eyebrow">Verlocity · working plan · Sept 2026</div>
       <h1>Verlocity Platform Roadmap</h1>
-      <p>Two products, one ledger — what's live, what's sequenced next, what it costs, and where SOC&nbsp;2 sits on the critical path. Revisit monthly, not daily.</p>
+      <p>Two products built on one engine: what works today, what comes next, what it costs, and the security certification (SOC&nbsp;2) that banks will ask for. Reviewed monthly.</p>
     </div>
     <div class="readiness-tag">
       <span class="score num">4.8<span style="font-size:18px;">/10</span></span>
-      <span class="cap">Platform readiness · mean of the four layers · 2026-10-05</span>
+      <span class="cap">Overall readiness · average of the four areas below · updated Oct 5</span>
     </div>
   </div>
   <section class="readiness">
     <div class="section-head">
       <span class="tag">Where things stand</span>
-      <h2>Readiness, by layer</h2>
-      <div class="sub">The intelligence core is the hard part, and it's furthest along. The productization layer around it is what's missing. Overall = plain mean of the four layers (judgment-scored; no weighting). 2026-10-05: Core 8→7 (unit/wording defects found, a86/a88; GDELT hold, a87); Infra 0→3 (per-account login + per-institution scoping live; billing, usage data, MFA, invite email still missing, a38/a89). Product A and B unchanged. The previous 3.3 did not reconcile to the gauges (mean was 4.25) — it was hand-set.</div>
+      <h2>How ready are we, by area</h2>
+      <div class="sub">Each ring scores one part of the business from 0 to 10. The overall number is the simple average of the four. The core engine is the hard part and is furthest along; what is missing is the packaging around it, such as billing, usage tracking and a separate login for every customer. Latest change (Oct 5): the core engine moved from 8 to 7 after we found some unit and wording errors, which are being fixed. The behind-the-scenes area moved from 0 to 3 because every customer can now have a login that shows only their own data.</div>
     </div>
     <div class="gauges">
 
@@ -455,7 +455,7 @@
           <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="98.0"></circle>
           <text x="60" y="66" text-anchor="middle" class="gauge-score">7/10</text>
         </svg>
-        <div class="gauge-label">Core intelligence<br>BMAP + Rate Radar data &amp; logic</div>
+        <div class="gauge-label">Core engine<br>The data and scoring behind everything (BMAP + Rate Radar)</div>
       </div>
 
       <div class="gauge-card">
@@ -463,7 +463,7 @@
           <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="130.7"></circle>
           <text x="60" y="66" text-anchor="middle" class="gauge-score">6/10</text>
         </svg>
-        <div class="gauge-label">Product A<br>Intelligence Subscription</div>
+        <div class="gauge-label">Product A<br>Intelligence Subscription: banks log in to see their opportunities</div>
       </div>
 
       <div class="gauge-card">
@@ -471,7 +471,7 @@
           <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
           <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
         </svg>
-        <div class="gauge-label">Product B<br>All-in-One Growth Engine</div>
+        <div class="gauge-label">Product B<br>All-in-One Growth Engine: we run the marketing funnel for small banks</div>
       </div>
 
       <div class="gauge-card">
@@ -479,7 +479,7 @@
           <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
           <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
         </svg>
-        <div class="gauge-label">Cross-cutting infra<br>Identity, billing, usage data</div>
+        <div class="gauge-label">Behind the scenes<br>Logins, billing and usage tracking</div>
       </div>
 
     </div>
@@ -487,53 +487,53 @@
 
   <section>
     <div class="section-head">
-      <span class="tag">The six tools, honestly</span>
-      <h2>Tool ledger</h2>
+      <span class="tag">The tools we are building</span>
+      <h2>What each tool does</h2>
     </div>
     <div class="ledger">
-      <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Feeds</span></div>
-      <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Branch-level deposit-opportunity scoring; bank-facing dashboard prototype (Opportunity View) already exists, gated by the shared Hub password</span><span class="segment">Both products</span></div>
-      <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Competitor rate scraping; caller covers what bots can't reach</span><span class="segment">Both products</span></div>
-      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Proven live on a real campaign (Trustmark) — Cortex brief → 3 audiences → schema + seed data now in Supabase (tuiiywphoynbmkxpoyps, the real project). Automation job is the remaining work; check Resonate's ToS before scheduling it</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Its ROI math is already live in Opportunity View — deposit goal → funded accounts → spend → CAC, grounded in real BMAP competitor data. Full Excel-based 5-step workflow still separate</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Microsite generator; build vs. buy still undecided</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Kohl Analytics' tool — third-party, unscoped, unintegrated</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">Now load-bearing sooner than planned — Product B's main channel outside the East Coast</span><span class="segment">Product B</span></div>
+      <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Used in</span></div>
+      <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Scores every bank branch by how much deposit growth is available around it. A demo dashboard for banks already exists.</span><span class="segment">Both products</span></div>
+      <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Tracks what competing banks pay on savings and CDs, read from their public rate pages. Gaps are filled in by phone.</span><span class="segment">Both products</span></div>
+      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Finds the audiences a campaign should reach. Proven on a real campaign (Trustmark): a short brief became three target audiences, and the data is stored. Automating it is the remaining work, after we check the data provider's terms.</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Turns a deposit goal into a media plan: how many new accounts, how much ad spend, what each account costs. The core math already runs in the dashboard on real competitor data. The full spreadsheet version is still separate.</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Creates small campaign websites for a bank. Still to decide: build it ourselves or buy it.</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">A third-party tool (Kohl Analytics) that would show branch profitability. Not yet scoped or connected to our system.</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">How partners outside the East Coast would resell Product B. Not started, and needed sooner than planned.</span><span class="segment">Product B</span></div>
     </div>
   </section>
 
   <section>
     <div class="section-head">
-      <span class="tag">The next decision, not the whole plan</span>
-      <h2>Now / Next / Later</h2>
+      <span class="tag">What happens when</span>
+      <h2>Now, next and later</h2>
     </div>
     <div class="nnl">
       <div class="nnl-card">
-        <span class="tag">Now · through 10/7 · Francisco</span>
+        <span class="tag">Now · this week · Francisco</span>
         <ul>
-          <li>Waiting on the DNS records from the team (a89) — add, verify, then real bank-user invite emails work; merge into the existing verlocity.ai SPF, don't duplicate it</li>
-          <li>Polish the Growth Engine demo — Foundation-block walkthrough (Branch Deep Dive, Network Snapshot, Rate Radar, Financial Brief) before Activation, per Tom's 9/30 direction</li>
-          <li>Close the deck's last real gap: swap the MediaPredict placeholder screenshots for real Prattville data</li>
-          <li>Full live run-through of the connected Audience→MediaPredict handoff before it's shown live</li>
+          <li>Set up our email domain so banks can receive login invitations. Waiting on technical records from the web team.</li>
+          <li>Polish the Growth Engine demo. Walk through the four building blocks first (branch deep dive, network snapshot, competitor rates, financial brief), then the advertising step, as Tom directed on 9/30.</li>
+          <li>Replace the placeholder MediaPredict screenshots in the deck with real sample data (Prattville).</li>
+          <li>Do a full live run-through of the handoff from audience selection to MediaPredict before showing it live.</li>
         </ul>
       </div>
       <div class="nnl-card">
         <span class="tag">Next · 30–90 days</span>
         <ul>
-          <li>Media Thesis meeting — flesh out the Activation journey (audience → media execution)</li>
-          <li>Retire the shared passcode once invites work — per-customer separation isn't enforced until then (a38); then MFA/SSO</li>
-          <li>Ship accounts + Product A dashboard shell (accounts and per-bank scoping are live; billing and usage data are not)</li>
-          <li>Recruit 3–5 pilot banks, outbound data only</li>
-          <li>Pete Hallen's SOC2 deal-stoppers (a74/a75) — real, tracked, deliberately not the active focus per Francisco's 2026-09-30 call: "good insight, not a priority right now"</li>
+          <li>Media Thesis meeting: shape the Activation step, from choosing an audience to running the ads.</li>
+          <li>Switch off the shared password once invitations work, so every customer has only their own login; then add a second sign-in step.</li>
+          <li>Launch customer accounts and the Product A dashboard. Logins and per-bank views work today; billing and usage tracking do not yet.</li>
+          <li>Recruit 3–5 pilot banks. They receive our insights; they do not send us their data.</li>
+          <li>SOC&nbsp;2 (the security certification banks ask for): an outside advisor flagged items that could stop a bank from signing. They are tracked, and we chose not to lead with them yet.</li>
         </ul>
       </div>
       <div class="nnl-card">
         <span class="tag">Later · 4–12 months+</span>
         <ul>
-          <li>Type&nbsp;I lands → first-party data unlocks</li>
-          <li>Type&nbsp;II observation runs its course</li>
-          <li>Product A pilots become the reputation proof</li>
-          <li>Only then: scope Product B in earnest</li>
+          <li>First SOC&nbsp;2 report (Type&nbsp;I) arrives, so banks can safely share their own data with us</li>
+          <li>Auditors observe our controls working over several months (Type&nbsp;II)</li>
+          <li>Pilot banks become the proof that it works</li>
+          <li>Only then: plan Product B in earnest</li>
         </ul>
       </div>
     </div>
@@ -625,10 +625,10 @@
       </div>
       <span class="status-chip priority">Priority — build now</span>
       <div class="field-list">
-        <div class="field-row"><span class="k">For</span><span class="v">Regional banks that already run their own marketing team</span></div>
-        <div class="field-row"><span class="k">Stack</span><span class="v">BMAP + Rate Radar, as an ongoing login — not a one-time report</span></div>
-        <div class="field-row"><span class="k">Blocking</span><span class="v">Dashboard prototype exists (Opportunity View) — fine for one-off pitches today. Per-account login with per-bank data scoping is now live (admin-verified); the shared passcode still works in parallel and invite emails await DNS (a89). Server-side status + billing remain either way</span></div>
-        <div class="field-row"><span class="k">Data flow</span><span class="v">Outbound only — safe to launch before SOC&nbsp;2</span></div>
+        <div class="field-row"><span class="k">For</span><span class="v">Regional banks that already have their own marketing team</span></div>
+        <div class="field-row"><span class="k">Stack</span><span class="v">BMAP + Rate Radar, as an ongoing subscription with a login, not a one-time report</span></div>
+        <div class="field-row"><span class="k">What is left</span><span class="v">A demo dashboard exists and works for one-off pitches. Each bank now gets its own login that shows only its own data. Still to do: switch off the old shared password, send invitation emails (waiting on the email domain setup) and add billing.</span></div>
+        <div class="field-row"><span class="k">Data flow</span><span class="v">One direction only: we send insights to the bank, and no bank data comes to us. That is why we can launch before the SOC&nbsp;2 certification.</span></div>
       </div>
     </div>
     <div class="product-card b">
@@ -636,12 +636,12 @@
         <div class="kicker">Product B</div>
         <h3>All-in-One Growth Engine</h3>
       </div>
-      <span class="status-chip gated">Gated on Product A's proof</span>
+      <span class="status-chip gated">Starts after Product A proves itself</span>
       <div class="field-list">
-        <div class="field-row"><span class="k">For</span><span class="v">Community banks (sub‑$1B) with no marketing team of their own</span></div>
-        <div class="field-row"><span class="k">Stack</span><span class="v">Full funnel — BMAP → Rate Radar → AudienceFinder → MediaPredict → Omnibranch — plus a visible human checkpoint</span></div>
-        <div class="field-row"><span class="k">Go-to-market</span><span class="v">East Coast direct from Verlocity; elsewhere, via reseller/agency partners</span></div>
-        <div class="field-row"><span class="k">Data flow</span><span class="v">Eventually inbound (bank financials) — needs SOC&nbsp;2</span></div>
+        <div class="field-row"><span class="k">For</span><span class="v">Small community banks (under $1B in assets) with no marketing team of their own</span></div>
+        <div class="field-row"><span class="k">Stack</span><span class="v">The full funnel: find where deposits are (BMAP), watch competitor rates (Rate Radar), pick audiences (AudienceFinder), plan the media (MediaPredict), build the web pages (Omnibranch), with a human review step</span></div>
+        <div class="field-row"><span class="k">Go-to-market</span><span class="v">We sell direct on the East Coast, and through reseller and agency partners elsewhere</span></div>
+        <div class="field-row"><span class="k">Data flow</span><span class="v">Eventually banks send us their financials, which requires the SOC&nbsp;2 certification</span></div>
       </div>
     </div>
   </section>
@@ -691,8 +691,8 @@
   <section>
     <div class="section-head">
       <span class="tag">Year 1</span>
-      <h2>Budget — product build + SOC&nbsp;2</h2>
-      <div class="sub">Argentina dev rates ($27.88/hr), 2-3 full-time developers. No sales/BD spend included.</div>
+      <h2>Budget: building the product and earning SOC&nbsp;2</h2>
+      <div class="sub">A team of 2–3 full-time developers at Argentina rates ($27.88 an hour). Sales and business-development spend is not included.</div>
     </div>
     <div class="budget-wrap">
       <div class="budget-scroll">
@@ -701,23 +701,23 @@
 
           <span class="grp">Product</span>
           <div class="budget-row">
-            <span class="glabel">Engineering</span>
+            <span class="glabel">Developers</span>
             <div>
               <div class="rail"><div class="range prod" style="left:67%;width:28%;"></div></div>
               <div class="range-caps"><span style="left:67%;">$67K</span><span style="left:95%;">$95K</span></div>
             </div>
           </div>
           <div class="budget-row">
-            <span class="glabel">Infra / vendor</span>
+            <span class="glabel">Hosting and data vendors</span>
             <div>
               <div class="rail"><div class="range prod" style="left:25%;width:20%;"></div></div>
               <div class="range-caps"><span style="left:25%;">$25K</span><span style="left:45%;">$45K</span></div>
             </div>
           </div>
 
-          <span class="grp" style="margin-top:6px;">Compliance — SOC&nbsp;2</span>
+          <span class="grp" style="margin-top:6px;">Security certification (SOC&nbsp;2)</span>
           <div class="budget-row">
-            <span class="glabel">Platform + audit fees</span>
+            <span class="glabel">Compliance software and auditor fees</span>
             <div>
               <div class="rail"><div class="range comp" style="left:33%;width:42%;"></div></div>
               <div class="range-caps"><span style="left:33%;">$33K</span><span style="left:75%;">$75K</span></div>
@@ -731,7 +731,7 @@
             </div>
           </div>
           <div class="budget-row">
-            <span class="glabel">Controls engineering</span>
+            <span class="glabel">Building the security controls</span>
             <div>
               <div class="rail"><div class="range comp" style="left:4%;width:3%;"></div></div>
               <div class="range-caps"><span style="left:4%;">$4K</span><span style="left:7%;">$7K</span></div>
@@ -742,22 +742,22 @@
       <div class="total-card">
         <span class="cap">Total, Year 1</span>
         <div class="amt num">$140K–$250K</div>
-        <span class="note">Product ~$92K–$140K · SOC&nbsp;2 ~$47K–$112K</span>
+        <span class="note">Product ~$92K–$140K · Security certification ~$47K–$112K</span>
       </div>
     </div>
   </section>
 
   <section>
     <div class="section-head">
-      <span class="tag">Why launch doesn't wait on SOC&nbsp;2</span>
-      <h2>Data flow, by direction</h2>
+      <span class="tag">Why we can launch before the certification</span>
+      <h2>What flows between us and the bank</h2>
     </div>
     <div class="flow">
-      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">BMAP opportunity scores</span></div><span class="flow-endpoint">Bank</span></div>
-      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Rate Radar competitive rates</span></div><span class="flow-endpoint">Bank</span></div>
-      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">AudienceFinder segments</span></div><span class="flow-endpoint">Bank</span></div>
-      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Omnibranch microsites</span></div><span class="flow-endpoint">Bank</span></div>
-      <div class="flow-row"><span class="flow-endpoint">Bank</span><div class="flow-mid"><span class="flow-arrow in">&#8592;</span><span class="flow-text">Branch financials, for Phase&nbsp;2 profitability</span><span class="status-chip gated" style="margin-left:4px;">Gated · needs Type I</span></div><span class="flow-endpoint">Verlocity</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Where deposit growth is available (BMAP scores)</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">What competitors pay (Rate Radar)</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Who to market to (AudienceFinder audiences)</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Campaign web pages (Omnibranch)</span></div><span class="flow-endpoint">Bank</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Bank</span><div class="flow-mid"><span class="flow-arrow in">&#8592;</span><span class="flow-text">Branch financial data, to show profitability (phase&nbsp;2)</span><span class="status-chip gated" style="margin-left:4px;">Waits for the SOC&nbsp;2 report</span></div><span class="flow-endpoint">Verlocity</span></div>
     </div>
   </section>
 

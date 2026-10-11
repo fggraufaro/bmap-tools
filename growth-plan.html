@@ -41,6 +41,8 @@
   .tag{font-size:11px;background:#F3D9A4;color:var(--navy);border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:700;white-space:nowrap}
   .note{font-size:13px;color:var(--soft)}
   table.mini th,table.mini td{padding:4px 6px;font-size:13px}
+  .pill.sug{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
+  .stag{margin-left:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#F3D9A4;color:var(--navy);border-radius:7px;padding:1px 5px}
   details{margin-top:12px;font-size:14px}
   details summary{cursor:pointer;font-weight:600;color:var(--navy)}
   details table{margin-top:8px;max-width:520px}
@@ -86,7 +88,7 @@
       <div class="layout">
         <aside class="card side">
           <h2>Set your goals</h2>
-          <p class="sub">Five questions. The ranking updates as you answer.</p>
+          <p class="sub">Five questions. The ranking updates as you answer. <button type="button" class="pill" id="applyAll" style="min-height:30px;padding:3px 10px;font-size:13px">Use all suggestions</button></p>
           <div id="questions"></div>
         </aside>
 
@@ -268,6 +270,47 @@ function whyFor(parts, w) {
   const weak = items.filter(x => x.v < 40 && w[x.k] >= 0.12).sort((a, b) => a.v - b.v)[0];
   return 'Driven by ' + top.join(' and ') + (weak ? '; held back by ' + WHY_PHRASE[weak.k][1] + ' (' + Math.round(weak.v) + ')' : '');
 }
+// Suggestions for the other questions, from the bank's own footprint (draft rules).
+function suggestFocus(partsRows) {
+  const dep = r => num(r.latest_dep) || 0;
+  const tot = partsRows.reduce((a, r) => a + dep(r), 0);
+  if (tot <= 0) return { key: 'core', why: 'Not enough data to read the footprint.' };
+  const share = f => partsRows.filter(f).reduce((a, r) => a + dep(r), 0) / tot;
+  const wealthy = share(r => r.parts.wl !== null && r.parts.wl >= 75);
+  const lower = share(r => r.parts.wl !== null && r.parts.wl <= 33);
+  const winning = share(r => r.parts.rg !== null && r.parts.id !== null && r.parts.rg >= 60 && r.parts.id >= 60);
+  const pct = v => Math.round(v * 100) + '%';
+  const cands = [
+    ['wealth', wealthy, pct(wealthy) + ' of deposits sit in areas in the top quarter of income for their state.'],
+    ['community', lower, pct(lower) + ' of deposits sit in lower-income areas of their state.'],
+    ['share', winning, pct(winning) + ' of deposits are in branches gaining on rivals with room to grow.']
+  ].sort((a, b) => b[1] - a[1]);
+  if (cands[0][1] >= 0.35) return { key: cands[0][0], why: cands[0][2] };
+  return { key: 'core', why: 'No single footprint pattern stands out (wealthy ' + pct(wealthy) + ', lower-income ' + pct(lower) + ', winning ' + pct(winning) + ' of deposits).' };
+}
+// One year of growth at last year's pace, matched to the nearest goal option ($M).
+function suggestGoal(totalDep, growthPct, options) {
+  if (!totalDep || growthPct === null || growthPct === undefined || growthPct <= 0) return null;
+  const annualM = totalDep * growthPct / 100 / 1e6;
+  const key = options.reduce((best, o) => Math.abs(o - annualM) < Math.abs(best - annualM) ? o : best, options[0]);
+  return { key, annualM, why: 'At last year\u2019s ' + growthPct.toFixed(1) + '% pace the bank adds about $' + (annualM >= 1000 ? (annualM / 1000).toFixed(1) + 'B' : Math.round(annualM) + 'M') + ' a year.' };
+}
+// The state whose branches score best, weighted by deposits, if clearly above the bank overall.
+function suggestMarket(rows) {
+  const by = new Map(); let sw = 0, ss = 0;
+  rows.forEach(r => {
+    const d = num(r.latest_dep) || 0;
+    if (r.score === null || d <= 0 || r.excluded) return;
+    sw += d; ss += d * r.score;
+    const e = by.get(r.stalpbr) || { w: 0, s: 0, n: 0 }; e.w += d; e.s += d * r.score; e.n++; by.set(r.stalpbr, e);
+  });
+  if (sw === 0) return null;
+  const overall = ss / sw;
+  const best = [...by.entries()].filter(([st, e]) => st && e.n >= 3).map(([st, e]) => ({ st, avg: e.s / e.w, n: e.n }))
+    .sort((a, b) => b.avg - a.avg)[0];
+  if (best && best.avg - overall >= 3) return { key: best.st, why: best.st + ' scores ' + best.avg.toFixed(0) + ' on a deposit-weighted basis against ' + overall.toFixed(0) + ' for the whole bank.' };
+  return { key: 'all', why: 'No market clearly stands out from the bank overall.' };
+}
 // ───────────────────────── end pure scoring ─────────────────────────
 
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
@@ -358,16 +401,41 @@ async function loadBank(ik) {
   render();
 }
 
-function renderQuestions() {
+function renderQuestions(sugg) {
+  sugg = sugg || {};
   const states = ['all', ...Array.from(new Set(BRANCHES.map(b => b.stalpbr).filter(Boolean))).sort()];
+  const labelOf = (q, v, opts) => { const o = opts.find(x => String(x[0]) === String(v)); return o ? o[1] : String(v); };
   g('questions').innerHTML = QUESTIONS.map(q => {
-    const opts = q.opts || states.map(s => [s, s === 'all' ? 'All markets' : s]);
-    return `<div class="q"><b>${esc(q.label)}</b><div class="pills">${opts.map(([v, l]) =>
-      `<button type="button" class="pill" data-k="${esc(q.key)}" data-v="${esc(v)}" aria-pressed="${String(answers[q.key]) === String(v)}">${esc(l)}</button>`).join('')}</div></div>`;
+    const opts = q.opts || states.map(st => [st, st === 'all' ? 'All markets' : st]);
+    const sg = sugg[q.key];
+    return `<div class="q"><b>${esc(q.label)}</b><div class="pills">${opts.map(([v, l]) => {
+      const isSug = sg && String(sg.key) === String(v);
+      return `<button type="button" class="pill${isSug ? ' sug' : ''}" data-k="${esc(q.key)}" data-v="${esc(v)}" aria-pressed="${String(answers[q.key]) === String(v)}">${esc(l)}${isSug ? '<span class="stag">Suggested</span>' : ''}</button>`;
+    }).join('')}</div>${sg ? `<div class="note" style="margin-top:6px"><b>${esc(labelOf(q, sg.key, opts))}:</b> ${esc(sg.why)}</div>` : (q.key === 'product' ? '<div class="note" style="margin-top:6px">Needs the deposit-mix comparison (planned).</div>' : '')}</div>`;
   }).join('');
   g('questions').querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => {
     const k = p.dataset.k; answers[k] = (k === 'goal') ? +p.dataset.v : p.dataset.v; render();
   }));
+}
+function applySuggestions() {
+  const sg = currentSuggestions();
+  if (sg.objective) answers.objective = sg.objective.key;
+  if (sg.focus) answers.focus = sg.focus.key;
+  if (sg.goal) answers.goal = sg.goal.key;
+  if (sg.market) answers.market = sg.market.key;
+  render();
+}
+function currentSuggestions() {
+  const partsRows = withParts(BRANCHES, BREAKS);
+  const peer = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
+  const totalAll = BRANCHES.reduce((a, b) => a + (num(b.latest_dep) || 0), 0);
+  const out = {
+    objective: peer ? suggestObjective(BANK_FIN, peer) : null,
+    focus: suggestFocus(partsRows),
+    goal: suggestGoal(totalAll, BANK_GROWTH, GOALS)
+  };
+  out.market = suggestMarket(rankBranches(BRANCHES, answers, BREAKS).rows);
+  return out;
 }
 
 function balanceCard() {
@@ -400,7 +468,7 @@ function balanceCard() {
 const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n / 1e3) + 'K');
 
 function render() {
-  renderQuestions();
+  renderQuestions(currentSuggestions());
   const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
   const { w, rows } = rankBranches(scope, answers, BREAKS);
   const isStandard = answers.focus === 'core' && answers.objective === 'none' && answers.product === 'none';
@@ -465,6 +533,7 @@ function render() {
     .map(k => `<tr><td>${esc(PART_LABEL[k])}</td><td>${Math.round(w[k] * 100)}%</td></tr>`).join('');
 }
 
+g('applyAll').addEventListener('click', applySuggestions);
 g('changeBank').addEventListener('click', () => {
   history.replaceState(null, '', location.pathname);
   g('plan').classList.add('dn'); g('changeBank').classList.add('dn'); g('pickCard').classList.remove('dn');

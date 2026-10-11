@@ -40,6 +40,7 @@
   .up{color:var(--green);font-weight:600}.down{color:var(--red);font-weight:600}
   .tag{font-size:11px;background:#F3D9A4;color:var(--navy);border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:700;white-space:nowrap}
   .note{font-size:13px;color:var(--soft)}
+  table.mini th,table.mini td{padding:4px 6px;font-size:13px}
   details{margin-top:12px;font-size:14px}
   details summary{cursor:pointer;font-weight:600;color:var(--navy)}
   details table{margin-top:8px;max-width:520px}
@@ -237,6 +238,36 @@ function allocate(rows, goalDollars, capFrac = CAP_FRACTION) {
   }
   return { amounts: out, unallocated: Math.max(rem, 0) };
 }
+// Peer band by total assets (dollars) and the objective the balance sheet points to.
+function peerBand(assets) {
+  if (assets === null) return null;
+  return assets < 1e9 ? '1' : assets < 3e9 ? '2' : assets < 10e9 ? '3' : assets < 30e9 ? '4' : '5';
+}
+// Draft rule, same thresholds as the prototype but against the bank's own size band.
+// Returns { key, why } where key is an objective answer or 'none' when nothing stands out.
+function suggestObjective(fin, peer) {
+  if (!fin || !peer) return null;
+  const ltd = num(fin.loans_to_deposits_pct), cof = num(fin.cost_of_funds_pct);
+  if (ltd !== null && ltd > peer.ltd + 3) return { key: 'ltd', why: 'Loans are ' + ltd.toFixed(1) + '% of deposits against ' + peer.ltd.toFixed(1) + '% for similar-size banks, so deposits constrain growth.' };
+  if (cof !== null && cof > peer.cof + 0.15) return { key: 'cost', why: 'Cost of funds is ' + cof.toFixed(2) + '% against ' + peer.cof.toFixed(2) + '% for similar-size banks.' };
+  if (ltd !== null && ltd < peer.ltd - 1.5) return { key: 'loans', why: 'Loans are ' + ltd.toFixed(1) + '% of deposits against ' + peer.ltd.toFixed(1) + '%, so new deposits can fund loan growth.' };
+  return { key: 'none', why: 'The balance sheet is in line with similar-size banks, so no objective stands out.' };
+}
+// Plain-words reason for a row: the two parts contributing most to the score.
+const WHY_PHRASE = {
+  mg: ['growing market', 'slow-growing market'], rg: ['gaining on nearby rivals', 'trailing nearby rivals'],
+  id: ['few competitors nearby', 'crowded market'], ds: ['large existing deposit base', 'small deposit base'],
+  wl: ['high-income area', 'lower-income area'], lm: ['lower-income area', 'higher-income area'],
+  sb: ['dense small-business area', 'few small businesses']
+};
+function whyFor(parts, w) {
+  const items = PART_KEYS.filter(k => w[k] > 0 && parts[k] !== null)
+    .map(k => ({ k, c: w[k] * parts[k], v: parts[k] })).sort((a, b) => b.c - a.c);
+  if (!items.length) return 'Not enough data to explain';
+  const top = items.slice(0, 2).map(x => WHY_PHRASE[x.k][x.v >= 50 ? 0 : 1] + ' (' + Math.round(x.v) + ')');
+  const weak = items.filter(x => x.v < 40 && w[x.k] >= 0.12).sort((a, b) => a.v - b.v)[0];
+  return 'Driven by ' + top.join(' and ') + (weak ? '; held back by ' + WHY_PHRASE[weak.k][1] + ' (' + Math.round(weak.v) + ')' : '');
+}
 // ───────────────────────── end pure scoring ─────────────────────────
 
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
@@ -269,6 +300,8 @@ async function login() {
   } catch (e) { err.textContent = 'Sign-in service unavailable, try again'; err.classList.remove('dn'); btn.disabled = false; }
 }
 
+let PEERS = null;
+fetch('growth-plan-peers.json').then(r => r.ok ? r.json() : null).then(j => { PEERS = j; if (BRANCHES.length) render(); }).catch(() => {});
 let BREAKS = null;
 fetch('growth-plan-state-breaks.json').then(r => r.ok ? r.json() : null).then(j => { BREAKS = j; if (BRANCHES.length) render(); }).catch(() => {});
 
@@ -295,7 +328,7 @@ async function search(q) {
 }
 
 // ── state
-let BRANCHES = [], BANK_GROWTH = null;
+let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null;
 const answers = { objective: 'none', focus: 'core', product: 'none', goal: 500, market: 'all' };
 const GOALS = [250, 500, 1000];
 const QUESTIONS = [
@@ -312,14 +345,15 @@ async function loadBank(ik) {
   const [rows, fin] = await Promise.all([
     api('vw_branch_opportunity_cbsa',
       `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
-    api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=dep_yoy_pct`)
+    api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=total_assets,loans_to_deposits_pct,cost_of_funds_pct,nim,roa,dep_yoy_pct,period`)
   ]);
   if (!Array.isArray(rows) || !rows.length) {
     g('rows').innerHTML = '<tr><td colspan="9" class="note">No branch data found for this institution.</td></tr>';
     return;
   }
   BRANCHES = rows;
-  BANK_GROWTH = Array.isArray(fin) && fin.length ? num(fin[0].dep_yoy_pct) : null;
+  BANK_FIN = Array.isArray(fin) && fin.length ? fin[0] : null;
+  BANK_GROWTH = BANK_FIN ? num(BANK_FIN.dep_yoy_pct) : null;
   g('bankName').textContent = rows[0].namefull || '';
   render();
 }
@@ -334,6 +368,33 @@ function renderQuestions() {
   g('questions').querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => {
     const k = p.dataset.k; answers[k] = (k === 'goal') ? +p.dataset.v : p.dataset.v; render();
   }));
+}
+
+function balanceCard() {
+  if (!BANK_FIN) return '<div class="card"><h3>Balance sheet vs. peers</h3><div class="note">No call-report snapshot for this institution.</div></div>';
+  const band = peerBand(num(BANK_FIN.total_assets));
+  const peer = PEERS && PEERS.bands ? PEERS.bands[band] : null;
+  if (!peer) return '<div class="card"><h3>Balance sheet vs. peers</h3><div class="note">Peer medians are loading.</div></div>';
+  const lines = [
+    ['Loans / deposits', num(BANK_FIN.loans_to_deposits_pct), peer.ltd, 1, false],
+    ['Cost of funds', num(BANK_FIN.cost_of_funds_pct), peer.cof, 2, false],
+    ['Net interest margin', num(BANK_FIN.nim), peer.nim, 2, true],
+    ['ROA', num(BANK_FIN.roa), peer.roa, 2, true],
+    ['Deposit growth', num(BANK_FIN.dep_yoy_pct), peer.depyoy, 1, true]
+  ].map(([label, v, p, d, goodHigh]) => {
+    if (v === null) return `<tr><td>${esc(label)}</td><td>—</td><td>${p.toFixed(d)}%</td><td></td></tr>`;
+    const diff = v - p, tol = d === 1 ? 1.5 : 0.15;
+    const cls = Math.abs(diff) <= tol ? '' : ((goodHigh ? diff > 0 : diff < 0) ? 'up' : 'down');
+    return `<tr><td>${esc(label)}</td><td class="${cls}"><b>${v.toFixed(d)}%</b></td><td>${p.toFixed(d)}%</td><td class="${cls}">${diff > 0 ? '+' : ''}${diff.toFixed(d)}</td></tr>`;
+  }).join('');
+  const sug = suggestObjective(BANK_FIN, peer);
+  const names = { ltd: 'Reduce loans/deposits', cost: 'Lower funding cost', loans: 'Fund loan growth', none: 'No objective stands out' };
+  const btn = sug && sug.key !== 'none' && answers.objective !== sug.key
+    ? ` <button type="button" class="pill" id="useSuggestion" data-k="${esc(sug.key)}" style="min-height:30px;padding:3px 10px;font-size:13px">Use this</button>` : '';
+  return `<div class="card"><h3>Balance sheet vs. peers</h3>
+    <table class="mini"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
+    <div class="note" style="margin-top:8px"><b>Suggested:</b> ${esc(sug ? names[sug.key] : '—')}${btn}<br>${esc(sug ? sug.why : '')}</div>
+    <div class="note">Peers: median of ${esc(String(peer.n))} banks with ${esc((PEERS.labels || {})[band] || '')} in assets, quarter ${esc(String(BANK_FIN.period || ''))}. Draft rule; the peer group is for Brock to confirm.</div></div>`;
 }
 
 const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n / 1e3) + 'K');
@@ -355,10 +416,13 @@ function render() {
     <div class="card"><h3>Goal check</h3>
       <div class="big ${pct !== null && pct > 15 ? 'warn' : ''}">${pct === null ? '—' : pct.toFixed(0) + '% growth'}</div>
       <div class="note">${esc(money(goalDollars))} on the ${esc(money(totalDep))} these branches hold today.${BANK_GROWTH !== null ? ' The bank&rsquo;s deposits grew ' + esc(BANK_GROWTH.toFixed(1)) + '% last year' + (mult ? ', so this goal is about ' + esc(mult.toFixed(1)) + ' times that pace' : '') + '.' : ''}</div></div>
+    ${balanceCard()}
     <div class="card"><h3>What can be placed</h3>
       <div class="big">${esc(money(allocated))}</div>
       <div class="note">of ${esc(money(goalDollars))} fits under a cap of ${Math.round(CAP_FRACTION * 100)}% of each branch&rsquo;s deposits${allocated < goalDollars - 1 ? '; ' + esc(money(goalDollars - allocated)) + ' is left over, so the goal needs more branches, more time or a smaller target' : ''}.</div></div>`;
 
+  const useBtn = g('useSuggestion');
+  if (useBtn) useBtn.addEventListener('click', () => { answers.objective = useBtn.dataset.k; render(); });
   g('banner').innerHTML = isStandard
     ? '<b>Standard formula.</b> No goal preferences set: this ranking matches the stored one. Change the answers to see a re-weighted scenario.'
     : '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
@@ -366,7 +430,7 @@ function render() {
   // columns: zone and play only for the standard formula
   const cols = ['#', 'Branch', 'Market', 'Deposits', 'Goal score', 'Standard rank', 'Move'];
   if (isStandard) cols.push('Zone', 'Play');
-  cols.push('Goal share');
+  cols.push('Why', 'Goal share');
   g('thead').innerHTML = cols.map(c => `<th>${esc(c)}</th>`).join('');
 
   g('rows').innerHTML = rows.slice(0, 40).map((r, i) => {
@@ -383,6 +447,7 @@ function render() {
       <td>#${esc(r.was)}</td>
       <td>${mt}</td>
       ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td><td>${esc(r.campaign || '—')}</td>` : ''}
+      <td class="note">${esc(whyFor(r.parts, w))}</td>
       <td>${a ? esc(money(a)) : '—'}</td>
     </tr>`;
   }).join('');

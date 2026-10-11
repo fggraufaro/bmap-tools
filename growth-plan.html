@@ -62,6 +62,7 @@
   <header>
     <h1>Verlocity Growth Plan</h1>
     <span class="who" id="bankName">Internal draft</span>
+    <button type="button" id="changeBank" class="pill dn" style="margin-left:auto;min-height:34px;padding:4px 12px">Change bank</button>
   </header>
   <main>
     <div class="card" id="pickCard">
@@ -221,7 +222,7 @@ function start() {
 let searchTimer = null;
 async function search(q) {
   const box = g('results');
-  if (!q || q.length < 3) { box.classList.add('dn'); return; }
+  if (!q || q.length < 2) { box.classList.add('dn'); return; }
   const rows = await api('dim_institutions', `institution_name=ilike.*${encodeURIComponent(q.trim())}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=8`);
   if (!Array.isArray(rows) || !rows.length) { box.innerHTML = '<div style="padding:10px 12px" class="note">No results</div>'; box.classList.remove('dn'); return; }
   box.innerHTML = rows.map(r => `<button type="button" data-ik="${esc(r.inst_key)}"><span class="name">${esc(r.institution_name)}</span> <span class="note">${esc(r.institution_type || '')} · ${esc([r.city_hq, r.state_hq].filter(Boolean).join(', '))}</span></button>`).join('');
@@ -246,7 +247,7 @@ const QUESTIONS = [
 ];
 
 async function loadBank(ik) {
-  g('pickCard').classList.add('dn'); g('plan').classList.remove('dn');
+  g('pickCard').classList.add('dn'); g('plan').classList.remove('dn'); g('changeBank').classList.remove('dn');
   g('rows').innerHTML = '<tr><td colspan="9" class="note">Loading…</td></tr>';
   const rows = await api('vw_branch_opportunity_cbsa',
     `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,latest_dep,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`);
@@ -303,6 +304,11 @@ function render() {
     'Goal share splits the goal across the top five branches by score and leaves out head-office or booking branches. Top 40 shown.';
 }
 
+g('changeBank').addEventListener('click', () => {
+  history.replaceState(null, '', location.pathname);
+  g('plan').classList.add('dn'); g('changeBank').classList.add('dn'); g('pickCard').classList.remove('dn');
+  g('bankName').textContent = 'Internal draft'; g('si').value = ''; g('results').classList.add('dn'); g('si').focus();
+});
 g('loginBtn').addEventListener('click', login);
 g('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 g('si').addEventListener('input', e => { clearTimeout(searchTimer); const q = e.target.value; searchTimer = setTimeout(() => search(q), 250); });

@@ -923,11 +923,12 @@
   }
 
   const PHASES = [
-    { n: '0', name: 'Prepare', sub: 'This week. No production changes before the client meetings on 10/13 to 10/15; the backtest is written down before anyone looks at results.' },
-    { n: '1', name: 'Foundation', sub: 'The scoring engine behind the Growth Plan, built and tested away from production first, plus the first backtest.' },
-    { n: '2', name: 'Growth Plan MVP', sub: 'The new bank-facing screen: goals in, ranked branches, zones and plays out.' },
-    { n: '3', name: 'Deeper signals', sub: 'Better wealth and community measures, capturable deposits, rate gaps and the confirming backtest.' },
-    { n: '4', name: 'Narrative and pitch', sub: 'Local context in the write-ups and the internal pitch mode that drafts a scope of work.' }
+    { n: '0', name: 'Prepare', sub: 'This week. No production changes before the client meetings on 10/13 to 10/15. The backtest, the engine contract and the access rules are written down before anything is built.' },
+    { n: '1', name: 'Engine, built away from production', sub: 'The scoring engine behind the Growth Plan, built and tested on a separate database branch. Nothing live changes.' },
+    { n: '2', name: 'First screen, internal use', sub: 'The engine goes live (new tables and one function only) and a thin first screen lets Verlocity run goals in and ranked branches out on real banks, labelled as scenarios.' },
+    { n: '3', name: 'Growth Plan MVP', sub: 'The bank-facing screen: map, competitor rates, balance sheet against peers, a goal reality check and a plain reason on every branch.' },
+    { n: '4', name: 'Deeper signals', sub: 'Better wealth and community measures, capturable deposits, rate gaps and the confirming backtest.' },
+    { n: '5', name: 'Narrative and pitch', sub: 'Local context in the write-ups and the internal pitch mode that drafts a scope of work.' }
   ];
   const STATUSES = ['To do', 'In progress', 'Review', 'Done'];
   const statusOf = it => (it.done || it.status === 'Done') ? 'Done' : (STATUSES.includes(it.status) ? it.status : 'To do');

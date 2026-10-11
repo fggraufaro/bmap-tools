@@ -9,31 +9,40 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .dn{display:none!important}
-  header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:20px;font-weight:700}
   header .who{font-size:14px;color:#BCCDE1}
-  main{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+  main{max-width:1640px;margin:0 auto;padding:20px 20px 48px}
   .card{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px}
-  .card h2{margin:0 0 4px;font-size:20px;color:var(--navy)}
+  .card h2{margin:0 0 4px;font-size:19px;color:var(--navy)}
   .sub{color:var(--soft);font-size:14px;margin:0 0 12px}
-  .q{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:8px 16px;padding:7px 0;align-items:center;border-top:1px solid #EEF0EC}
+  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+  .side{position:sticky;top:12px;margin-bottom:0}
+  .q{padding:10px 0;border-top:1px solid #EEF0EC}
   .q:first-of-type{border-top:0}
-  .q b{font-size:14px;color:var(--navy)}
-  .pills{display:flex;flex-wrap:wrap;gap:8px}
-  .pill{min-height:40px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:14px;cursor:pointer}
+  .q b{display:block;font-size:14px;color:var(--navy);margin-bottom:7px}
+  .pills{display:flex;flex-wrap:wrap;gap:7px}
+  .pill{min-height:38px;padding:7px 13px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:14px;cursor:pointer}
   .pill[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:18px}
+  .strip .card{margin-bottom:0;padding:14px 16px}
+  .strip h3{margin:0 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft)}
+  .strip .big{font-size:22px;font-weight:700;color:var(--navy)}
+  .strip .warn{color:var(--red)}
   .banner{background:#FFF8E8;border:1px solid var(--amber);border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:14px}
   table{width:100%;border-collapse:collapse}
-  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);text-align:left;padding:8px 8px;border-bottom:1px solid var(--line)}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   td{padding:10px 8px;border-bottom:1px solid #EEF0EC;vertical-align:top;font-size:14px}
   tr.top td{background:#F0F7F6}
   .name{font-weight:600;color:var(--navy)}
-  .rival{font-size:12px;color:var(--soft)}
   .zone{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:600;background:#ECEEEA;color:#3A4555}
   .zone.Invest{background:var(--teal);color:#fff}.zone.Analyze{background:var(--teal-soft);color:#0A4F52}.zone.Defend{background:#F3E6CC;color:#6B4A12}
   .up{color:var(--green);font-weight:600}.down{color:var(--red);font-weight:600}
-  .tag{font-size:11px;background:#F3D9A4;color:var(--navy);border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:700}
+  .tag{font-size:11px;background:#F3D9A4;color:var(--navy);border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:700;white-space:nowrap}
   .note{font-size:13px;color:var(--soft)}
+  details{margin-top:12px;font-size:14px}
+  details summary{cursor:pointer;font-weight:600;color:var(--navy)}
+  details table{margin-top:8px;max-width:520px}
   input[type=text],input[type=email],input[type=password]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font:inherit}
   button.primary{min-height:44px;padding:10px 18px;border:0;border-radius:8px;background:var(--teal);color:#fff;font:inherit;font-weight:600;cursor:pointer}
   #gate{max-width:380px;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px}
@@ -44,7 +53,7 @@
   #results button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid #EEF0EC;background:#fff;font:inherit;cursor:pointer}
   #results button:hover{background:#F0F7F6}
   .scroll{overflow-x:auto}
-  @media (max-width:720px){.q{grid-template-columns:1fr}}
+  @media (max-width:980px){.layout{grid-template-columns:1fr}.side{position:static}}
 </style>
 </head>
 <body>
@@ -73,20 +82,30 @@
     </div>
 
     <div id="plan" class="dn">
-      <div class="card">
-        <h2>Set your goals</h2>
-        <p class="sub">Five questions. The ranking below updates as you answer.</p>
-        <div id="questions"></div>
-      </div>
+      <div class="layout">
+        <aside class="card side">
+          <h2>Set your goals</h2>
+          <p class="sub">Five questions. The ranking updates as you answer.</p>
+          <div id="questions"></div>
+        </aside>
 
-      <div class="card">
-        <h2>Your branches, ranked for these goals</h2>
-        <div class="banner" id="banner"></div>
-        <div class="scroll"><table>
-          <thead><tr><th>#</th><th>Branch</th><th>Market</th><th>Deposits</th><th>Goal score</th><th>Standard</th><th>Zone</th><th>Play</th><th>Goal share</th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table></div>
-        <p class="note" id="foot"></p>
+        <section>
+          <div class="strip" id="strip"></div>
+          <div class="card">
+            <h2>Your branches, ranked for these goals</h2>
+            <div class="banner" id="banner"></div>
+            <div class="scroll"><table>
+              <thead><tr id="thead"></tr></thead>
+              <tbody id="rows"></tbody>
+            </table></div>
+            <p class="note" id="foot"></p>
+            <details>
+              <summary>How this ranking is weighted</summary>
+              <table><thead><tr><th>Part</th><th>Share of the score</th></tr></thead><tbody id="wtable"></tbody></table>
+              <p class="note">Small-business density as the signal for "lower funding cost" is an assumption, for Brock and Marc to confirm with the weights.</p>
+            </details>
+          </div>
+        </section>
       </div>
     </div>
   </main>
@@ -94,8 +113,9 @@
 
 <script>
 // ───────────────────────── pure scoring (no DOM) ─────────────────────────
-// Weights are a DRAFT: a 30-point tilt on the standard formula, pending
-// confirmation by Brock and Marc. Parts are on a 0-100 scale.
+// Weights are a DRAFT: pending confirmation by Brock and Marc. Parts are 0-100.
+// Wealth and community each move 30 points to a new part; take-share moves 15;
+// the objective and product adjustments add up to 25 more before rescaling.
 const FOCUS = {
   core:      { mg: 25, rg: 30, id: 25, ds: 20 },
   wealth:    { mg: 18, rg: 21, id: 17, ds: 14, wl: 30 },
@@ -105,6 +125,9 @@ const FOCUS = {
 const OBJECTIVE = { cost: { sb: 15, ds: 10 }, liquidity: { mg: 10, id: 10 }, loans: { mg: 15, sb: 5 }, ltd: { mg: 5, id: 10, sb: 5 } };
 const PRODUCT = { checking: { sb: 5, mg: 5 }, cd: { rg: 5 }, mm: { wl: 5 }, wealth: { wl: 10 } };
 const PART_KEYS = ['mg', 'rg', 'id', 'ds', 'wl', 'lm', 'sb'];
+const PART_LABEL = { mg: 'Market growth', rg: 'Winning vs. rivals', id: 'Room to grow', ds: 'Deposit base', wl: 'Wealth', lm: 'Lower-income reach', sb: 'Small-business density' };
+const MIN_COVERAGE = 0.5;   // a branch needs at least half the weight present to be scored
+const CAP_FRACTION = 0.25;  // goal share per branch is capped at 25% of its deposits
 
 function weightsFor(focus, objective, product) {
   const w = {}; PART_KEYS.forEach(k => { w[k] = 0; });
@@ -116,7 +139,7 @@ function weightsFor(focus, objective, product) {
 }
 const num = v => (v === null || v === undefined || v === '' || isNaN(+v)) ? null : +v;
 
-// Percentile (0-100) of each value among the non-null values in the list.
+// Percentile (0-100) of v among the non-null values of a list (fallback).
 function percentiles(values) {
   const present = values.filter(v => v !== null).sort((a, b) => a - b);
   const n = present.length;
@@ -127,58 +150,92 @@ function percentiles(values) {
     return 100 * (less + 0.5 * eq) / n;
   });
 }
-
-// Branch parts from the stored, already-normalized columns of the scoped view.
-// wl and sb are percentiles WITHIN THE BANK's own branches for this draft; the
-// statewide percentile needs the engine (see a103).
-function withParts(branches) {
-  const inc = branches.map(b => num(b.household_income));
-  const smb = branches.map(b => num(b.smb_index));
-  const wl = percentiles(inc), sb = percentiles(smb);
-  return branches.map((b, i) => ({
-    ...b,
-    parts: {
-      mg: num(b.market_growth_normalized), rg: num(b.rel_growth_norm),
-      id: num(b.inv_density_norm_winsor), ds: num(b.deposit_size_norm),
-      wl: wl[i], lm: wl[i] === null ? null : 100 - wl[i], sb: sb[i]
+// Percentile of v from 21 breakpoints (0,5,...,100th percentile of the state).
+function pctFromBreaks(v, bp) {
+  if (v === null || !bp || bp.length !== 21) return null;
+  if (v <= bp[0]) return 0;
+  if (v >= bp[20]) return 100;
+  for (let i = 0; i < 20; i++) {
+    if (v >= bp[i] && v < bp[i + 1]) {
+      const span = bp[i + 1] - bp[i];
+      return span > 0 ? 5 * i + 5 * (v - bp[i]) / span : 5 * i;
     }
-  }));
+  }
+  return null;
 }
 
-// Score one branch. A missing part counts as zero, exactly as the standard
-// formula treats it, so a branch with missing data is never rewarded for it;
-// the branch is flagged "partial". A branch with no usable part gets a null
-// score and is ranked last, never first.
+// Branch parts. mg, rg, id, ds are the stored normalized columns. wl and sb are
+// percentiles WITHIN THE STATE (breakpoints from bank branches in that state);
+// a state with too few branches falls back to the bank's own branches.
+function withParts(branches, breaks) {
+  const inc = branches.map(b => num(b.household_income));
+  const smb = branches.map(b => num(b.smb_index));
+  const incFallback = percentiles(inc), smbFallback = percentiles(smb);
+  return branches.map((b, i) => {
+    const st = breaks && breaks.states && breaks.states[b.stalpbr];
+    const wl = st ? pctFromBreaks(inc[i], st.inc) : incFallback[i];
+    const sb = st ? pctFromBreaks(smb[i], st.smb) : smbFallback[i];
+    return { ...b, statewide: !!st, parts: {
+      mg: num(b.market_growth_normalized), rg: num(b.rel_growth_norm),
+      id: num(b.inv_density_norm_winsor), ds: num(b.deposit_size_norm),
+      wl, lm: wl === null ? null : 100 - wl, sb } };
+  });
+}
+
+// Score one branch. Missing parts are skipped and the weights that remain are
+// rescaled, so a new branch with no growth history is not penalized; it is
+// tagged "partial data". Less than MIN_COVERAGE of the weight present: no score.
 function scoreBranch(parts, w) {
-  let s = 0, any = false, missing = false;
+  let s = 0, present = 0, total = 0, missing = false;
   for (const k of PART_KEYS) {
     if (w[k] <= 0) continue;
+    total += w[k];
     if (parts[k] === null) { missing = true; continue; }
-    s += w[k] * parts[k]; any = true;
+    s += w[k] * parts[k]; present += w[k];
   }
-  return { score: any ? s : null, partial: missing };
+  if (total === 0 || present / total < MIN_COVERAGE) return { score: null, partial: true };
+  return { score: s / present, partial: missing };
 }
 
 function median(a) { const s = a.filter(v => v !== null).sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; }
 
-function rankBranches(branches, answers) {
+function rankBranches(branches, answers, breaks) {
   const w = weightsFor(answers.focus, answers.objective, answers.product);
-  const prepared = withParts(branches).map(b => ({ ...b, ...scoreBranch(b.parts, w) }));
+  const prepared = withParts(branches, breaks).map(b => ({ ...b, ...scoreBranch(b.parts, w) }));
   const byGoal = prepared.slice().sort((a, b) => (a.score === null) - (b.score === null) || b.score - a.score);
   const byStd = prepared.slice().sort((a, b) => (num(a.opportunity_score) === null) - (num(b.opportunity_score) === null) || num(b.opportunity_score) - num(a.opportunity_score));
   const stdRank = new Map(); byStd.forEach((b, i) => stdRank.set(b.uninumbr, i + 1));
   const med = median(prepared.map(b => num(b.latest_dep)));
-  // a111 rule candidate: deposits above 10x the bank's median branch are treated
-  // as head office or booking branches and kept out of goal allocation.
-  return { w, rows: byGoal.map((b, i) => ({ ...b, rank: i + 1, was: stdRank.get(b.uninumbr), excluded: med !== null && num(b.latest_dep) > 10 * med })) };
+  // Head office or booking branches: deposits above 10x the bank's median branch.
+  const rows = byGoal.map((b, i) => ({ ...b, rank: i + 1, was: stdRank.get(b.uninumbr), excluded: med !== null && num(b.latest_dep) > 10 * med }));
+  // Cluster flag: a branch in the same city as a better-ranked one in the top 15.
+  const seen = new Map();
+  rows.slice(0, 15).forEach(r => {
+    const key = [r.citybr, r.stalpbr].join('|').toLowerCase();
+    if (seen.has(key)) r.sameMarketAs = seen.get(key); else seen.set(key, r.rank);
+  });
+  return { w, rows };
 }
 
-function allocate(rows, goalDollars, n = 5) {
-  const pool = rows.filter(r => r.score !== null && !r.excluded).slice(0, n);
-  const total = pool.reduce((a, r) => a + r.score, 0);
-  const out = new Map();
-  pool.forEach(r => out.set(r.uninumbr, total > 0 ? goalDollars * r.score / total : 0));
-  return out;
+// Split the goal across eligible branches in proportion to score, capping each
+// branch at capFrac of its own deposits (water-filling). Whatever cannot be
+// placed under the caps is reported as unallocated.
+function allocate(rows, goalDollars, capFrac = CAP_FRACTION) {
+  const out = new Map(); rows.forEach(r => out.set(r.uninumbr, 0));
+  let active = rows.filter(r => r.score !== null && !r.excluded && num(r.latest_dep) > 0)
+                   .map(r => ({ r, cap: capFrac * num(r.latest_dep), got: 0 }));
+  let rem = goalDollars;
+  for (let it = 0; it < 40 && active.length && rem > 1; it++) {
+    const tot = active.reduce((a, x) => a + x.r.score, 0);
+    if (tot <= 0) break;
+    const over = active.filter(x => x.got + rem * x.r.score / tot > x.cap);
+    if (!over.length) { active.forEach(x => { x.got += rem * x.r.score / tot; out.set(x.r.uninumbr, x.got); }); rem = 0; break; }
+    let used = 0;
+    over.forEach(x => { used += x.cap - x.got; x.got = x.cap; out.set(x.r.uninumbr, x.cap); });
+    rem -= used;
+    active = active.filter(x => !over.includes(x));
+  }
+  return { amounts: out, unallocated: Math.max(rem, 0) };
 }
 // ───────────────────────── end pure scoring ─────────────────────────
 
@@ -212,6 +269,9 @@ async function login() {
   } catch (e) { err.textContent = 'Sign-in service unavailable, try again'; err.classList.remove('dn'); btn.disabled = false; }
 }
 
+let BREAKS = null;
+fetch('growth-plan-state-breaks.json').then(r => r.ok ? r.json() : null).then(j => { BREAKS = j; if (BRANCHES.length) render(); }).catch(() => {});
+
 function start() {
   g('gate').classList.add('dn'); g('app').classList.remove('dn');
   const ik = new URLSearchParams(location.search).get('bank');
@@ -235,13 +295,13 @@ async function search(q) {
 }
 
 // ── state
-let BRANCHES = [];
-const answers = { objective: 'loans', focus: 'core', product: 'checking', goal: 500, market: 'all' };
+let BRANCHES = [], BANK_GROWTH = null;
+const answers = { objective: 'none', focus: 'core', product: 'none', goal: 500, market: 'all' };
 const GOALS = [250, 500, 1000];
 const QUESTIONS = [
-  { key: 'objective', label: '1  What should new deposits do for the balance sheet?', opts: [['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']] },
+  { key: 'objective', label: '1  What should new deposits do for the balance sheet?', opts: [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']] },
   { key: 'focus', label: '2  Which growth focus?', opts: [['core', 'Core growth'], ['wealth', 'Wealth'], ['community', 'Community'], ['share', 'Take share']] },
-  { key: 'product', label: '3  Which product leads?', opts: [['checking', 'Checking & savings'], ['cd', 'CDs'], ['mm', 'Money market'], ['wealth', 'Wealth']] },
+  { key: 'product', label: '3  Which product leads?', opts: [['none', 'No preference'], ['checking', 'Checking & savings'], ['cd', 'CDs'], ['mm', 'Money market'], ['wealth', 'Wealth']] },
   { key: 'goal', label: '4  What is the deposit goal?', opts: GOALS.map(v => [v, v >= 1000 ? '$' + (v / 1000) + 'B' : '$' + v + 'M']) },
   { key: 'market', label: '5  Which markets?', opts: null }
 ];
@@ -249,13 +309,17 @@ const QUESTIONS = [
 async function loadBank(ik) {
   g('pickCard').classList.add('dn'); g('plan').classList.remove('dn'); g('changeBank').classList.remove('dn');
   g('rows').innerHTML = '<tr><td colspan="9" class="note">Loading…</td></tr>';
-  const rows = await api('vw_branch_opportunity_cbsa',
-    `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,latest_dep,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`);
+  const [rows, fin] = await Promise.all([
+    api('vw_branch_opportunity_cbsa',
+      `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
+    api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=dep_yoy_pct`)
+  ]);
   if (!Array.isArray(rows) || !rows.length) {
     g('rows').innerHTML = '<tr><td colspan="9" class="note">No branch data found for this institution.</td></tr>';
     return;
   }
   BRANCHES = rows;
+  BANK_GROWTH = Array.isArray(fin) && fin.length ? num(fin[0].dep_yoy_pct) : null;
   g('bankName').textContent = rows[0].namefull || '';
   render();
 }
@@ -277,31 +341,63 @@ const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$'
 function render() {
   renderQuestions();
   const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
-  const { rows } = rankBranches(scope, answers);
-  const alloc = allocate(rows, answers.goal * 1e6, 5);
-  const isDefault = answers.focus === 'core' && answers.objective === 'loans' && answers.product === 'checking';
-  g('banner').innerHTML = '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
+  const { w, rows } = rankBranches(scope, answers, BREAKS);
+  const isStandard = answers.focus === 'core' && answers.objective === 'none' && answers.product === 'none';
+  const goalDollars = answers.goal * 1e6;
+  const { amounts } = allocate(rows, goalDollars);
+  const totalDep = scope.reduce((a, b) => a + (num(b.latest_dep) || 0), 0);
+  const allocated = [...amounts.values()].reduce((a, v) => a + v, 0);
+
+  // top strip: goal check
+  const pct = totalDep > 0 ? 100 * goalDollars / totalDep : null;
+  const mult = (pct !== null && BANK_GROWTH && BANK_GROWTH > 0) ? pct / BANK_GROWTH : null;
+  g('strip').innerHTML = `
+    <div class="card"><h3>Goal check</h3>
+      <div class="big ${pct !== null && pct > 15 ? 'warn' : ''}">${pct === null ? '—' : pct.toFixed(0) + '% growth'}</div>
+      <div class="note">${esc(money(goalDollars))} on the ${esc(money(totalDep))} these branches hold today.${BANK_GROWTH !== null ? ' The bank&rsquo;s deposits grew ' + esc(BANK_GROWTH.toFixed(1)) + '% last year' + (mult ? ', so this goal is about ' + esc(mult.toFixed(1)) + ' times that pace' : '') + '.' : ''}</div></div>
+    <div class="card"><h3>What can be placed</h3>
+      <div class="big">${esc(money(allocated))}</div>
+      <div class="note">of ${esc(money(goalDollars))} fits under a cap of ${Math.round(CAP_FRACTION * 100)}% of each branch&rsquo;s deposits${allocated < goalDollars - 1 ? '; ' + esc(money(goalDollars - allocated)) + ' is left over, so the goal needs more branches, more time or a smaller target' : ''}.</div></div>`;
+
+  g('banner').innerHTML = isStandard
+    ? '<b>Standard formula.</b> No goal preferences set: this ranking matches the stored one. Change the answers to see a re-weighted scenario.'
+    : '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
+
+  // columns: zone and play only for the standard formula
+  const cols = ['#', 'Branch', 'Market', 'Deposits', 'Goal score', 'Standard rank', 'Move'];
+  if (isStandard) cols.push('Zone', 'Play');
+  cols.push('Goal share');
+  g('thead').innerHTML = cols.map(c => `<th>${esc(c)}</th>`).join('');
+
   g('rows').innerHTML = rows.slice(0, 40).map((r, i) => {
     const mv = (r.was || r.rank) - r.rank;
     const mt = mv > 0 ? `<span class="up">▲ ${mv}</span>` : (mv < 0 ? `<span class="down">▼ ${-mv}</span>` : '—');
     const z = r.opportunity_zone || '';
-    const a = alloc.get(r.uninumbr);
+    const a = amounts.get(r.uninumbr);
     return `<tr class="${i < 5 ? 'top' : ''}">
       <td><b>${r.rank}</b></td>
-      <td><span class="name">${esc(r.namebr)}</span>${r.excluded ? '<span class="tag">HQ / booking</span>' : ''}${r.partial ? '<span class="tag">partial data</span>' : ''}</td>
+      <td><span class="name">${esc(r.namebr)}</span>${r.excluded ? '<span class="tag">HQ / booking</span>' : ''}${r.partial ? '<span class="tag">partial data</span>' : ''}${r.sameMarketAs ? `<span class="tag">same market as #${esc(r.sameMarketAs)}</span>` : ''}</td>
       <td>${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))}</td>
       <td>${esc(money(num(r.latest_dep) || 0))}</td>
       <td><b>${r.score === null ? '—' : Math.round(r.score)}</b></td>
-      <td>#${esc(r.was)} ${mt}</td>
-      <td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td>
-      <td>${esc(r.campaign || '—')}</td>
-      <td>${a === undefined ? '—' : esc(money(a))}</td>
+      <td>#${esc(r.was)}</td>
+      <td>${mt}</td>
+      ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td><td>${esc(r.campaign || '—')}</td>` : ''}
+      <td>${a ? esc(money(a)) : '—'}</td>
     </tr>`;
   }).join('');
-  g('foot').textContent = (isDefault ? 'Showing the standard formula. ' : '') +
-    'Zone and play are the stored values from the standard ranking; they are not re-cut for your goals in this draft. ' +
-    'Wealth and community use income compared with this bank’s own branches until the statewide engine is built. ' +
-    'Goal share splits the goal across the top five branches by score and leaves out head-office or booking branches. Top 40 shown.';
+
+  const isCU = BRANCHES.length && BRANCHES[0].institution_type && BRANCHES[0].institution_type !== 'bank';
+  g('foot').innerHTML = [
+    isStandard ? '' : 'Zone and play are hidden while goals are set: they are not re-cut for goals in this draft.',
+    'Wealth, community and small-business density are compared with bank branches in the same state.',
+    'Goal share splits the goal in proportion to score, caps each branch at ' + Math.round(CAP_FRACTION * 100) + '% of its deposits and leaves out head-office or booking branches.',
+    isCU && answers.focus === 'share' ? 'Credit union: relative growth is measured for the institution, not each branch, so take-share cannot separate its branches.' : '',
+    'Top 40 shown.'
+  ].filter(Boolean).map(esc).join(' ');
+
+  g('wtable').innerHTML = PART_KEYS.filter(k => w[k] > 0)
+    .map(k => `<tr><td>${esc(PART_LABEL[k])}</td><td>${Math.round(w[k] * 100)}%</td></tr>`).join('');
 }
 
 g('changeBank').addEventListener('click', () => {

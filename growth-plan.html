@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verlocity Growth Plan</title>
+<style>
+  :root{--navy:#13233A;--teal:#0E6E72;--teal-soft:#D4ECEC;--ink:#1B2430;--soft:#4A5565;--line:#C9CEC6;--bg:#F5F6F3;--white:#fff;--amber:#E0A33A;--green:#0B6B3A;--red:#A33A12;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .dn{display:none!important}
+  header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  header h1{margin:0;font-size:20px;font-weight:700}
+  header .who{font-size:14px;color:#BCCDE1}
+  main{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+  .card{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+  .card h2{margin:0 0 4px;font-size:20px;color:var(--navy)}
+  .sub{color:var(--soft);font-size:14px;margin:0 0 12px}
+  .q{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:8px 16px;padding:7px 0;align-items:center;border-top:1px solid #EEF0EC}
+  .q:first-of-type{border-top:0}
+  .q b{font-size:14px;color:var(--navy)}
+  .pills{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{min-height:40px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:14px;cursor:pointer}
+  .pill[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+  .banner{background:#FFF8E8;border:1px solid var(--amber);border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);text-align:left;padding:8px 8px;border-bottom:1px solid var(--line)}
+  td{padding:10px 8px;border-bottom:1px solid #EEF0EC;vertical-align:top;font-size:14px}
+  tr.top td{background:#F0F7F6}
+  .name{font-weight:600;color:var(--navy)}
+  .rival{font-size:12px;color:var(--soft)}
+  .zone{display:inline-block;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:600;background:#ECEEEA;color:#3A4555}
+  .zone.Invest{background:var(--teal);color:#fff}.zone.Analyze{background:var(--teal-soft);color:#0A4F52}.zone.Defend{background:#F3E6CC;color:#6B4A12}
+  .up{color:var(--green);font-weight:600}.down{color:var(--red);font-weight:600}
+  .tag{font-size:11px;background:#F3D9A4;color:var(--navy);border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:700}
+  .note{font-size:13px;color:var(--soft)}
+  input[type=text],input[type=email],input[type=password]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font:inherit}
+  button.primary{min-height:44px;padding:10px 18px;border:0;border-radius:8px;background:var(--teal);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  #gate{max-width:380px;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px}
+  #gate h1{margin:0 0 4px;font-size:20px;color:var(--navy)} #gate p{color:var(--soft);margin:0 0 14px;font-size:14px}
+  #gate label{display:block;font-size:13px;margin:10px 0 4px;color:var(--soft)}
+  .err{color:var(--red);font-size:13px;margin-top:8px}
+  #results{border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px}
+  #results button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid #EEF0EC;background:#fff;font:inherit;cursor:pointer}
+  #results button:hover{background:#F0F7F6}
+  .scroll{overflow-x:auto}
+  @media (max-width:720px){.q{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>Verlocity Growth Plan</h1>
+  <p>Internal draft. Sign in with your Verlocity account.</p>
+  <label for="em">Email</label><input id="em" type="email" autocomplete="username">
+  <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
+  <div id="gateErr" class="err dn" role="alert"></div>
+  <p style="margin-top:14px"><button class="primary" id="loginBtn" type="button">Sign in</button></p>
+</div>
+
+<div id="app" class="dn">
+  <header>
+    <h1>Verlocity Growth Plan</h1>
+    <span class="who" id="bankName">Internal draft</span>
+  </header>
+  <main>
+    <div class="card" id="pickCard">
+      <h2>Choose a bank</h2>
+      <p class="sub">Search for an institution to build its growth plan.</p>
+      <input type="text" id="si" placeholder="Start typing a bank name" aria-label="Search institutions" autocomplete="off">
+      <div id="results" class="dn"></div>
+    </div>
+
+    <div id="plan" class="dn">
+      <div class="card">
+        <h2>Set your goals</h2>
+        <p class="sub">Five questions. The ranking below updates as you answer.</p>
+        <div id="questions"></div>
+      </div>
+
+      <div class="card">
+        <h2>Your branches, ranked for these goals</h2>
+        <div class="banner" id="banner"></div>
+        <div class="scroll"><table>
+          <thead><tr><th>#</th><th>Branch</th><th>Market</th><th>Deposits</th><th>Goal score</th><th>Standard</th><th>Zone</th><th>Play</th><th>Goal share</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <p class="note" id="foot"></p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ───────────────────────── pure scoring (no DOM) ─────────────────────────
+// Weights are a DRAFT: a 30-point tilt on the standard formula, pending
+// confirmation by Brock and Marc. Parts are on a 0-100 scale.
+const FOCUS = {
+  core:      { mg: 25, rg: 30, id: 25, ds: 20 },
+  wealth:    { mg: 18, rg: 21, id: 17, ds: 14, wl: 30 },
+  community: { mg: 18, rg: 21, id: 17, ds: 14, lm: 30 },
+  share:     { mg: 15, rg: 40, id: 30, ds: 15 }
+};
+const OBJECTIVE = { cost: { sb: 15, ds: 10 }, liquidity: { mg: 10, id: 10 }, loans: { mg: 15, sb: 5 }, ltd: { mg: 5, id: 10, sb: 5 } };
+const PRODUCT = { checking: { sb: 5, mg: 5 }, cd: { rg: 5 }, mm: { wl: 5 }, wealth: { wl: 10 } };
+const PART_KEYS = ['mg', 'rg', 'id', 'ds', 'wl', 'lm', 'sb'];
+
+function weightsFor(focus, objective, product) {
+  const w = {}; PART_KEYS.forEach(k => { w[k] = 0; });
+  [FOCUS[focus] || FOCUS.core, OBJECTIVE[objective] || {}, PRODUCT[product] || {}]
+    .forEach(d => { for (const k in d) w[k] += d[k]; });
+  let t = 0; PART_KEYS.forEach(k => { t += w[k]; });
+  PART_KEYS.forEach(k => { w[k] = w[k] / t; });
+  return w;
+}
+const num = v => (v === null || v === undefined || v === '' || isNaN(+v)) ? null : +v;
+
+// Percentile (0-100) of each value among the non-null values in the list.
+function percentiles(values) {
+  const present = values.filter(v => v !== null).sort((a, b) => a - b);
+  const n = present.length;
+  return values.map(v => {
+    if (v === null || n === 0) return null;
+    let less = 0, eq = 0;
+    for (const p of present) { if (p < v) less++; else if (p === v) eq++; }
+    return 100 * (less + 0.5 * eq) / n;
+  });
+}
+
+// Branch parts from the stored, already-normalized columns of the scoped view.
+// wl and sb are percentiles WITHIN THE BANK's own branches for this draft; the
+// statewide percentile needs the engine (see a103).
+function withParts(branches) {
+  const inc = branches.map(b => num(b.household_income));
+  const smb = branches.map(b => num(b.smb_index));
+  const wl = percentiles(inc), sb = percentiles(smb);
+  return branches.map((b, i) => ({
+    ...b,
+    parts: {
+      mg: num(b.market_growth_normalized), rg: num(b.rel_growth_norm),
+      id: num(b.inv_density_norm_winsor), ds: num(b.deposit_size_norm),
+      wl: wl[i], lm: wl[i] === null ? null : 100 - wl[i], sb: sb[i]
+    }
+  }));
+}
+
+// Score one branch. A missing part counts as zero, exactly as the standard
+// formula treats it, so a branch with missing data is never rewarded for it;
+// the branch is flagged "partial". A branch with no usable part gets a null
+// score and is ranked last, never first.
+function scoreBranch(parts, w) {
+  let s = 0, any = false, missing = false;
+  for (const k of PART_KEYS) {
+    if (w[k] <= 0) continue;
+    if (parts[k] === null) { missing = true; continue; }
+    s += w[k] * parts[k]; any = true;
+  }
+  return { score: any ? s : null, partial: missing };
+}
+
+function median(a) { const s = a.filter(v => v !== null).sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; }
+
+function rankBranches(branches, answers) {
+  const w = weightsFor(answers.focus, answers.objective, answers.product);
+  const prepared = withParts(branches).map(b => ({ ...b, ...scoreBranch(b.parts, w) }));
+  const byGoal = prepared.slice().sort((a, b) => (a.score === null) - (b.score === null) || b.score - a.score);
+  const byStd = prepared.slice().sort((a, b) => (num(a.opportunity_score) === null) - (num(b.opportunity_score) === null) || num(b.opportunity_score) - num(a.opportunity_score));
+  const stdRank = new Map(); byStd.forEach((b, i) => stdRank.set(b.uninumbr, i + 1));
+  const med = median(prepared.map(b => num(b.latest_dep)));
+  // a111 rule candidate: deposits above 10x the bank's median branch are treated
+  // as head office or booking branches and kept out of goal allocation.
+  return { w, rows: byGoal.map((b, i) => ({ ...b, rank: i + 1, was: stdRank.get(b.uninumbr), excluded: med !== null && num(b.latest_dep) > 10 * med })) };
+}
+
+function allocate(rows, goalDollars, n = 5) {
+  const pool = rows.filter(r => r.score !== null && !r.excluded).slice(0, n);
+  const total = pool.reduce((a, r) => a + r.score, 0);
+  const out = new Map();
+  pool.forEach(r => out.set(r.uninumbr, total > 0 ? goalDollars * r.score / total : 0));
+  return out;
+}
+// ───────────────────────── end pure scoring ─────────────────────────
+
+const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
+const g = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+async function api(table, params) {
+  try {
+    const token = sessionStorage.getItem('hub_token');
+    const r = await fetch(`${HUB_API}/api/${table}?${params}`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { sessionStorage.removeItem('hub_token'); location.reload(); return []; }
+    if (!r.ok) { console.error(table, r.status); return []; }
+    return r.json();
+  } catch (e) { console.error(e); return []; }
+}
+
+async function login() {
+  const email = g('em').value.trim(), password = g('pw').value, err = g('gateErr'), btn = g('loginBtn');
+  err.classList.add('dn');
+  if (!email || !password) { err.textContent = 'Enter your email and password'; err.classList.remove('dn'); return; }
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${HUB_API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = data.error || 'Login failed, try again'; err.classList.remove('dn'); g('pw').value = ''; btn.disabled = false; return; }
+    if (data.role && data.role !== 'admin') { err.textContent = 'This draft is for internal admin accounts only'; err.classList.remove('dn'); g('pw').value = ''; btn.disabled = false; return; }
+    sessionStorage.setItem('hub_token', data.token);
+    if (data.role) sessionStorage.setItem('hub_role', data.role);
+    start();
+  } catch (e) { err.textContent = 'Sign-in service unavailable, try again'; err.classList.remove('dn'); btn.disabled = false; }
+}
+
+function start() {
+  g('gate').classList.add('dn'); g('app').classList.remove('dn');
+  const ik = new URLSearchParams(location.search).get('bank');
+  if (ik) loadBank(ik); else g('si').focus();
+}
+
+// ── institution search
+let searchTimer = null;
+async function search(q) {
+  const box = g('results');
+  if (!q || q.length < 3) { box.classList.add('dn'); return; }
+  const rows = await api('dim_institutions', `institution_name=ilike.*${encodeURIComponent(q.trim())}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=8`);
+  if (!Array.isArray(rows) || !rows.length) { box.innerHTML = '<div style="padding:10px 12px" class="note">No results</div>'; box.classList.remove('dn'); return; }
+  box.innerHTML = rows.map(r => `<button type="button" data-ik="${esc(r.inst_key)}"><span class="name">${esc(r.institution_name)}</span> <span class="note">${esc(r.institution_type || '')} · ${esc([r.city_hq, r.state_hq].filter(Boolean).join(', '))}</span></button>`).join('');
+  box.classList.remove('dn');
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    history.replaceState(null, '', '?bank=' + encodeURIComponent(b.dataset.ik));
+    box.classList.add('dn');
+    loadBank(b.dataset.ik);
+  }));
+}
+
+// ── state
+let BRANCHES = [];
+const answers = { objective: 'loans', focus: 'core', product: 'checking', goal: 500, market: 'all' };
+const GOALS = [250, 500, 1000];
+const QUESTIONS = [
+  { key: 'objective', label: '1  What should new deposits do for the balance sheet?', opts: [['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']] },
+  { key: 'focus', label: '2  Which growth focus?', opts: [['core', 'Core growth'], ['wealth', 'Wealth'], ['community', 'Community'], ['share', 'Take share']] },
+  { key: 'product', label: '3  Which product leads?', opts: [['checking', 'Checking & savings'], ['cd', 'CDs'], ['mm', 'Money market'], ['wealth', 'Wealth']] },
+  { key: 'goal', label: '4  What is the deposit goal?', opts: GOALS.map(v => [v, v >= 1000 ? '$' + (v / 1000) + 'B' : '$' + v + 'M']) },
+  { key: 'market', label: '5  Which markets?', opts: null }
+];
+
+async function loadBank(ik) {
+  g('pickCard').classList.add('dn'); g('plan').classList.remove('dn');
+  g('rows').innerHTML = '<tr><td colspan="9" class="note">Loading…</td></tr>';
+  const rows = await api('vw_branch_opportunity_cbsa',
+    `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,latest_dep,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`);
+  if (!Array.isArray(rows) || !rows.length) {
+    g('rows').innerHTML = '<tr><td colspan="9" class="note">No branch data found for this institution.</td></tr>';
+    return;
+  }
+  BRANCHES = rows;
+  g('bankName').textContent = rows[0].namefull || '';
+  render();
+}
+
+function renderQuestions() {
+  const states = ['all', ...Array.from(new Set(BRANCHES.map(b => b.stalpbr).filter(Boolean))).sort()];
+  g('questions').innerHTML = QUESTIONS.map(q => {
+    const opts = q.opts || states.map(s => [s, s === 'all' ? 'All markets' : s]);
+    return `<div class="q"><b>${esc(q.label)}</b><div class="pills">${opts.map(([v, l]) =>
+      `<button type="button" class="pill" data-k="${esc(q.key)}" data-v="${esc(v)}" aria-pressed="${String(answers[q.key]) === String(v)}">${esc(l)}</button>`).join('')}</div></div>`;
+  }).join('');
+  g('questions').querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => {
+    const k = p.dataset.k; answers[k] = (k === 'goal') ? +p.dataset.v : p.dataset.v; render();
+  }));
+}
+
+const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n / 1e3) + 'K');
+
+function render() {
+  renderQuestions();
+  const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
+  const { rows } = rankBranches(scope, answers);
+  const alloc = allocate(rows, answers.goal * 1e6, 5);
+  const isDefault = answers.focus === 'core' && answers.objective === 'loans' && answers.product === 'checking';
+  g('banner').innerHTML = '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
+  g('rows').innerHTML = rows.slice(0, 40).map((r, i) => {
+    const mv = (r.was || r.rank) - r.rank;
+    const mt = mv > 0 ? `<span class="up">▲ ${mv}</span>` : (mv < 0 ? `<span class="down">▼ ${-mv}</span>` : '—');
+    const z = r.opportunity_zone || '';
+    const a = alloc.get(r.uninumbr);
+    return `<tr class="${i < 5 ? 'top' : ''}">
+      <td><b>${r.rank}</b></td>
+      <td><span class="name">${esc(r.namebr)}</span>${r.excluded ? '<span class="tag">HQ / booking</span>' : ''}${r.partial ? '<span class="tag">partial data</span>' : ''}</td>
+      <td>${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))}</td>
+      <td>${esc(money(num(r.latest_dep) || 0))}</td>
+      <td><b>${r.score === null ? '—' : Math.round(r.score)}</b></td>
+      <td>#${esc(r.was)} ${mt}</td>
+      <td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td>
+      <td>${esc(r.campaign || '—')}</td>
+      <td>${a === undefined ? '—' : esc(money(a))}</td>
+    </tr>`;
+  }).join('');
+  g('foot').textContent = (isDefault ? 'Showing the standard formula. ' : '') +
+    'Zone and play are the stored values from the standard ranking; they are not re-cut for your goals in this draft. ' +
+    'Wealth and community use income compared with this bank’s own branches until the statewide engine is built. ' +
+    'Goal share splits the goal across the top five branches by score and leaves out head-office or booking branches. Top 40 shown.';
+}
+
+g('loginBtn').addEventListener('click', login);
+g('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+g('si').addEventListener('input', e => { clearTimeout(searchTimer); const q = e.target.value; searchTimer = setTimeout(() => search(q), 250); });
+{ const role = sessionStorage.getItem('hub_role'); if (sessionStorage.getItem('hub_token') && (!role || role === 'admin')) start(); }
+</script>
+</body>
+</html>

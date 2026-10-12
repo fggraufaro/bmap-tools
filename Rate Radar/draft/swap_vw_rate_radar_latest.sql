@@ -8,6 +8,11 @@ CREATE TABLE IF NOT EXISTS backup.bak_a40_vw_rate_radar_latest_def AS
          (SELECT relacl::text FROM pg_class WHERE oid = 'public.vw_rate_radar_latest'::regclass) AS acl;
 ALTER TABLE backup.bak_a40_vw_rate_radar_latest_def ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON backup.bak_a40_vw_rate_radar_latest_def FROM anon, authenticated, PUBLIC;
+-- snapshot of the existing columns (name, type, position) to prove they survive the replace
+CREATE TEMP TABLE _a40_cols_before ON COMMIT DROP AS
+  SELECT ordinal_position, column_name, data_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'vw_rate_radar_latest';
 CREATE OR REPLACE VIEW public.vw_rate_radar_latest AS
  WITH attempts AS (
          SELECT DISTINCT ON (raw_rate_radar.identity_key) raw_rate_radar.bank_name,
@@ -294,14 +299,43 @@ CREATE OR REPLACE VIEW public.vw_rate_radar_latest AS
    FROM attempts a
      LEFT JOIN piv p ON p.run_id = a.run_id AND p.bank_name = a.bank_name
        AND (p.obs_rssdid IS NULL OR a.rssdid IS NULL OR p.obs_rssdid = a.rssdid);
--- checks: row count 120 -> 119 expected; fail the transaction otherwise
+-- exact in-transaction checks (the whole transaction fails on any mismatch):
+--  1) row count = number of distinct bank identities in raw_rate_radar (same rule as the view);
+--  2) the original columns keep their names, types and positions, and exactly 10 columns were appended.
 DO $$
-DECLARE n integer; c integer;
+DECLARE
+  expected integer;
+  actual integer;
+  n_before integer;
+  n_kept integer;
+  n_after integer;
 BEGIN
-  SELECT count(*) INTO n FROM public.vw_rate_radar_latest;
-  SELECT count(*) INTO c FROM information_schema.columns WHERE table_schema='public' AND table_name='vw_rate_radar_latest';
-  IF c <> 42 THEN RAISE EXCEPTION 'unexpected column count %', c; END IF;
-  IF n NOT BETWEEN 100 AND 140 THEN RAISE EXCEPTION 'unexpected row count %', n; END IF;
+  SELECT count(*) INTO expected FROM (
+    SELECT DISTINCT COALESCE(NULLIF(rr.rssdid, ''),
+                             CASE WHEN min(NULLIF(rr.rssdid, '')) OVER w = max(NULLIF(rr.rssdid, '')) OVER w
+                                  THEN max(NULLIF(rr.rssdid, '')) OVER w END,
+                             'name:' || lower(rr.bank_name)) AS identity_key
+    FROM raw_rate_radar rr
+    WINDOW w AS (PARTITION BY lower(rr.bank_name))
+  ) x;
+  SELECT count(*) INTO actual FROM public.vw_rate_radar_latest;
+  IF actual <> expected THEN
+    RAISE EXCEPTION 'row count % does not equal the expected distinct bank identities %', actual, expected;
+  END IF;
+
+  SELECT count(*) INTO n_before FROM _a40_cols_before;
+  SELECT count(*) INTO n_kept
+  FROM _a40_cols_before b
+  JOIN information_schema.columns a
+    ON a.table_schema = 'public' AND a.table_name = 'vw_rate_radar_latest'
+   AND a.ordinal_position = b.ordinal_position AND a.column_name = b.column_name AND a.data_type = b.data_type;
+  IF n_kept <> n_before THEN
+    RAISE EXCEPTION 'original columns changed: % of % kept name, type and position', n_kept, n_before;
+  END IF;
+  SELECT count(*) INTO n_after FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vw_rate_radar_latest';
+  IF n_after <> n_before + 10 THEN
+    RAISE EXCEPTION 'expected % columns after the swap, found %', n_before + 10, n_after;
+  END IF;
 END $$;
 COMMIT;
 -- afterwards: re-check grants and RLS (select * from the public-key path must still be refused), re-run ingestion.run_security_check.

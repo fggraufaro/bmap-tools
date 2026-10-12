@@ -32,19 +32,23 @@
   .stag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--amber);color:var(--navy);border-radius:4px;padding:1px 5px}
   /* cards */
   main{padding:8px 20px 12px}
-  .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:10px}
+  .strip{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,9fr);gap:12px;margin-bottom:10px;align-items:stretch}
   .card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:0}
-  .strip .card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:6px 12px}
-  .strip .hrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-  .strip h3{margin:0;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase}
-  .strip .big{font-size:clamp(20px,2vw,32px);font-weight:800;color:var(--navy);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .quad{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:12px;min-width:0}
+  .strip .card{display:flex;flex-direction:column;justify-content:center;gap:0;overflow:hidden;padding:6px 12px}
+  .strip h3{margin:0;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .strip .big{font-size:clamp(20px,2vw,30px);font-weight:800;color:var(--navy);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .strip .warn{color:var(--red)}
   .strip .line{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .strip .more{align-self:flex-start;background:none;border:0;padding:0;color:var(--blue);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
-  #allMetrics{margin-bottom:10px}
+  .strip .bal{justify-content:flex-start}
+  .strip .bal table.mini{margin:4px 0 4px;table-layout:fixed}
+  .strip .bal table.mini th{font-size:10px;color:var(--muted);text-transform:uppercase;text-align:left;background:none;border-bottom:1px solid var(--border);padding:2px 6px}
+  .strip .bal table.mini td{border-bottom:1px solid #f0efe8;padding:2px 6px;font-size:12px}
+  .strip .bal table.mini th:nth-child(n+2),.strip .bal table.mini td:nth-child(n+2){text-align:right;width:19%}
+  .strip .bal .note{font-size:11px;line-height:1.3;margin-top:2px}
   .label{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
   /* work area */
-  .work{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;height:max(460px,calc(100vh - 212px));align-items:stretch}
+  .work{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;height:var(--workH,max(440px,calc(100vh - 330px)));align-items:stretch}
   .tablecard,.rightcol{height:100%;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden;padding:0}
   .thead{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .thead h2{margin:0;font-size:14px;font-weight:700;color:var(--navy)}
@@ -105,7 +109,8 @@
   #results button:hover{background:var(--lblue)}
   @media (max-width:1400px){th.k-why,td.c-why{display:none}}
   @media (max-width:1100px){.work{display:block;height:auto}.tablecard{height:auto}.tscroll{max-height:62vh}.rightcol{height:430px;margin-top:12px}}
-  @media (max-width:999px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:999px){.strip{grid-template-columns:minmax(0,1fr)}}
+  @media (max-width:560px){.quad{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -148,7 +153,6 @@
     <div class="gbar" id="gbar" aria-label="Set your goals"></div>
     <main>
       <div class="strip" id="strip"></div>
-      <div class="card dn" id="allMetrics"></div>
       <div class="work">
         <div class="card tablecard">
           <div class="thead"><h2>Branches ranked for these goals</h2><span class="mode" id="mode"></span></div>
@@ -333,19 +337,33 @@ function allocate(rows, goalDollars) {
   }
   return { amounts, bound, unallocated: Math.max(rem, 0), capacity, tierIds: new Set(tier.map(r => r.uninumbr)) };
 }
-// What the goal does to the balance sheet, for question 1.
+// What the campaign goal does to the balance sheet, for the chosen objective.
+// Returns { kind, main, line } for the Funding impact card. Interest figures use the
+// bank's own cost of funds and the peer median; no funding-mix data is assumed.
 function fundingImpact(fin, goalDollars, objective, peer) {
-  if (!fin || objective === 'none') return null;
-  const D = num(fin.total_deposits), ltd = num(fin.loans_to_deposits_pct);
+  if (!fin) return null;
+  const D = num(fin.total_deposits), ltd = num(fin.loans_to_deposits_pct), cof = num(fin.cost_of_funds_pct);
   if (!D || ltd === null) return null;
+  const usd = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : (v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v / 1e3) + 'K');
   const loans = D * ltd / 100;
   const after = 100 * loans / (D + goalDollars);
-  if (objective === 'ltd') return { title: 'Loans to deposits', main: ltd.toFixed(1) + '% to ' + after.toFixed(1) + '%', note: 'Assumes the campaign deposits are net new and loans stay flat.' };
+  const ratio = ltd.toFixed(1) + '% \u2192 ' + after.toFixed(1) + '%';
+  if (objective === 'cost') {
+    if (cof === null) return { kind: 'Interest saved', main: '\u2014', line: 'Needs the bank\u2019s cost of funds.' };
+    if (peer && cof > peer.cof) {
+      const saved = goalDollars * (cof - peer.cof) / 100;
+      return { kind: 'Interest saved', main: usd(saved) + ' a year', line: 'if it replaces ' + cof.toFixed(2) + '% funding at the ' + peer.cof.toFixed(2) + '% peer median' };
+    }
+    return { kind: 'Interest saved', main: usd(goalDollars * 0.001) + ' per 0.10 pt', line: 'already below peers (' + cof.toFixed(2) + '%' + (peer ? ' vs ' + peer.cof.toFixed(2) + '%' : '') + '); each 0.10 pt saved is worth this a year' };
+  }
   if (objective === 'loans' && peer) {
     const room = Math.max(peer.ltd / 100 * (D + goalDollars) - loans, 0);
-    return { title: 'Loan capacity', main: fmtM(room / 1e6), note: 'Extra lending that fits at the peer median loans-to-deposits of ' + peer.ltd.toFixed(1) + '%, after the goal.' };
+    return { kind: 'Loan capacity', main: usd(room), line: 'extra lending that fits at the peer median ' + peer.ltd.toFixed(1) + '% loans / deposits, after the goal' };
   }
-  return { title: 'Loans to deposits', main: ltd.toFixed(1) + '% to ' + after.toFixed(1) + '%', note: 'Interest saved and liquidity effects need funding-mix data, which is not available yet.' };
+  if (objective === 'ltd' || objective === 'liquidity') {
+    return { kind: 'Loans / deposits', main: ratio, line: 'if the goal is net new deposits and loans stay flat' };
+  }
+  return { kind: 'Loans / deposits', main: ratio, line: cof !== null ? '\u2248 ' + usd(goalDollars * cof / 100) + ' a year in interest at ' + cof.toFixed(2) + '% cost of funds' : 'if the goal is net new deposits and loans stay flat' };
 }
 // Plain-language reason for a row: the two strongest parts (70 or more) and the
 // weakest part (under 40). The numbers stay in whyFor() for the hover text.
@@ -536,7 +554,7 @@ async function search(q) {
 }
 
 // ── state
-let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null, SHOW_ALL = false;
+let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null;
 let RANKED = [], LAST_W = null, LAST_STD = true, LAST_ALLOC = null, RATES = null, SELECTED = null;
 const answers = { objective: 'none', focus: 'core', product: 'none', goalKey: 'mid', goalCustom: 250, market: 'all' };
 const OBJ_OPTS = [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']];
@@ -615,31 +633,12 @@ function renderGoalBar(sugg, range) {
   g('applyAll').addEventListener('click', applySuggestions);
 }
 
-// ── balance sheet
-function metricFor(objective) { return objective === 'cost' ? 'cof' : 'ltd'; }
-function balanceCompact(goalDollars) {
-  if (!BANK_FIN) return '<div class="card"><h3>Balance sheet</h3><div class="big">—</div><div class="line">No call-report snapshot for this institution.</div></div>';
+// ── balance sheet: the full table with the suggested objective and the peer-group note
+function balanceTableCard() {
+  if (!BANK_FIN) return '<div class="card bal"><h3>Balance sheet vs. peers</h3><div class="note">No call-report snapshot for this institution.</div></div>';
   const band = peerBand(num(BANK_FIN.total_assets));
   const peer = PEERS && PEERS.bands ? PEERS.bands[band] : null;
-  if (!peer) return '<div class="card"><h3>Balance sheet</h3><div class="big">—</div><div class="line">Peer medians are loading.</div></div>';
-  const which = metricFor(answers.objective);
-  const v = which === 'cof' ? num(BANK_FIN.cost_of_funds_pct) : num(BANK_FIN.loans_to_deposits_pct);
-  const pv = which === 'cof' ? peer.cof : peer.ltd;
-  const label = which === 'cof' ? 'Cost of funds' : 'Loans / deposits';
-  const imp = fundingImpact(BANK_FIN, goalDollars, answers.objective, peer);
-  let extra = '';
-  if (imp && answers.objective === 'ltd') extra = '; ' + imp.main.split(' to ')[1] + ' after this goal';
-  if (imp && answers.objective === 'loans') extra = '; room for ' + imp.main + ' more lending after this goal';
-  const line = `${label}; peers ${pv.toFixed(which === 'cof' ? 2 : 1)}%${extra}`;
-  return `<div class="card"><div class="hrow"><h3>Balance sheet vs. peers</h3><button type="button" class="more" id="seeAll">${SHOW_ALL ? 'hide the five' : 'see all 5'}</button></div>
-    <div class="big">${v === null ? '—' : esc(v.toFixed(which === 'cof' ? 2 : 1)) + '%'}</div>
-    <div class="line" title="${esc(line)}">${esc(line)}</div></div>`;
-}
-function balanceFull(goalDollars) {
-  if (!BANK_FIN) return '';
-  const band = peerBand(num(BANK_FIN.total_assets));
-  const peer = PEERS && PEERS.bands ? PEERS.bands[band] : null;
-  if (!peer) return '';
+  if (!peer) return '<div class="card bal"><h3>Balance sheet vs. peers</h3><div class="note">Peer medians are loading.</div></div>';
   const lines = [
     ['Loans / deposits', num(BANK_FIN.loans_to_deposits_pct), peer.ltd, 1, false],
     ['Cost of funds', num(BANK_FIN.cost_of_funds_pct), peer.cof, 2, false],
@@ -647,22 +646,27 @@ function balanceFull(goalDollars) {
     ['ROA', num(BANK_FIN.roa), peer.roa, 2, true],
     ['Deposit growth', num(BANK_FIN.dep_yoy_pct), peer.depyoy, 1, true]
   ].map(([label, v, p, d, goodHigh]) => {
-    if (v === null) return `<tr><td>${esc(label)}</td><td>—</td><td>${p.toFixed(d)}%</td><td></td></tr>`;
+    if (v === null) return `<tr><td>${esc(label)}</td><td>\u2014</td><td>${p.toFixed(d)}%</td><td></td></tr>`;
     const diff = v - p, tol = d === 1 ? 1.5 : 0.15;
     const cls = Math.abs(diff) <= tol ? '' : ((goodHigh ? diff > 0 : diff < 0) ? 'up' : 'down');
     return `<tr><td>${esc(label)}</td><td class="${cls}"><b>${v.toFixed(d)}%</b></td><td>${p.toFixed(d)}%</td><td class="${cls}">${diff > 0 ? '+' : ''}${diff.toFixed(d)}</td></tr>`;
   }).join('');
   const sug = suggestObjective(BANK_FIN, peer);
   const names = { ltd: 'Reduce loans/deposits', cost: 'Lower funding cost', loans: 'Fund loan growth', none: 'No objective stands out' };
-  const imp = fundingImpact(BANK_FIN, goalDollars, answers.objective, peer);
-  return `<div style="display:flex;gap:24px;flex-wrap:wrap">
-    <div style="flex:1 1 360px;min-width:0"><div class="label">Balance sheet vs. peers</div>
-      <table class="mini"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
-      <div class="note" style="margin-top:6px">Peers: median of ${esc(String(peer.n))} banks with ${esc((PEERS.labels || {})[band] || '')} in assets, quarter ${esc(String(BANK_FIN.period || ''))}. Draft; the peer group is for Brock to confirm.</div></div>
-    <div style="flex:1 1 300px;min-width:0"><div class="label">Suggested objective</div>
-      <div><b>${esc(sug ? names[sug.key] : '—')}</b></div><div class="note">${esc(sug ? sug.why : '')}</div>
-      ${imp ? `<div class="label" style="margin-top:10px">Funding impact of this goal</div><div><b>${esc(imp.title)}: ${esc(imp.main)}</b></div><div class="note">${esc(imp.note)}</div>` : ''}</div></div>`;
+  const sugLine = !sug ? 'Suggested objective: \u2014' : (sug.key === 'none' ? sug.why : 'Suggested objective: ' + names[sug.key] + '. ' + sug.why);
+  const peerLine = 'Peers: median of ' + peer.n + ' banks with ' + ((PEERS.labels || {})[band] || '') + ' in assets, quarter ' + (BANK_FIN.period || '') + '. Draft; the peer group is for Brock to confirm.';
+  return `<div class="card bal"><h3>Balance sheet vs. peers</h3>
+    <table class="mini"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
+    <div class="note">${esc(sugLine)}</div>
+    <div class="note">${esc(peerLine)}</div></div>`;
 }
+// The work area takes the rest of the screen below the cards.
+function fitWork() {
+  const w = document.querySelector('.work');
+  if (!w || g('plan').classList.contains('dn')) return;
+  w.style.setProperty('--workH', Math.max(420, window.innerHeight - (w.getBoundingClientRect().top + window.scrollY) - 14) + 'px');
+}
+window.addEventListener('resize', () => { fitWork(); if (MAP) MAP.invalidateSize(); });
 
 // ── render
 function render() {
@@ -690,15 +694,17 @@ function render() {
   const lineNormal = (organic !== null ? '\u2248 ' + money(organic) + ' a year without a campaign' : 'Last year\u2019s deposit growth') + (peerRow ? '; peers ' + peerRow.depyoy.toFixed(1) + '%' : '');
   const lineGoal = (ofBank > 0 ? (100 * goalDollars / ofBank).toFixed(1) + '% of the ' + (answers.market === 'all' ? 'bank' : 'selected markets') : '') + (tierDep > 0 ? ' \u00b7 ' + (100 * goalDollars / tierDep).toFixed(1) + '% of the top ' + al.tierIds.size : '');
   const lineCap = usePct === null ? '' : (al.unallocated > 1 ? 'this goal is ' + money(al.unallocated) + ' over the limit' : 'this goal uses ' + usePct.toFixed(0) + '%') + (al.bound.size ? ' \u00b7 ' + (nBranch + nMarket) + ' branches capped by size' : '');
+  const imp = fundingImpact(BANK_FIN, goalDollars, answers.objective, peerRow);
+  const lineImp = imp ? imp.line : 'Needs the bank\u2019s call-report snapshot.';
   g('strip').innerHTML = `
-    <div class="card"><h3>Normal growth</h3><div class="big">${BANK_GROWTH === null ? '—' : '+' + esc(BANK_GROWTH.toFixed(1)) + '%'}</div><div class="line" title="${esc(lineNormal)}">${esc(lineNormal)}</div></div>
-    <div class="card"><h3>Campaign goal</h3><div class="big">${esc(money(goalDollars))}</div><div class="line" title="${esc(lineGoal)}">${esc(lineGoal)}</div></div>
-    <div class="card"><h3>Capacity</h3><div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(al.capacity))}</div><div class="line" title="${esc(lineCap + (al.bound.size ? ' (' + nBranch + ' by branch size, ' + nMarket + ' by market size)' : ''))}">${esc(lineCap)}</div></div>
-    ${balanceCompact(goalDollars)}`;
-  g('allMetrics').classList.toggle('dn', !SHOW_ALL);
-  g('allMetrics').innerHTML = SHOW_ALL ? balanceFull(goalDollars) : '';
-  const seeAll = g('seeAll');
-  if (seeAll) seeAll.addEventListener('click', () => { SHOW_ALL = !SHOW_ALL; render(); });
+    <div class="quad">
+      <div class="card"><h3>Normal growth</h3><div class="big">${BANK_GROWTH === null ? '\u2014' : '+' + esc(BANK_GROWTH.toFixed(1)) + '%'}</div><div class="line" title="${esc(lineNormal)}">${esc(lineNormal)}</div></div>
+      <div class="card"><h3>Campaign goal</h3><div class="big">${esc(money(goalDollars))}</div><div class="line" title="${esc(lineGoal)}">${esc(lineGoal)}</div></div>
+      <div class="card"><h3>Capacity</h3><div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(al.capacity))}</div><div class="line" title="${esc(lineCap + (al.bound.size ? ' (' + nBranch + ' by branch size, ' + nMarket + ' by market size)' : ''))}">${esc(lineCap)}</div></div>
+      <div class="card"><h3>Funding impact${imp ? ' \u00b7 ' + esc(imp.kind) : ''}</h3><div class="big">${imp ? esc(imp.main) : '\u2014'}</div><div class="line" title="${esc(lineImp)}">${esc(lineImp)}</div></div>
+    </div>
+    ${balanceTableCard()}`;
+  fitWork();
 
   g('mode').innerHTML = isStandard ? 'Standard formula' : 'Scenario: not tested against history';
   g('mode').title = isStandard ? 'No goal preferences set: this ranking matches the stored one.' : 'The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';

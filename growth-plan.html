@@ -661,6 +661,7 @@ async function search(q) {
 
 // ── state
 let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null;
+let CURRENT_IK = null;
 let RANKED = [], LAST_W = null, LAST_STD = true, LAST_ALLOC = null, RATES = null, SELECTED = null, STAND = new Map(), SHOW_UNV = false;
 const answers = { objective: 'none', focus: 'core', product: 'none', goalKey: 'mid', goalCustom: 250, market: 'all' };
 const OBJ_OPTS = [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']];
@@ -679,7 +680,7 @@ async function loadBank(ik) {
     g('rows').innerHTML = '<tr><td colspan="8" class="note">No branch data found for this institution.</td></tr>';
     return;
   }
-  BRANCHES = rows; RATES = null; SELECTED = null;
+  BRANCHES = rows; RATES = null; SELECTED = null; CURRENT_IK = ik;
   BANK_FIN = Array.isArray(fin) && fin.length ? fin[0] : null;
   BANK_GROWTH = BANK_FIN ? num(BANK_FIN.dep_yoy_pct) : null;
   g('dataDates').textContent = dataDatesText(rows, BANK_FIN);
@@ -961,11 +962,19 @@ function hoverRow(uninumbr, on) {
 
 // ── branch detail (replaces the map until "Back to map")
 const normName = s => (s || '').trim().toLowerCase();
+// Rate Radar row for a bank: by RSSD id when both sides have one (inst_key is bank_<rssd>), else by name.
+function rateFor(rates, name, instKey) {
+  const m = /^bank_(\d+)$/.exec(instKey || '');
+  return (m && rates['#' + m[1]]) || rates[normName(name)];
+}
 async function loadRates() {
   if (RATES) return RATES;
-  const rows = await api('vw_rate_radar_latest', 'select=bank_name,cd_apy,cd_term,cd_provenance,cd_verified,savings_apy,savings_provenance,savings_verified,high_yield_savings_apy,high_yield_savings_provenance,high_yield_savings_verified,money_market_apy,money_market_provenance,money_market_verified,checking_apy,checking_provenance,checking_verified,data_quality,status,run_at&order=run_at.desc&limit=2000');
+  const rows = await api('vw_rate_radar_latest', 'select=bank_name,rssdid,cd_apy,cd_term,cd_provenance,cd_verified,savings_apy,savings_provenance,savings_verified,high_yield_savings_apy,high_yield_savings_provenance,high_yield_savings_verified,money_market_apy,money_market_provenance,money_market_verified,checking_apy,checking_provenance,checking_verified,data_quality,status,run_at&order=run_at.desc&limit=2000');
   RATES = {};
-  (Array.isArray(rows) ? rows : []).forEach(r => { const k = normName(r.bank_name); if (!RATES[k]) RATES[k] = r; });
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    const k = normName(r.bank_name); if (!RATES[k]) RATES[k] = r;
+    if (r.rssdid && !RATES['#' + r.rssdid]) RATES['#' + r.rssdid] = r;
+  });
   return RATES;
 }
 const RATE_PRODUCTS = [['cd', 'CD'], ['savings', 'Savings'], ['high_yield_savings', 'High-yield savings'], ['money_market', 'Money market'], ['checking', 'Checking']];
@@ -1044,24 +1053,24 @@ async function renderDetail(uninumbr) {
   g('backMap').addEventListener('click', () => backToMap(false));
 
   const [comps, rates] = await Promise.all([
-    api('branch_target_competitors', `my_branch_id=eq.${encodeURIComponent(uninumbr)}&select=target_namefull,target_dep_m,target_rank,vuln_score&order=target_rank.asc&limit=3`),
+    api('branch_target_competitors', `my_branch_id=eq.${encodeURIComponent(uninumbr)}&select=target_namefull,target_inst_key,target_dep_m,target_rank,vuln_score&order=target_rank.asc&limit=3`),
     loadRates()
   ]);
   const box = g('detailComps');
   if (!box || String(SELECTED) !== String(uninumbr)) return;
   if (!Array.isArray(comps) || !comps.length) { box.textContent = 'No named competitors computed for this branch yet.'; return; }
   const bankName = BRANCHES[0] ? BRANCHES[0].namefull : '';
-  const mine = rates[normName(bankName)];
+  const mine = rateFor(rates, bankName, CURRENT_IK);
   const mineAny = mine && RATE_PRODUCTS.some(([k]) => rateVal(mine, k) !== null);
   const mineTrusted = mine && RATE_PRODUCTS.some(([k]) => rateVal(mine, k) !== null && rateIsTrusted(mine, k));
   const ownNote = !mineAny ? 'No rates for ' + cleanName(bankName) + ' are in Rate Radar yet, so there is nothing to compare against.'
     : (!mineTrusted ? cleanName(bankName) + '\u2019s own rates in Rate Radar are unverified (web search only). They need the bank\u2019s own rate sheet before this comparison can be quoted.' : '');
   const unvCount = x => x ? RATE_PRODUCTS.filter(([k]) => rateVal(x, k) !== null && !rateIsTrusted(x, k)).length : 0;
-  const nUnv = comps.reduce((a, c) => a + unvCount(rates[normName(c.target_namefull)]), 0) + unvCount(mine);
+  const nUnv = comps.reduce((a, c) => a + unvCount(rateFor(rates, c.target_namefull, c.target_inst_key)), 0) + unvCount(mine);
   box.className = '';
   box.innerHTML = (nUnv ? `<div style="margin-bottom:6px"><button type="button" class="linkbtn" id="toggleUnv">${SHOW_UNV ? 'Hide' : 'Show'} ${nUnv} unverified reading${nUnv === 1 ? '' : 's'}</button></div>` : '') +
     (ownNote ? '<div class="note" style="margin-bottom:6px">' + esc(ownNote) + '</div>' : '') + comps.map((c, i) => {
-    const live = rates[normName(c.target_namefull)];
+    const live = rateFor(rates, c.target_namefull, c.target_inst_key);
     const dep = num(c.target_dep_m);
     const tier = vulnTier(c.vuln_score);
     const liveAny = live && RATE_PRODUCTS.some(([k]) => rateVal(live, k) !== null);

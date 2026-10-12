@@ -26,10 +26,19 @@
   .card h2{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--navy)}
   .label,.strip h3,th{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase}
   .sub{color:var(--muted);font-size:12px;margin:0 0 10px}
-  .layout{display:grid;grid-template-columns:310px minmax(0,1fr);gap:16px;align-items:start}
-  .work{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(380px,1fr);gap:14px;align-items:start}
+  .layout{display:grid;grid-template-columns:clamp(260px,22vw,360px) minmax(0,1fr);gap:16px;align-items:start}
+  .work{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+  .card,td,th{min-width:0}
+  .tablecard{overflow:hidden}
   .mapcol{position:sticky;top:12px}
-  td.why{font-size:11px;color:var(--muted);min-width:150px}
+  td.why{font-size:11px;color:var(--muted)}
+  td{overflow-wrap:break-word}
+  th{white-space:normal}
+  table.rank{table-layout:fixed}
+  th.k-n{width:34px}th.k-dep{width:14%}th.k-score{width:10%}th.k-std{width:15%}th.k-zone{width:11%}th.k-play{width:12%}th.k-share{width:11%}th.k-why{width:17%}
+  table.rank th{font-size:9.5px;letter-spacing:.04em;padding-left:5px;padding-right:5px}
+  table.rank td{padding-left:5px;padding-right:5px}
+  .zone{white-space:nowrap}
   tr.sel td{background:#FFF3D6!important}
   .side{position:sticky;top:12px;margin-bottom:0}
   .q{padding:10px 0;border-top:1px solid #f0efe8}
@@ -41,11 +50,14 @@
   .pill[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
   .pill.sug{border-color:var(--teal)}
   .stag{margin-left:6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--amber);color:var(--navy);border-radius:4px;padding:1px 5px}
-  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:14px}
-  .strip .card{margin-bottom:0;padding:12px 14px}
-  .strip h3{margin:0 0 4px}
-  .strip .big{font-size:20px;font-weight:800;color:var(--navy)}
+  .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+  .strip .card{margin-bottom:0;padding:10px 12px;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .strip h3{margin:0}
+  .strip .big{font-size:clamp(20px,2vw,32px);font-weight:800;color:var(--navy);line-height:1.15;overflow-wrap:anywhere}
   .strip .warn{color:var(--red)}
+  .strip .line{font-size:clamp(10px,.85vw,12px);color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+  .strip .more{align-self:flex-start;background:none;border:0;padding:0;color:var(--blue);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline}
+  #allMetrics{margin-bottom:12px}
   .banner{background:#FFF8E8;border:1px solid var(--amber);border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px}
   table{width:100%;border-collapse:collapse}
   th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;background:#f5f4f0}
@@ -101,8 +113,10 @@
   .comp{border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:8px}
   .comp .cn{font-weight:700;font-size:12px}
   .rate{display:inline-block;background:var(--lblue);color:var(--blue);border-radius:5px;padding:2px 7px;font-size:11px;margin:5px 5px 0 0;font-variant-numeric:tabular-nums}
-  @media (max-width:1280px){.work{grid-template-columns:1fr}.mapcol{position:static}#map{height:420px;min-height:0}}
-  @media (max-width:980px){.layout{grid-template-columns:1fr}.side{position:static}}
+  @media (max-width:1500px){.c-why{display:none}}
+  @media (max-width:1320px){.c-play{display:none}}
+  @media (max-width:1100px){.work{grid-template-columns:1fr}.mapcol{position:static}#map{height:420px;min-height:0}}
+  @media (max-width:999px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}.side{position:static}}
 </style>
 </head>
 <body>
@@ -141,6 +155,8 @@
     </div>
 
     <div id="plan" class="dn">
+      <div class="strip" id="strip"></div>
+      <div class="card dn" id="allMetrics"></div>
       <div class="layout">
         <aside class="card side">
           <h2>Set your goals</h2>
@@ -149,12 +165,11 @@
         </aside>
 
         <section>
-          <div class="strip" id="strip"></div>
           <div class="work">
           <div class="card tablecard">
             <h2>Your branches, ranked for these goals</h2>
             <div class="banner" id="banner"></div>
-            <div class="scroll"><table>
+            <div class="scroll"><table class="rank">
               <thead><tr id="thead"></tr></thead>
               <tbody id="rows"></tbody>
             </table></div>
@@ -529,7 +544,7 @@ async function search(q) {
 }
 
 // ── state
-let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null;
+let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null, SHOW_ALL = false;
 const answers = { objective: 'none', focus: 'core', product: 'none', goalKey: 'mid', goalCustom: 250, market: 'all' };
 const QUESTIONS = [
   { key: 'objective', label: '1  What should new deposits do for the balance sheet?', opts: [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']] },
@@ -611,11 +626,33 @@ function currentSuggestions() {
   return out;
 }
 
-function balanceCard() {
-  if (!BANK_FIN) return '<div class="card"><h3>Balance sheet vs. peers</h3><div class="note">No call-report snapshot for this institution.</div></div>';
+// Which single balance-sheet metric matters most for the chosen objective.
+function metricFor(objective) { return objective === 'cost' ? 'cof' : 'ltd'; }
+// Compact card: one metric against peers, with the effect of the goal where it applies.
+function balanceCompact(goalDollars) {
+  if (!BANK_FIN) return '<div class="card"><h3>Balance sheet</h3><div class="big">—</div><div class="line">No call-report snapshot for this institution.</div></div>';
   const band = peerBand(num(BANK_FIN.total_assets));
   const peer = PEERS && PEERS.bands ? PEERS.bands[band] : null;
-  if (!peer) return '<div class="card"><h3>Balance sheet vs. peers</h3><div class="note">Peer medians are loading.</div></div>';
+  if (!peer) return '<div class="card"><h3>Balance sheet</h3><div class="big">—</div><div class="line">Peer medians are loading.</div></div>';
+  const which = metricFor(answers.objective);
+  const v = which === 'cof' ? num(BANK_FIN.cost_of_funds_pct) : num(BANK_FIN.loans_to_deposits_pct);
+  const pv = which === 'cof' ? peer.cof : peer.ltd;
+  const label = which === 'cof' ? 'Cost of funds' : 'Loans / deposits';
+  const imp = fundingImpact(BANK_FIN, goalDollars, answers.objective, peer);
+  let extra = '';
+  if (imp && answers.objective === 'ltd') extra = '; ' + imp.main.split(' to ')[1] + ' after this goal';
+  if (imp && answers.objective === 'loans') extra = '; room for ' + imp.main + ' more lending after this goal';
+  return `<div class="card"><h3>Balance sheet vs. peers</h3>
+    <div class="big">${v === null ? '—' : esc(v.toFixed(which === 'cof' ? 2 : 1)) + '%'}</div>
+    <div class="line">${esc(label)}; peers ${esc(pv.toFixed(which === 'cof' ? 2 : 1))}%${esc(extra)}</div>
+    <button type="button" class="more" id="seeAll">${SHOW_ALL ? 'Hide the five' : 'See all 5'}</button></div>`;
+}
+// The full balance-sheet table, shown in a row under the strip on request.
+function balanceFull() {
+  if (!BANK_FIN) return '';
+  const band = peerBand(num(BANK_FIN.total_assets));
+  const peer = PEERS && PEERS.bands ? PEERS.bands[band] : null;
+  if (!peer) return '';
   const lines = [
     ['Loans / deposits', num(BANK_FIN.loans_to_deposits_pct), peer.ltd, 1, false],
     ['Cost of funds', num(BANK_FIN.cost_of_funds_pct), peer.cof, 2, false],
@@ -632,10 +669,10 @@ function balanceCard() {
   const names = { ltd: 'Reduce loans/deposits', cost: 'Lower funding cost', loans: 'Fund loan growth', none: 'No objective stands out' };
   const btn = sug && sug.key !== 'none' && answers.objective !== sug.key
     ? ` <button type="button" class="pill" id="useSuggestion" data-k="${esc(sug.key)}" style="min-height:26px;padding:2px 9px;font-size:11px">Use this</button>` : '';
-  return `<div class="card"><h3>Balance sheet vs. peers</h3>
-    <table class="mini"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
-    <div class="note" style="margin-top:8px"><b>Suggested:</b> ${esc(sug ? names[sug.key] : '—')}${btn}<br>${esc(sug ? sug.why : '')}</div>
-    <div class="note">Peers: median of ${esc(String(peer.n))} banks with ${esc((PEERS.labels || {})[band] || '')} in assets, quarter ${esc(String(BANK_FIN.period || ''))}. Draft rule; the peer group is for Brock to confirm.</div></div>`;
+  return `<div class="label">Balance sheet vs. peers</div>
+    <table class="mini" style="max-width:520px"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
+    <div class="note" style="margin-top:8px"><b>Suggested:</b> ${esc(sug ? names[sug.key] : '—')}${btn} ${esc(sug ? sug.why : '')}</div>
+    <div class="note">Peers: median of ${esc(String(peer.n))} banks with ${esc((PEERS.labels || {})[band] || '')} in assets, quarter ${esc(String(BANK_FIN.period || ''))}. Draft rule; the peer group is for Brock to confirm.</div>`;
 }
 
 const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n / 1e3) + 'K');
@@ -658,19 +695,25 @@ function render() {
   const nBranchBound = [...al.bound.values()].filter(v => v === 'branch').length;
   const nMarketBound = [...al.bound.values()].filter(v => v === 'market').length;
 
-  const impact = fundingImpact(BANK_FIN, goalDollars, answers.objective, peerRow);
+  const bankDep = BANK_FIN ? num(BANK_FIN.total_deposits) : null;
+  const tierDep = rows.filter(r => al.tierIds.has(r.uninumbr)).reduce((a, r) => a + (num(r.latest_dep) || 0), 0);
+  const ofBank = answers.market === 'all' && bankDep ? bankDep : totalDep;
+  const usePct = al.capacity > 0 ? 100 * goalDollars / al.capacity : null;
   g('strip').innerHTML = `
-    <div class="card"><h3>Normal growth (baseline)</h3>
+    <div class="card"><h3>Normal growth</h3>
       <div class="big">${BANK_GROWTH === null ? '—' : '+' + esc(BANK_GROWTH.toFixed(1)) + '%'}</div>
-      <div class="note">${organic !== null ? 'About ' + esc(money(organic)) + ' last year without a campaign' : 'Last year\u2019s deposit growth'}${peerRow ? '; similar-size banks grew ' + esc(peerRow.depyoy.toFixed(1)) + '%' : ''}. The campaign goal is on top of this.</div></div>
+      <div class="line">${organic !== null ? '\u2248 ' + esc(money(organic)) + ' a year without a campaign' : 'Last year\u2019s deposit growth'}${peerRow ? '; peers ' + esc(peerRow.depyoy.toFixed(1)) + '%' : ''}</div></div>
     <div class="card"><h3>Campaign goal</h3>
       <div class="big">${esc(money(goalDollars))}</div>
-      <div class="note">${totalDep > 0 ? esc((100 * goalDollars / totalDep).toFixed(1)) + '% of the ' + esc(money(totalDep)) + ' in these branches' : ''}${al.tierIds.size ? '; ' + esc((100 * goalDollars / Math.max(rows.filter(r => al.tierIds.has(r.uninumbr)).reduce((a, r) => a + (num(r.latest_dep) || 0), 0), 1)).toFixed(1)) + '% of the top ' + al.tierIds.size + ' branches' : ''}.</div></div>
-    <div class="card"><h3>What can be placed</h3>
-      <div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(allocated))}</div>
-      <div class="note">of ${esc(money(goalDollars))} fits in the top ${al.tierIds.size} branches under the lower of 10% of a branch&rsquo;s deposits or 1.5% of its 10-mile market${al.bound.size ? ' (' + nBranchBound + ' held by branch size, ' + nMarketBound + ' by market size)' : ''}${al.unallocated > 1 ? '; ' + esc(money(al.unallocated)) + ' is left over: more branches, more time or a smaller target' : ''}.</div></div>
-    ${impact ? `<div class="card"><h3>Funding impact</h3><div class="big">${esc(impact.main)}</div><div class="note"><b>${esc(impact.title)}.</b> ${esc(impact.note)}</div></div>` : ''}
-    ${balanceCard()}`;
+      <div class="line">${ofBank > 0 ? esc((100 * goalDollars / ofBank).toFixed(1)) + '% of the ' + (answers.market === 'all' ? 'bank' : 'selected markets') : ''}${tierDep > 0 ? ' \u00b7 ' + esc((100 * goalDollars / tierDep).toFixed(1)) + '% of the top ' + al.tierIds.size : ''}</div></div>
+    <div class="card"><h3>Capacity</h3>
+      <div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(al.capacity))}</div>
+      <div class="line">${usePct === null ? '' : (al.unallocated > 1 ? 'this goal is ' + esc(money(al.unallocated)) + ' over the limit' : 'this goal uses ' + esc(usePct.toFixed(0)) + '%')}${al.bound.size ? '; ' + nBranchBound + ' branches held by size, ' + nMarketBound + ' by market' : ''}</div></div>
+    ${balanceCompact(goalDollars)}`;
+  g('allMetrics').classList.toggle('dn', !SHOW_ALL);
+  g('allMetrics').innerHTML = SHOW_ALL ? balanceFull() : '';
+  const seeAll = g('seeAll');
+  if (seeAll) seeAll.addEventListener('click', () => { SHOW_ALL = !SHOW_ALL; render(); });
 
   const useBtn = g('useSuggestion');
   if (useBtn) useBtn.addEventListener('click', () => { answers.objective = useBtn.dataset.k; render(); });
@@ -678,10 +721,10 @@ function render() {
     ? '<b>Standard formula.</b> No goal preferences set: this ranking matches the stored one. Change the answers to see a re-weighted scenario.'
     : '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
 
-  const cols = ['#', 'Branch', 'Deposits', 'Goal score', 'Standard rank'];
-  if (isStandard) cols.push('Zone', 'Play');
-  cols.push('Goal share', 'Why');
-  g('thead').innerHTML = cols.map(c => `<th>${esc(c)}</th>`).join('');
+  const cols = [['#', 'k-n'], ['Branch', ''], ['Deposits', 'k-dep'], ['Score', 'k-score'], ['Standard', 'k-std']];
+  if (isStandard) cols.push(['Zone', 'k-zone'], ['Play', 'k-play c-play']);
+  cols.push(['Share', 'k-share'], ['Why', 'k-why c-why']);
+  g('thead').innerHTML = cols.map(c => `<th class="${c[1]}">${esc(c[0])}</th>`).join('');
 
   g('rows').innerHTML = rows.slice(0, 40).map((r, i) => {
     const mv = (r.was || r.rank) - r.rank;
@@ -695,9 +738,9 @@ function render() {
       <td>${esc(money(num(r.latest_dep) || 0))}</td>
       <td><b>${r.score === null ? '—' : Math.round(r.score)}</b></td>
       <td>#${esc(r.was)} ${mt}</td>
-      ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td><td>${esc(r.campaign || '—')}</td>` : ''}
+      ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td><td class="c-play">${esc(r.campaign || '—')}</td>` : ''}
       <td>${a ? esc(money(a)) + (b ? `<div class="note">limited by ${b === 'market' ? 'market size' : 'branch size'}</div>` : '') : '—'}</td>
-      <td class="why" title="${esc(whyFor(r.parts, w))}">${esc(whyPlain(r.parts, w))}</td>
+      <td class="why c-why" title="${esc(whyFor(r.parts, w))}">${esc(whyPlain(r.parts, w))}</td>
     </tr>`;
   }).join('');
 

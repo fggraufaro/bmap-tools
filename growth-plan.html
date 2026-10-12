@@ -99,6 +99,7 @@
   .unv{color:#8B93A0;font-style:italic}
   .unv i{font-style:normal;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#ECEAE2;border-radius:3px;padding:1px 4px;margin-left:3px}
   .na{color:#B9BFC8}
+  .auto{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#E4EEF7;color:#185FA5;border-radius:3px;padding:1px 4px;margin-left:3px;white-space:nowrap}
   .linkbtn{background:none;border:0;padding:0;color:var(--blue);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
   table.rt{margin-top:6px}
   table.rt th:nth-child(n+2),table.rt td:nth-child(n+2){width:38%}
@@ -548,11 +549,16 @@ function vulnTier(score) {
   if (v === null) return null;
   return v >= 150 ? 'Critical' : v >= 100 ? 'High' : v >= 60 ? 'Elevated' : 'Moderate';
 }
-// A Rate Radar reading counts as fact only when it was read from the bank's own page
-// (site or AI vision) or a person confirmed it. Web-search and carried-over values do not.
-function rateTrusted(provenance, verified) {
-  return verified === true || provenance === 'site' || provenance === 'ai_vision' || provenance === 'manual';
+// Rate Radar readings come in three levels. 'confirmed': a person checked it against the
+// bank's own page. 'auto': the crawler read it from the bank's own page (site or AI vision);
+// the product or tier can still be mislabelled, so it carries a tag. 'none': found by web
+// search or carried over; hidden unless asked for.
+function rateLevel(provenance, verified) {
+  if (verified === true || provenance === 'manual') return 'confirmed';
+  if (provenance === 'site' || provenance === 'ai_vision') return 'auto';
+  return 'none';
 }
+function rateTrusted(provenance, verified) { return rateLevel(provenance, verified) !== 'none'; }
 // What sets each branch apart in the list: its best rank on one measure among the scored
 // branches in view (top 10% only). Returns Map(uninumbr -> { key, text }).
 const STAND_METRICS = [
@@ -978,6 +984,7 @@ async function loadRates() {
   return RATES;
 }
 const RATE_PRODUCTS = [['cd', 'CD'], ['savings', 'Savings'], ['high_yield_savings', 'High-yield savings'], ['money_market', 'Money market'], ['checking', 'Checking']];
+const AUTO_TIP = 'Read from the bank’s own page by Rate Radar and not yet confirmed by a person. The product or balance tier can be mislabelled: check the page before quoting it.';
 const UNV_TIP = 'Unverified: found by web search or carried over, not read from the bank\u2019s own page. Do not quote it.';
 const QUALITY_LABEL = { 'search-only': 'web search only', verified: 'verified', mixed: 'mixed sources', 'no-data': 'no data' };
 function rateVal(r, key) {
@@ -991,7 +998,9 @@ function rateCell(r, key, showUnv) {
   const v = rateVal(r, key);
   if (v === null) return '<span class="na">\u2014</span>';
   const term = key === 'cd' && r.cd_term ? ' <span class="note">' + esc(r.cd_term) + ' mo</span>' : '';
-  if (rateIsTrusted(r, key)) return '<b>' + v.toFixed(2) + '%</b>' + term;
+  const lvl = rateLevel(r[key + '_provenance'], r[key + '_verified']);
+  if (lvl === 'confirmed') return '<b>' + v.toFixed(2) + '%</b>' + term;
+  if (lvl === 'auto') return '<b>' + v.toFixed(2) + '%</b>' + term + ' <span class="auto" title="' + esc(AUTO_TIP) + '">auto-read</span>';
   if (!showUnv) return '<span class="na">\u2014</span>';
   return '<span class="unv" title="' + esc(UNV_TIP) + '">' + v.toFixed(2) + '%' + term + ' <i>unverified</i></span>';
 }

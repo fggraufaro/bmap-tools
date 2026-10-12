@@ -11,112 +11,101 @@
 <style>
   :root{--navy:#083D5F;--teal:#02A7C2;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;--blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;--gray:#F5F5F2;--border:#E0DED8;--text:#213141;--muted:#777;--white:#fff}
   *{box-sizing:border-box}
-  html,body{margin:0;font-family:'Inter',system-ui,sans-serif;font-weight:300;background:var(--gray);color:var(--text);font-size:14px;line-height:1.45}
+  html,body{margin:0;font-family:'Inter',system-ui,sans-serif;font-weight:400;background:var(--gray);color:var(--text);font-size:14px;line-height:1.4}
   b,strong{font-weight:700}
   .dn{display:none!important}
-  .header{background:var(--navy);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--teal);gap:12px;flex-wrap:wrap}
-  .logo{background:#fff;padding:4px 10px;border-radius:10px;display:flex;align-items:center}
-  .logo{flex-shrink:0}
-  .logo img{height:40px;width:auto;display:block;flex-shrink:0;max-width:none}
-  .htitle{color:#fff;font-size:15px;font-weight:700;letter-spacing:.01em}
-  .hsub{color:rgba(255,255,255,.45);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-variant-numeric:tabular-nums}
-  .live-badge{background:rgba(2,167,194,.15);border:1px solid rgba(2,167,194,.3);color:var(--teal);font-size:11px;font-variant-numeric:tabular-nums;padding:3px 10px;border-radius:12px}
-  main{max-width:none;margin:0 auto;padding:18px 20px 48px}
-  .card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px}
-  .card h2{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--navy)}
-  .label,.strip h3,th{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase}
-  .sub{color:var(--muted);font-size:12px;margin:0 0 10px}
-  .layout{display:grid;grid-template-columns:clamp(260px,22vw,360px) minmax(0,1fr);gap:16px;align-items:start}
-  .work{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
-  .card,td,th{min-width:0}
-  .tablecard{overflow:hidden}
-  .mapcol{position:sticky;top:12px}
-  td.why{font-size:11px;color:var(--muted)}
-  td{overflow-wrap:break-word}
-  th{white-space:normal}
-  table.rank{table-layout:fixed}
-  th.k-n{width:34px}th.k-dep{width:14%}th.k-score{width:10%}th.k-std{width:15%}th.k-zone{width:11%}th.k-play{width:12%}th.k-share{width:11%}th.k-why{width:17%}
-  table.rank th{font-size:9.5px;letter-spacing:.04em;padding-left:5px;padding-right:5px}
-  table.rank td{padding-left:5px;padding-right:5px}
-  .zone{white-space:nowrap}
-  tr.sel td{background:#FFF3D6!important}
-  .side{position:sticky;top:12px;margin-bottom:0}
-  .q{padding:10px 0;border-top:1px solid #f0efe8}
-  .q:first-of-type{border-top:0}
-  .q b{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:7px}
-  .pills{display:flex;flex-wrap:wrap;gap:6px}
-  .pill{min-height:34px;padding:6px 12px;border-radius:7px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
-  .pill:hover{border-color:var(--navy)}
-  .pill[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
-  .pill.sug{border-color:var(--teal)}
-  .stag{margin-left:6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--amber);color:var(--navy);border-radius:4px;padding:1px 5px}
-  .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
-  .strip .card{margin-bottom:0;padding:10px 12px;min-width:0;display:flex;flex-direction:column;gap:2px}
-  .strip h3{margin:0}
-  .strip .big{font-size:clamp(20px,2vw,32px);font-weight:800;color:var(--navy);line-height:1.15;overflow-wrap:anywhere}
+  .header{background:var(--navy);padding:5px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--teal);gap:12px;flex-wrap:wrap}
+  .logo{background:#fff;padding:3px 9px;border-radius:9px;display:flex;align-items:center;flex-shrink:0}
+  .logo img{height:30px;width:auto;display:block;flex-shrink:0;max-width:none}
+  .htitle{color:#fff;font-size:15px;font-weight:700}
+  .hsub{color:rgba(255,255,255,.45);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+  .live-badge{background:rgba(2,167,194,.15);border:1px solid rgba(2,167,194,.3);color:var(--teal);font-size:12px;padding:3px 10px;border-radius:12px}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:7px;height:32px;padding:0 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .btn.teal{background:var(--teal)}
+  /* goal bar */
+  .gbar{background:#fff;border-bottom:1px solid var(--border);padding:5px 20px;display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+  .gsel{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 150px;max-width:230px}
+  .gsel .gl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .gsel select,.gsel input{height:32px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;color:var(--text);padding:0 8px;min-width:0;width:100%;background:#fff;outline:none}
+  .gsel select:focus,.gsel input:focus{border-color:var(--navy)}
+  .gsel.sugg select{border-color:var(--teal)}
+  .stag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--amber);color:var(--navy);border-radius:4px;padding:1px 5px}
+  /* cards */
+  main{padding:8px 20px 12px}
+  .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:10px}
+  .card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:0}
+  .strip .card{display:flex;flex-direction:column;gap:0;overflow:hidden;padding:6px 12px}
+  .strip .hrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .strip h3{margin:0;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase}
+  .strip .big{font-size:clamp(20px,2vw,32px);font-weight:800;color:var(--navy);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .strip .warn{color:var(--red)}
-  .strip .line{font-size:clamp(10px,.85vw,12px);color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-  .strip .more{align-self:flex-start;background:none;border:0;padding:0;color:var(--blue);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline}
-  #allMetrics{margin-bottom:12px}
-  .banner{background:#FFF8E8;border:1px solid var(--amber);border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px}
-  table{width:100%;border-collapse:collapse}
-  th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;background:#f5f4f0}
-  td{padding:9px 8px;border-bottom:1px solid #f0efe8;vertical-align:top;font-size:12px;font-variant-numeric:tabular-nums}
+  .strip .line{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .strip .more{align-self:flex-start;background:none;border:0;padding:0;color:var(--blue);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
+  #allMetrics{margin-bottom:10px}
+  .label{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+  /* work area */
+  .work{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;height:max(460px,calc(100vh - 212px));align-items:stretch}
+  .tablecard,.rightcol{height:100%;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden;padding:0}
+  .thead{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .thead h2{margin:0;font-size:14px;font-weight:700;color:var(--navy)}
+  .mode{font-size:11px;background:#FFF8E8;border:1px solid var(--amber);border-radius:6px;padding:2px 8px}
+  .tscroll{flex:1;overflow-y:auto;overflow-x:hidden}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  th{position:sticky;top:0;z-index:1;font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;text-align:left;padding:0 8px;height:30px;background:#f5f4f0;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  td{height:40px;padding:0 8px;border-bottom:1px solid #f0efe8;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
   tbody tr{cursor:pointer}
   tbody tr:hover td{background:var(--lblue)}
-  tr.top td{background:#f7fbf3}
-  .name{font-weight:700;color:var(--text)}
-  .zone{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:#f0efe8;color:var(--muted)}
+  tr.top td{background:#f1f9fb}
+  tr.sel td{background:#FFF3D6!important}
+  th.k-rk{width:46px}th.k-dep{width:78px}th.k-score{width:60px}th.k-std{width:82px}th.k-zp{width:168px}th.k-share{width:96px}th.k-why{width:26%}
+  .rk{display:inline-block;min-width:24px;height:24px;line-height:24px;text-align:center;border-radius:12px;font-weight:700;font-size:12px}
+  .rk.t5{background:var(--teal);color:#fff}
+  .nm{font-weight:700;color:var(--text)}
+  .ct{color:var(--muted);font-weight:400}
+  .ic{display:inline-block;margin-left:5px;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;background:#FBF0DF;color:#854F0B;vertical-align:1px}
+  .zone{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700;background:#f0efe8;color:var(--muted);white-space:nowrap}
   .zone.Invest{background:var(--lgreen);color:var(--green)}.zone.Analyze{background:var(--lblue);color:var(--blue)}.zone.Defend{background:#FBF0DF;color:#854F0B}.zone.Justify{background:var(--lred);color:var(--red)}
+  .play{font-size:12px;color:var(--text);margin-left:4px}
   .up{color:var(--green);font-weight:700}.down{color:var(--red);font-weight:700}
-  .tag{font-size:10px;background:#FBF0DF;color:#854F0B;border-radius:4px;padding:1px 6px;margin-left:6px;font-weight:700;white-space:nowrap}
-  .note{font-size:11px;color:var(--muted)}
-  details{margin-top:10px;font-size:12px}
-  details summary{cursor:pointer;font-weight:700;color:var(--navy)}
-  details table{margin-top:8px;max-width:520px}
-  table.mini th,table.mini td{padding:4px 6px;font-size:11px}
-  input[type=text],input[type=email],input[type=password]{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:9px 13px;font-family:inherit;font-size:13px;color:var(--text);outline:none;background:#fff}
-  input:focus{border-color:var(--navy)}
-  .btn,button.primary{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px 18px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
-  .btn.teal{background:var(--teal)}
-  .err{color:var(--teal);font-size:11px;margin-top:8px}
+  .why{color:var(--muted);font-size:12px}
+  .note{font-size:12px;color:var(--muted)}
+  .foot{padding:5px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* map and detail */
+  #mapWrap{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+  #map{flex:1;min-height:0;width:100%;position:relative;z-index:0;background:#e8eef2}
+  .maplegend{display:flex;flex-wrap:wrap;gap:4px 12px;padding:6px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);align-items:center}
+  .maplegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+  .leaflet-tooltip.rkt{background:transparent;border:0;box-shadow:none;color:#fff;font-weight:800;font-size:11px;padding:0}
+  .leaflet-tooltip.rkt::before{display:none}
+  #detail{flex:1;min-height:0;overflow-y:auto}
+  .dh{background:var(--navy);color:#fff;padding:10px 14px;position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .dh .t{font-size:15px;font-weight:700}
+  .dh .s{font-size:12px;color:rgba(255,255,255,.65);margin-top:2px}
+  .dsec{padding:10px 14px;border-bottom:1px solid var(--border)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:11px}
+  .chip b{display:block;font-size:15px;color:var(--navy)}
+  .bar{height:8px;background:#f0efe8;border-radius:4px;overflow:hidden;min-width:60px}
+  .bar i{display:block;height:100%;background:var(--teal)}
+  table.mini{table-layout:auto}
+  table.mini th,table.mini td{height:auto;padding:4px 6px;font-size:12px;position:static;white-space:normal}
+  .comp{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+  .rate{display:inline-block;background:var(--lblue);color:var(--blue);border-radius:5px;padding:2px 7px;font-size:11px;margin:4px 4px 0 0}
+  .rate.bank{background:var(--lgreen);color:var(--green)}
+  /* gate and search */
+  input[type=text],input[type=email],input[type=password]{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 12px;font-family:inherit;font-size:13px;color:var(--text);outline:none;background:#fff}
   #gate{position:fixed;inset:0;background:var(--navy);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
   #gate .box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:28px 32px;width:320px;text-align:center}
   #gate .lab{color:rgba(255,255,255,.5);font-size:11px;margin-bottom:14px;letter-spacing:.05em}
   #gate input{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);color:#fff;margin-bottom:10px}
-  #gate button{width:100%;background:var(--teal);font-weight:800;font-size:13px;padding:10px}
+  #gate button{width:100%;background:var(--teal);color:#fff;border:0;border-radius:7px;font-weight:800;font-size:13px;padding:10px;cursor:pointer;font-family:inherit}
+  .err{color:var(--teal);font-size:11px;margin-top:8px}
   #results{border:1.5px solid var(--navy);border-radius:8px;background:#fff;margin-top:6px;box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden}
-  #results button{display:block;width:100%;text-align:left;padding:10px 14px;border:0;border-bottom:1px solid var(--border);background:#fff;font-family:inherit;font-size:13px;cursor:pointer}
+  #results button{display:block;width:100%;text-align:left;padding:9px 14px;border:0;border-bottom:1px solid var(--border);background:#fff;font-family:inherit;font-size:13px;cursor:pointer}
   #results button:hover{background:var(--lblue)}
-  .scroll{overflow-x:auto}
-  /* map */
-  .mapcard{padding:0;overflow:hidden;position:relative;z-index:0}
-  #map{height:calc(100vh - 150px);min-height:460px;width:100%;position:relative;z-index:0;background:#e8eef2}
-  .maplegend{display:flex;flex-wrap:wrap;gap:14px;padding:8px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);align-items:center}
-  .maplegend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-  .leaflet-tooltip.rk{background:transparent;border:0;box-shadow:none;color:#fff;font-weight:800;font-size:11px;padding:0}
-  .leaflet-tooltip.rk::before{display:none}
-  /* side panel */
-  #panelBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:900}
-  .panel{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:#fff;border-left:3px solid var(--teal);box-shadow:-8px 0 24px rgba(0,0,0,.15);z-index:901;overflow-y:auto}
-  .panel-h{background:var(--navy);color:#fff;padding:14px 18px;position:sticky;top:0;z-index:2}
-  .panel-h .t{font-size:15px;font-weight:700}
-  .panel-h .s{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
-  .panel-x{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:6px;width:30px;height:30px;font-size:18px;cursor:pointer}
-  .psec{padding:14px 18px;border-bottom:1px solid var(--border)}
-  .psec .label{margin-bottom:6px}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-  .chip{background:var(--gray);border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:11px}
-  .chip b{display:block;font-size:15px;color:var(--navy)}
-  .bar{height:8px;background:#f0efe8;border-radius:4px;overflow:hidden;min-width:70px}
-  .bar i{display:block;height:100%;background:var(--teal)}
-  .comp{border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:8px}
-  .comp .cn{font-weight:700;font-size:12px}
-  .rate{display:inline-block;background:var(--lblue);color:var(--blue);border-radius:5px;padding:2px 7px;font-size:11px;margin:5px 5px 0 0;font-variant-numeric:tabular-nums}
-  @media (max-width:1500px){.c-why{display:none}}
-  @media (max-width:1320px){.c-play{display:none}}
-  @media (max-width:1100px){.work{grid-template-columns:1fr}.mapcol{position:static}#map{height:420px;min-height:0}}
-  @media (max-width:999px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}.side{position:static}}
+  @media (max-width:1400px){th.k-why,td.c-why{display:none}}
+  @media (max-width:1100px){.work{display:block;height:auto}.tablecard{height:auto}.tscroll{max-height:62vh}.rightcol{height:430px;margin-top:12px}}
+  @media (max-width:999px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -134,75 +123,59 @@
 
 <div id="app" class="dn">
   <div class="header">
-    <div style="display:flex;align-items:center;gap:16px">
+    <div style="display:flex;align-items:center;gap:14px">
       <div class="logo"><img src="verlocity-logo.jpg" alt="Verlocity"></div>
-      <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="display:flex;flex-direction:column;gap:1px">
         <div class="htitle">Verlocity Growth Plan</div>
         <div class="hsub">Verlocity &middot; BMAP Intelligence &middot; Internal draft</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px">
       <span class="live-badge" id="bankName">Choose a bank</span>
       <button type="button" id="changeBank" class="btn teal dn">Change bank</button>
     </div>
   </div>
-  <main>
+
+  <div id="pickWrap" style="padding:14px 20px">
     <div class="card" id="pickCard">
       <div class="label">Choose a bank</div>
-      <p class="sub">Search for an institution to build its growth plan.</p>
       <input type="text" id="si" placeholder="Start typing a bank name" aria-label="Search institutions" autocomplete="off">
       <div id="results" class="dn"></div>
     </div>
+  </div>
 
-    <div id="plan" class="dn">
+  <div id="plan" class="dn">
+    <div class="gbar" id="gbar" aria-label="Set your goals"></div>
+    <main>
       <div class="strip" id="strip"></div>
       <div class="card dn" id="allMetrics"></div>
-      <div class="layout">
-        <aside class="card side">
-          <h2>Set your goals</h2>
-          <p class="sub">Five questions. The ranking updates as you answer. <button type="button" class="pill" id="applyAll" style="min-height:28px;padding:2px 9px;font-size:11px">Use all suggestions</button></p>
-          <div id="questions"></div>
-        </aside>
-
-        <section>
-          <div class="work">
-          <div class="card tablecard">
-            <h2>Your branches, ranked for these goals</h2>
-            <div class="banner" id="banner"></div>
-            <div class="scroll"><table class="rank">
-              <thead><tr id="thead"></tr></thead>
-              <tbody id="rows"></tbody>
-            </table></div>
-            <p class="note" id="foot"></p>
-            <details>
-              <summary>How this ranking is weighted</summary>
-              <table><thead><tr><th>Part</th><th>Share of the score</th></tr></thead><tbody id="wtable"></tbody></table>
-              <p class="note">Small-business density as the signal for "lower funding cost" is an assumption, for Brock and Marc to confirm with the weights.</p>
-            </details>
-          </div>
-          <div class="mapcol">
-          <div class="card mapcard">
+      <div class="work">
+        <div class="card tablecard">
+          <div class="thead"><h2>Branches ranked for these goals</h2><span class="mode" id="mode"></span></div>
+          <div class="tscroll"><table class="rank">
+            <thead><tr id="thead"></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+          <div class="foot" id="foot"></div>
+        </div>
+        <div class="card rightcol">
+          <div id="mapWrap">
             <div id="map" role="img" aria-label="Map of the bank's branches, sized by deposits and colored by goal rank"></div>
             <div class="maplegend">
-              <span><i style="background:#02A7C2"></i>Goal rank 1 to 5</span>
-              <span><i style="background:#185FA5"></i>Rank 6 to 15</span>
-              <span><i style="background:#8B93A0"></i>Other branches</span>
-              <span><i style="background:#fff;border:2px dashed #8B93A0"></i>No score</span>
-              <span><i style="background:#F5A623"></i>Head office / booking</span>
-              <span>Circle area follows deposits. Click a branch for detail.</span>
+              <span><i style="background:#02A7C2"></i>Rank 1 to 5</span>
+              <span><i style="background:#185FA5"></i>6 to 15</span>
+              <span><i style="background:#8B93A0"></i>Others</span>
+              <span><i style="background:#fff;border:2px dashed #854F0B"></i>Head office / booking</span>
             </div>
           </div>
-          </div>
-          </div>
-        </section>
+          <div id="detail" class="dn"></div>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<div id="panelBackdrop" class="dn"></div>
-<aside id="sidePanel" class="panel dn" aria-label="Branch detail"></aside>
 
 <script>
 // ───────────────────────── pure scoring (no DOM) ─────────────────────────
@@ -374,23 +347,33 @@ function fundingImpact(fin, goalDollars, objective, peer) {
   }
   return { title: 'Loans to deposits', main: ltd.toFixed(1) + '% to ' + after.toFixed(1) + '%', note: 'Interest saved and liquidity effects need funding-mix data, which is not available yet.' };
 }
-// Plain-language reason for a row; the numbers stay in whyFor() for the hover text.
+// Plain-language reason for a row: the two strongest parts (70 or more) and the
+// weakest part (under 40). The numbers stay in whyFor() for the hover text.
 const WHY_PLAIN = {
-  mg: ['growing market', 'slow market'], rg: ['winning share', 'losing share'], id: ['few rivals nearby', 'crowded market'],
-  ds: ['strong deposit base', 'small deposit base'], wl: ['high-income area', 'lower-income area'],
-  lm: ['lower-income area', 'higher-income area'], sb: ['many small businesses', 'few small businesses']
+  mg: ['a fast-growing market', 'the market itself is slow'],
+  rg: ['winning share from nearby rivals', 'losing share to nearby rivals'],
+  id: ['few rivals nearby', 'a crowded market'],
+  ds: ['a large deposit base', 'a small deposit base'],
+  wl: ['a high-income area', 'a lower-income area'],
+  lm: ['a lower-income area', 'a higher-income area'],
+  sb: ['many small businesses', 'few small businesses']
 };
 function whyPlain(parts, w) {
-  const items = PART_KEYS.filter(k => w[k] > 0 && parts[k] !== null).map(k => ({ k, c: w[k] * parts[k], v: parts[k] })).sort((a, b) => b.c - a.c);
+  const items = PART_KEYS.filter(k => w[k] > 0 && parts[k] !== null).map(k => ({ k, v: parts[k], c: w[k] * parts[k] }));
   if (!items.length) return 'Not enough data to explain';
-  const pos = items.filter(x => x.v >= 50).slice(0, 2).map(x => WHY_PLAIN[x.k][0]);
-  const weak = items.filter(x => x.v < 40 && w[x.k] >= 0.12).sort((a, b) => a.v - b.v)[0];
-  let t = pos.length ? pos.join(' and ') : 'Mostly average across the parts';
+  const strong = items.filter(x => x.v >= 70).sort((a, b) => b.c - a.c).slice(0, 2).map(x => WHY_PLAIN[x.k][0]);
+  const weak = items.filter(x => x.v < 40).sort((a, b) => a.v - b.v)[0];
+  let t = strong.length ? strong.join(' and ') : 'No standout strength';
   t = t.charAt(0).toUpperCase() + t.slice(1);
-  return t + (weak ? '; the ' + WHY_PLAIN[weak.k][1] + ' holds it back' : '');
+  return t + (weak ? '; ' + WHY_PLAIN[weak.k][1] : '');
 }
-// Display-layer cleanup of source names: "Banktrust Of BrewtonBranch" to "Banktrust Of Brewton Branch".
-const cleanName = s => String(s == null ? '' : s).replace(/([a-z])(Branch|Office)\b/g, '$1 $2');
+// Display-layer cleanup of source names. The source data stays as it is.
+function cleanName(s) {
+  let t = String(s == null ? '' : s).replace(/([a-z])(Branch|Office)\b/g, '$1 $2');
+  t = t.replace(/\bCommerical\b/g, 'Commercial').replace(/\bBanktrust\b/g, 'BankTrust');
+  t = t.replace(/(\S)\s+(Of|The|And|For)\s/g, (m, p1, w) => p1 + ' ' + w.toLowerCase() + ' ');
+  return t;
+}
 
 // Peer band by total assets (dollars) and the objective the balance sheet points to.
 function peerBand(assets) {
@@ -476,19 +459,29 @@ const ZONE_PLAIN = {
   Defend: 'A branch holding its ground but worth protecting.',
   Justify: 'A branch losing ground to competitors.'
 };
-const PLAY_ACTION = {
-  'Aggressive Acquisition': 'Fund a new-account campaign here: CDs or high-yield savings, targeted within a few miles of the branch.',
-  'Urgent Competitive Push': 'Go after this competitor\u2019s customers directly with a switching offer before they gain more ground.',
-  'Market Domination': 'Increase local marketing to convert existing local demand into new accounts before a competitor moves in.',
-  'Grow Share': 'Push CDs or savings products to households already banking nearby; this branch can take more of the market.',
-  'Growth Opportunity': 'Worth a targeted campaign once you have confirmed which nearby audience is driving the opportunity.',
-  'Niche Opportunity': 'A specific local audience is driving this; confirm who before committing a media budget.'
+const PLAY_MEANING = {
+  'Aggressive Acquisition': 'Maximum acquisition budget: all channels are appropriate.',
+  'Market Domination': 'High acquisition budget: a dominance posture that deters competitor response.',
+  'Growth Opportunity': 'Moderate acquisition budget with an efficiency-focused channel mix.',
+  'Niche Opportunity': 'Targeted, modest budget: diagnose the specific niche before briefing media.',
+  'Competitive Defense': 'Retention-first budget: stabilize before acquiring.',
+  'Grow Share': 'Selective acquisition budget: test before scaling.',
+  'Maintain': 'Low acquisition budget: retention and cross-sell focus.',
+  'Efficiency Review': 'No new acquisition investment until the market trajectory is assessed.',
+  'Urgent Competitive Push': 'Defensive acquisition budget: rate campaigns and switching offers.',
+  'Targeted Defense': 'Retention-focused budget: loyalty and relationship offers.',
+  'Steady State': 'Minimal budget: operational efficiency review only.',
+  'Exit Strategy': 'No acquisition investment: a full strategic review is required.',
+  'Asset Optimization': 'No new acquisition: maximize return from the existing customer base.',
+  'Performance Improvement': 'Modest operational investment, no acquisition campaign.',
+  'Rationalize': 'No investment pending diagnosis; board-level attention for $100M+ branches.'
 };
 // ───────────────────────── end pure scoring ─────────────────────────
 
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 const g = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n / 1e3) + 'K');
 
 async function api(table, params) {
   try {
@@ -516,9 +509,8 @@ async function login() {
   } catch (e) { err.textContent = 'Sign-in service unavailable, try again'; err.classList.remove('dn'); btn.disabled = false; }
 }
 
-let PEERS = null;
+let PEERS = null, BREAKS = null;
 fetch('growth-plan-peers.json').then(r => r.ok ? r.json() : null).then(j => { PEERS = j; if (BRANCHES.length) render(); }).catch(() => {});
-let BREAKS = null;
 fetch('growth-plan-state-breaks.json').then(r => r.ok ? r.json() : null).then(j => { BREAKS = j; if (BRANCHES.length) render(); }).catch(() => {});
 
 function start() {
@@ -534,7 +526,7 @@ async function search(q) {
   if (!q || q.length < 2) { box.classList.add('dn'); return; }
   const rows = await api('dim_institutions', `institution_name=ilike.*${encodeURIComponent(q.trim())}*&select=inst_key,institution_name,institution_type,state_hq,city_hq&limit=8`);
   if (!Array.isArray(rows) || !rows.length) { box.innerHTML = '<div style="padding:10px 12px" class="note">No results</div>'; box.classList.remove('dn'); return; }
-  box.innerHTML = rows.map(r => `<button type="button" data-ik="${esc(r.inst_key)}"><span class="name">${esc(r.institution_name)}</span> <span class="note">${esc(r.institution_type || '')} · ${esc([r.city_hq, r.state_hq].filter(Boolean).join(', '))}</span></button>`).join('');
+  box.innerHTML = rows.map(r => `<button type="button" data-ik="${esc(r.inst_key)}"><b>${esc(r.institution_name)}</b> <span class="note">${esc(r.institution_type || '')} &middot; ${esc([r.city_hq, r.state_hq].filter(Boolean).join(', '))}</span></button>`).join('');
   box.classList.remove('dn');
   box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     history.replaceState(null, '', '?bank=' + encodeURIComponent(b.dataset.ik));
@@ -545,65 +537,51 @@ async function search(q) {
 
 // ── state
 let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null, SHOW_ALL = false;
+let RANKED = [], LAST_W = null, LAST_STD = true, LAST_ALLOC = null, RATES = null, SELECTED = null;
 const answers = { objective: 'none', focus: 'core', product: 'none', goalKey: 'mid', goalCustom: 250, market: 'all' };
-const QUESTIONS = [
-  { key: 'objective', label: '1  What should new deposits do for the balance sheet?', opts: [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']] },
-  { key: 'focus', label: '2  Which growth focus?', opts: [['core', 'Core growth'], ['wealth', 'Wealth'], ['community', 'Community'], ['share', 'Take share']] },
-  { key: 'product', label: '3  Which product leads?', opts: [['none', 'No preference'], ['checking', 'Checking & savings'], ['cd', 'CDs'], ['mm', 'Money market'], ['wealth', 'Wealth']] },
-  { key: 'goalKey', label: '4  How many additional deposits should the campaign bring in, on top of normal growth?', opts: 'goal' },
-  { key: 'market', label: '5  Which markets?', opts: null }
-];
+const OBJ_OPTS = [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']];
+const FOCUS_OPTS = [['core', 'Core growth'], ['wealth', 'Wealth'], ['community', 'Community'], ['share', 'Take share']];
+const PROD_OPTS = [['none', 'No preference'], ['checking', 'Checking & savings'], ['cd', 'CDs'], ['mm', 'Money market'], ['wealth', 'Wealth']];
 
 async function loadBank(ik) {
-  g('pickCard').classList.add('dn'); g('plan').classList.remove('dn'); g('changeBank').classList.remove('dn');
-  g('rows').innerHTML = '<tr><td colspan="9" class="note">Loading…</td></tr>';
+  g('pickWrap').classList.add('dn'); g('plan').classList.remove('dn'); g('changeBank').classList.remove('dn');
+  g('rows').innerHTML = '<tr><td colspan="8" class="note">Loading…</td></tr>';
   const [rows, fin] = await Promise.all([
     api('vw_branch_opportunity_cbsa',
       `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,sims_latitude,sims_longitude,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
     api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=total_assets,total_deposits,loans_to_deposits_pct,cost_of_funds_pct,nim,roa,dep_yoy_pct,period`)
   ]);
   if (!Array.isArray(rows) || !rows.length) {
-    g('rows').innerHTML = '<tr><td colspan="9" class="note">No branch data found for this institution.</td></tr>';
+    g('rows').innerHTML = '<tr><td colspan="8" class="note">No branch data found for this institution.</td></tr>';
     return;
   }
-  BRANCHES = rows; RATES = null;
+  BRANCHES = rows; RATES = null; SELECTED = null;
   BANK_FIN = Array.isArray(fin) && fin.length ? fin[0] : null;
   BANK_GROWTH = BANK_FIN ? num(BANK_FIN.dep_yoy_pct) : null;
   g('bankName').textContent = rows[0].namefull || '';
+  backToMap(true);
   render();
 }
 
-// The goal in dollars for the current answers, from the range for the selected markets.
-function goalFor(range) {
-  if (answers.goalKey === 'custom') return Math.max(+answers.goalCustom || 0, 0) * 1e6;
-  return (range[answers.goalKey] || range.mid) * 1e6;
-}
+// ── goals
 function scopeRows() {
   const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
   return rankBranches(scope, answers, BREAKS).rows;
 }
-function renderQuestions(sugg) {
-  sugg = sugg || {};
-  const states = ['all', ...Array.from(new Set(BRANCHES.map(b => b.stalpbr).filter(Boolean))).sort()];
-  const range = goalRange(scopeRows());
-  const goalOpts = [['low', 'Low ' + fmtM(range.low)], ['mid', 'Suggested ' + fmtM(range.mid)], ['high', 'High ' + fmtM(range.high)], ['stretch', 'Stretch ' + fmtM(range.stretch)], ['custom', 'Other amount']];
-  const labelOf = (q, v, opts) => { const o = opts.find(x => String(x[0]) === String(v)); return o ? o[1] : String(v); };
-  g('questions').innerHTML = QUESTIONS.map(q => {
-    const opts = q.opts === 'goal' ? goalOpts : (q.opts || states.map(st => [st, st === 'all' ? 'All markets' : st]));
-    const sg = sugg[q.key];
-    const extra = q.opts === 'goal' ? (answers.goalKey === 'custom'
-        ? `<div style="margin-top:8px"><label class="note" for="goalCustom">Amount in $M</label><input type="text" id="goalCustom" inputmode="numeric" value="${esc(answers.goalCustom)}" style="max-width:120px"></div>` : '') +
-        '<div class="note" style="margin-top:6px">Stretch needs a rate offer or a competitor disruption. Normal organic growth is not part of this number.</div>' : '';
-    return `<div class="q"><b>${esc(q.label)}</b><div class="pills">${opts.map(([v, l]) => {
-      const isSug = sg && String(sg.key) === String(v);
-      return `<button type="button" class="pill${isSug ? ' sug' : ''}" data-k="${esc(q.key)}" data-v="${esc(v)}" aria-pressed="${String(answers[q.key]) === String(v)}">${esc(l)}${isSug ? '<span class="stag">Suggested</span>' : ''}</button>`;
-    }).join('')}</div>${extra}${sg ? `<div class="note" style="margin-top:6px"><b>${esc(labelOf(q, sg.key, opts))}:</b> ${esc(sg.why)}</div>` : (q.key === 'product' ? '<div class="note" style="margin-top:6px">Needs the deposit-mix comparison (planned).</div>' : '')}</div>`;
-  }).join('');
-  g('questions').querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => {
-    answers[p.dataset.k] = p.dataset.v; render();
-  }));
-  const gc = g('goalCustom');
-  if (gc) gc.addEventListener('change', () => { answers.goalCustom = gc.value.replace(/[^0-9.]/g, ''); render(); });
+function goalFor(range) {
+  if (answers.goalKey === 'custom') return Math.max(+answers.goalCustom || 0, 0) * 1e6;
+  return (range[answers.goalKey] || range.mid) * 1e6;
+}
+function currentSuggestions() {
+  const partsRows = withParts(BRANCHES, BREAKS);
+  const peer = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
+  const out = {
+    objective: peer ? suggestObjective(BANK_FIN, peer) : null,
+    focus: suggestFocus(partsRows),
+    goal: suggestGoal(scopeRows())
+  };
+  out.market = suggestMarket(rankBranches(BRANCHES, answers, BREAKS).rows);
+  return out;
 }
 function applySuggestions() {
   const sg = currentSuggestions();
@@ -613,22 +591,32 @@ function applySuggestions() {
   if (sg.market) answers.market = sg.market.key;
   render();
 }
-function currentSuggestions() {
-  const partsRows = withParts(BRANCHES, BREAKS);
-  const peer = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
-  const out = {
-    objective: peer ? suggestObjective(BANK_FIN, peer) : null,
-    focus: suggestFocus(partsRows),
-    goal: null
+function renderGoalBar(sugg, range) {
+  const states = ['all', ...Array.from(new Set(BRANCHES.map(b => b.stalpbr).filter(Boolean))).sort()];
+  const goalOpts = [['low', 'Low ' + fmtM(range.low)], ['mid', 'Suggested ' + fmtM(range.mid)], ['high', 'High ' + fmtM(range.high)], ['stretch', 'Stretch ' + fmtM(range.stretch)], ['custom', 'Other amount']];
+  const mktOpts = states.map(st => [st, st === 'all' ? 'All markets' : st]);
+  const sel = (id, label, opts, cur, sg, extraTitle) => {
+    const isSug = sg && String(sg.key) === String(cur);
+    const title = (sg ? 'Suggested: ' + (opts.find(o => String(o[0]) === String(sg.key)) || [0, sg.key])[1] + '. ' + sg.why : '') + (extraTitle ? ' ' + extraTitle : '');
+    return `<label class="gsel${isSug ? ' sugg' : ''}" title="${esc(title)}"><span class="gl">${esc(label)}${isSug ? '<span class="stag">suggested</span>' : ''}</span>
+      <select id="${id}" aria-label="${esc(label)}">${opts.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${esc(l)}${sg && String(sg.key) === String(v) ? ' \u2605' : ''}</option>`).join('')}</select></label>`;
   };
-  out.market = suggestMarket(rankBranches(BRANCHES, answers, BREAKS).rows);
-  out.goal = suggestGoal(scopeRows());
-  return out;
+  g('gbar').innerHTML =
+    sel('selObjective', 'Objective', OBJ_OPTS, answers.objective, sugg.objective) +
+    sel('selFocus', 'Focus', FOCUS_OPTS, answers.focus, sugg.focus) +
+    sel('selProduct', 'Product', PROD_OPTS, answers.product, null, 'Lead product needs the deposit-mix comparison (planned).') +
+    sel('selGoal', 'Campaign goal', goalOpts, answers.goalKey, sugg.goal, 'Additional deposits from the campaign, on top of normal growth. Stretch needs a rate offer or a competitor disruption.') +
+    (answers.goalKey === 'custom' ? `<label class="gsel" style="flex:0 1 110px"><span class="gl">Amount, $M</span><input type="text" id="goalCustom" inputmode="numeric" value="${esc(answers.goalCustom)}"></label>` : '') +
+    sel('selMarket', 'Markets', mktOpts, answers.market, sugg.market) +
+    '<button type="button" class="btn teal" id="applyAll" title="Set objective, focus, goal and markets to the suggestions">Use suggestions</button>';
+  const bind = (id, key) => { const el = g(id); if (el) el.addEventListener('change', () => { answers[key] = el.value; render(); }); };
+  bind('selObjective', 'objective'); bind('selFocus', 'focus'); bind('selProduct', 'product'); bind('selGoal', 'goalKey'); bind('selMarket', 'market');
+  const gc = g('goalCustom'); if (gc) gc.addEventListener('change', () => { answers.goalCustom = gc.value.replace(/[^0-9.]/g, ''); render(); });
+  g('applyAll').addEventListener('click', applySuggestions);
 }
 
-// Which single balance-sheet metric matters most for the chosen objective.
+// ── balance sheet
 function metricFor(objective) { return objective === 'cost' ? 'cof' : 'ltd'; }
-// Compact card: one metric against peers, with the effect of the goal where it applies.
 function balanceCompact(goalDollars) {
   if (!BANK_FIN) return '<div class="card"><h3>Balance sheet</h3><div class="big">—</div><div class="line">No call-report snapshot for this institution.</div></div>';
   const band = peerBand(num(BANK_FIN.total_assets));
@@ -642,13 +630,12 @@ function balanceCompact(goalDollars) {
   let extra = '';
   if (imp && answers.objective === 'ltd') extra = '; ' + imp.main.split(' to ')[1] + ' after this goal';
   if (imp && answers.objective === 'loans') extra = '; room for ' + imp.main + ' more lending after this goal';
-  return `<div class="card"><h3>Balance sheet vs. peers</h3>
+  const line = `${label}; peers ${pv.toFixed(which === 'cof' ? 2 : 1)}%${extra}`;
+  return `<div class="card"><div class="hrow"><h3>Balance sheet vs. peers</h3><button type="button" class="more" id="seeAll">${SHOW_ALL ? 'hide the five' : 'see all 5'}</button></div>
     <div class="big">${v === null ? '—' : esc(v.toFixed(which === 'cof' ? 2 : 1)) + '%'}</div>
-    <div class="line">${esc(label)}; peers ${esc(pv.toFixed(which === 'cof' ? 2 : 1))}%${esc(extra)}</div>
-    <button type="button" class="more" id="seeAll">${SHOW_ALL ? 'Hide the five' : 'See all 5'}</button></div>`;
+    <div class="line" title="${esc(line)}">${esc(line)}</div></div>`;
 }
-// The full balance-sheet table, shown in a row under the strip on request.
-function balanceFull() {
+function balanceFull(goalDollars) {
   if (!BANK_FIN) return '';
   const band = peerBand(num(BANK_FIN.total_assets));
   const peer = PEERS && PEERS.bands ? PEERS.bands[band] : null;
@@ -667,95 +654,93 @@ function balanceFull() {
   }).join('');
   const sug = suggestObjective(BANK_FIN, peer);
   const names = { ltd: 'Reduce loans/deposits', cost: 'Lower funding cost', loans: 'Fund loan growth', none: 'No objective stands out' };
-  const btn = sug && sug.key !== 'none' && answers.objective !== sug.key
-    ? ` <button type="button" class="pill" id="useSuggestion" data-k="${esc(sug.key)}" style="min-height:26px;padding:2px 9px;font-size:11px">Use this</button>` : '';
-  return `<div class="label">Balance sheet vs. peers</div>
-    <table class="mini" style="max-width:520px"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
-    <div class="note" style="margin-top:8px"><b>Suggested:</b> ${esc(sug ? names[sug.key] : '—')}${btn} ${esc(sug ? sug.why : '')}</div>
-    <div class="note">Peers: median of ${esc(String(peer.n))} banks with ${esc((PEERS.labels || {})[band] || '')} in assets, quarter ${esc(String(BANK_FIN.period || ''))}. Draft rule; the peer group is for Brock to confirm.</div>`;
+  const imp = fundingImpact(BANK_FIN, goalDollars, answers.objective, peer);
+  return `<div style="display:flex;gap:24px;flex-wrap:wrap">
+    <div style="flex:1 1 360px;min-width:0"><div class="label">Balance sheet vs. peers</div>
+      <table class="mini"><thead><tr><th></th><th>Bank</th><th>Peers</th><th>Gap</th></tr></thead><tbody>${lines}</tbody></table>
+      <div class="note" style="margin-top:6px">Peers: median of ${esc(String(peer.n))} banks with ${esc((PEERS.labels || {})[band] || '')} in assets, quarter ${esc(String(BANK_FIN.period || ''))}. Draft; the peer group is for Brock to confirm.</div></div>
+    <div style="flex:1 1 300px;min-width:0"><div class="label">Suggested objective</div>
+      <div><b>${esc(sug ? names[sug.key] : '—')}</b></div><div class="note">${esc(sug ? sug.why : '')}</div>
+      ${imp ? `<div class="label" style="margin-top:10px">Funding impact of this goal</div><div><b>${esc(imp.title)}: ${esc(imp.main)}</b></div><div class="note">${esc(imp.note)}</div>` : ''}</div></div>`;
 }
 
-const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n / 1e3) + 'K');
-
+// ── render
 function render() {
-  renderQuestions(currentSuggestions());
+  const sugg = currentSuggestions();
   const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
   const { w, rows } = rankBranches(scope, answers, BREAKS);
+  const range = goalRange(rows);
+  renderGoalBar(sugg, range);
   RANKED = rows; LAST_W = w;
   const isStandard = answers.focus === 'core' && answers.objective === 'none' && answers.product === 'none';
   LAST_STD = isStandard;
-  const range = goalRange(rows);
   const goalDollars = goalFor(range);
   const al = allocate(rows, goalDollars);
-  drawMap(rows, (BRANCHES[0] ? BRANCHES[0].uninumbr : 0) + '|' + answers.market, al.tierIds);
-  const totalDep = scope.reduce((a, b) => a + (num(b.latest_dep) || 0), 0);
-  const allocated = goalDollars - al.unallocated;
-  const peerRow = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
-  const organic = (BANK_GROWTH !== null && BANK_FIN && num(BANK_FIN.total_deposits)) ? num(BANK_FIN.total_deposits) * BANK_GROWTH / 100 : null;
-  const nBranchBound = [...al.bound.values()].filter(v => v === 'branch').length;
-  const nMarketBound = [...al.bound.values()].filter(v => v === 'market').length;
+  LAST_ALLOC = al;
+  drawMap(rows, (BRANCHES[0] ? BRANCHES[0].uninumbr : 0) + '|' + answers.market);
 
+  const totalDep = scope.reduce((a, b) => a + (num(b.latest_dep) || 0), 0);
+  const peerRow = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
   const bankDep = BANK_FIN ? num(BANK_FIN.total_deposits) : null;
-  const tierDep = rows.filter(r => al.tierIds.has(r.uninumbr)).reduce((a, r) => a + (num(r.latest_dep) || 0), 0);
+  const organic = (BANK_GROWTH !== null && bankDep) ? bankDep * BANK_GROWTH / 100 : null;
   const ofBank = answers.market === 'all' && bankDep ? bankDep : totalDep;
+  const tierDep = rows.filter(r => al.tierIds.has(r.uninumbr)).reduce((a, r) => a + (num(r.latest_dep) || 0), 0);
+  const nBranch = [...al.bound.values()].filter(v => v === 'branch').length, nMarket = [...al.bound.values()].filter(v => v === 'market').length;
   const usePct = al.capacity > 0 ? 100 * goalDollars / al.capacity : null;
+  const lineNormal = (organic !== null ? '\u2248 ' + money(organic) + ' a year without a campaign' : 'Last year\u2019s deposit growth') + (peerRow ? '; peers ' + peerRow.depyoy.toFixed(1) + '%' : '');
+  const lineGoal = (ofBank > 0 ? (100 * goalDollars / ofBank).toFixed(1) + '% of the ' + (answers.market === 'all' ? 'bank' : 'selected markets') : '') + (tierDep > 0 ? ' \u00b7 ' + (100 * goalDollars / tierDep).toFixed(1) + '% of the top ' + al.tierIds.size : '');
+  const lineCap = usePct === null ? '' : (al.unallocated > 1 ? 'this goal is ' + money(al.unallocated) + ' over the limit' : 'this goal uses ' + usePct.toFixed(0) + '%') + (al.bound.size ? ' \u00b7 ' + (nBranch + nMarket) + ' branches capped by size' : '');
   g('strip').innerHTML = `
-    <div class="card"><h3>Normal growth</h3>
-      <div class="big">${BANK_GROWTH === null ? '—' : '+' + esc(BANK_GROWTH.toFixed(1)) + '%'}</div>
-      <div class="line">${organic !== null ? '\u2248 ' + esc(money(organic)) + ' a year without a campaign' : 'Last year\u2019s deposit growth'}${peerRow ? '; peers ' + esc(peerRow.depyoy.toFixed(1)) + '%' : ''}</div></div>
-    <div class="card"><h3>Campaign goal</h3>
-      <div class="big">${esc(money(goalDollars))}</div>
-      <div class="line">${ofBank > 0 ? esc((100 * goalDollars / ofBank).toFixed(1)) + '% of the ' + (answers.market === 'all' ? 'bank' : 'selected markets') : ''}${tierDep > 0 ? ' \u00b7 ' + esc((100 * goalDollars / tierDep).toFixed(1)) + '% of the top ' + al.tierIds.size : ''}</div></div>
-    <div class="card"><h3>Capacity</h3>
-      <div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(al.capacity))}</div>
-      <div class="line">${usePct === null ? '' : (al.unallocated > 1 ? 'this goal is ' + esc(money(al.unallocated)) + ' over the limit' : 'this goal uses ' + esc(usePct.toFixed(0)) + '%')}${al.bound.size ? '; ' + nBranchBound + ' branches held by size, ' + nMarketBound + ' by market' : ''}</div></div>
+    <div class="card"><h3>Normal growth</h3><div class="big">${BANK_GROWTH === null ? '—' : '+' + esc(BANK_GROWTH.toFixed(1)) + '%'}</div><div class="line" title="${esc(lineNormal)}">${esc(lineNormal)}</div></div>
+    <div class="card"><h3>Campaign goal</h3><div class="big">${esc(money(goalDollars))}</div><div class="line" title="${esc(lineGoal)}">${esc(lineGoal)}</div></div>
+    <div class="card"><h3>Capacity</h3><div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(al.capacity))}</div><div class="line" title="${esc(lineCap + (al.bound.size ? ' (' + nBranch + ' by branch size, ' + nMarket + ' by market size)' : ''))}">${esc(lineCap)}</div></div>
     ${balanceCompact(goalDollars)}`;
   g('allMetrics').classList.toggle('dn', !SHOW_ALL);
-  g('allMetrics').innerHTML = SHOW_ALL ? balanceFull() : '';
+  g('allMetrics').innerHTML = SHOW_ALL ? balanceFull(goalDollars) : '';
   const seeAll = g('seeAll');
   if (seeAll) seeAll.addEventListener('click', () => { SHOW_ALL = !SHOW_ALL; render(); });
 
-  const useBtn = g('useSuggestion');
-  if (useBtn) useBtn.addEventListener('click', () => { answers.objective = useBtn.dataset.k; render(); });
-  g('banner').innerHTML = isStandard
-    ? '<b>Standard formula.</b> No goal preferences set: this ranking matches the stored one. Change the answers to see a re-weighted scenario.'
-    : '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
+  g('mode').innerHTML = isStandard ? 'Standard formula' : 'Scenario: not tested against history';
+  g('mode').title = isStandard ? 'No goal preferences set: this ranking matches the stored one.' : 'The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
 
-  const cols = [['#', 'k-n'], ['Branch', ''], ['Deposits', 'k-dep'], ['Score', 'k-score'], ['Standard', 'k-std']];
-  if (isStandard) cols.push(['Zone', 'k-zone'], ['Play', 'k-play c-play']);
+  const cols = [['#', 'k-rk'], ['Branch', ''], ['Deposits', 'k-dep'], ['Score', 'k-score'], ['Standard', 'k-std']];
+  if (isStandard) cols.push(['Zone and play', 'k-zp']);
   cols.push(['Share', 'k-share'], ['Why', 'k-why c-why']);
   g('thead').innerHTML = cols.map(c => `<th class="${c[1]}">${esc(c[0])}</th>`).join('');
 
-  g('rows').innerHTML = rows.slice(0, 40).map((r, i) => {
+  g('rows').innerHTML = rows.slice(0, 60).map((r, i) => {
     const mv = (r.was || r.rank) - r.rank;
-    const mt = mv > 0 ? `<span class="up">▲ ${mv}</span>` : (mv < 0 ? `<span class="down">▼ ${-mv}</span>` : '—');
+    const mt = mv > 0 ? `<span class="up">\u25B2${mv}</span>` : (mv < 0 ? `<span class="down">\u25BC${-mv}</span>` : '');
     const z = r.opportunity_zone || '';
-    const a = al.amounts.get(r.uninumbr);
-    const b = al.bound.get(r.uninumbr);
-    return `<tr class="${i < 5 ? 'top' : ''}" data-id="${esc(r.uninumbr)}" tabindex="0" role="button" aria-label="Open ${esc(cleanName(r.namebr))}">
-      <td><b>${r.rank}</b></td>
-      <td><span class="name">${esc(cleanName(r.namebr))}</span>${r.excluded ? '<span class="tag">HQ / booking</span>' : ''}${r.partial ? '<span class="tag">partial data</span>' : ''}${r.sameMarketAs ? `<span class="tag">same market as #${esc(r.sameMarketAs)}</span>` : ''}<div class="note">${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))}</div></td>
+    const a = al.amounts.get(r.uninumbr), b = al.bound.get(r.uninumbr);
+    const nm = cleanName(r.namebr);
+    const city = [r.citybr, r.stalpbr].filter(Boolean).join(', ');
+    const why = whyPlain(r.parts, w);
+    const capTip = b === 'market' ? 'Limited to 1.5% of the deposits within 10 miles' : 'Limited to 10% of the branch\u2019s deposits';
+    const tags = (r.excluded ? '<span class="ic" title="Head office or booking branch: left out of the goal share">HQ</span>' : '') +
+      (r.partial ? '<span class="ic" title="Some parts are missing: scored on the parts that exist">part</span>' : '') +
+      (r.sameMarketAs ? `<span class="ic" title="Same market as #${esc(r.sameMarketAs)}">=#${esc(r.sameMarketAs)}</span>` : '');
+    return `<tr class="${i < 5 ? 'top' : ''}${String(SELECTED) === String(r.uninumbr) ? ' sel' : ''}" data-id="${esc(r.uninumbr)}" tabindex="0" role="button" aria-label="Open ${esc(nm)}" title="${esc(why)}">
+      <td><span class="rk${r.rank <= 5 ? ' t5' : ''}">${r.rank}</span></td>
+      <td><span class="nm">${esc(nm)}</span> <span class="ct">${esc(city)}</span>${tags}</td>
       <td>${esc(money(num(r.latest_dep) || 0))}</td>
       <td><b>${r.score === null ? '—' : Math.round(r.score)}</b></td>
       <td>#${esc(r.was)} ${mt}</td>
-      ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td><td class="c-play">${esc(r.campaign || '—')}</td>` : ''}
-      <td>${a ? esc(money(a)) + (b ? `<div class="note">limited by ${b === 'market' ? 'market size' : 'branch size'}</div>` : '') : '—'}</td>
-      <td class="why c-why" title="${esc(whyFor(r.parts, w))}">${esc(whyPlain(r.parts, w))}</td>
+      ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span><span class="play">${esc(r.campaign || '')}</span></td>` : ''}
+      <td>${a ? esc(money(a)) + (b ? ` <span class="ic" title="${esc(capTip)}">cap</span>` : '') : '—'}</td>
+      <td class="why c-why" title="${esc(whyFor(r.parts, w))}">${esc(why)}</td>
     </tr>`;
   }).join('');
 
   const isCU = BRANCHES.length && BRANCHES[0].institution_type && BRANCHES[0].institution_type !== 'bank';
-  g('foot').innerHTML = [
-    'Click a row or a map circle for the branch detail; hover a row for the numbers behind "Why".',
-    isStandard ? '' : 'Zone and play are hidden while goals are set: they are not re-cut for goals in this draft.',
-    'Wealth, community and small-business density are compared with bank branches in the same state.',
-    'Goal share goes to the top quarter of branches (5 to 40) in proportion to score, and leaves out head-office or booking branches.',
-    isCU && answers.focus === 'share' ? 'Credit union: relative growth is measured for the institution, not each branch, so take-share cannot separate its branches.' : '',
-    'Top 40 shown.'
-  ].filter(Boolean).map(esc).join(' ');
-
-  g('wtable').innerHTML = PART_KEYS.filter(k => w[k] > 0)
-    .map(k => `<tr><td>${esc(PART_LABEL[k])}</td><td>${Math.round(w[k] * 100)}%</td></tr>`).join('');
+  const footText = [
+    'Click a row for the branch detail.',
+    isStandard ? '' : 'Zone and play are hidden while goals are set: they are not re-cut for goals yet.',
+    'Share goes to the top quarter of branches in proportion to score, capped at the lower of 10% of a branch\u2019s deposits or 1.5% of its 10-mile market.',
+    isCU && answers.focus === 'share' ? 'Credit union: relative growth is institution-level, so take share cannot separate its branches.' : ''
+  ].filter(Boolean).join(' ');
+  g('foot').textContent = footText; g('foot').title = footText;
+  if (SELECTED !== null && !g('detail').classList.contains('dn')) renderDetail(SELECTED);
 }
 
 // ── map
@@ -768,13 +753,13 @@ function radiusScale(values, minR, maxR) {
   return v => { v = Math.max(min, Math.min(max, +v || min)); return minR + Math.sqrt((v - min) / (max - min)) * (maxR - minR); };
 }
 function markerStyle(r) {
-  if (r.excluded) return { fillColor: '#F5A623', color: '#854F0B', weight: 2, dashArray: '4 3', fillOpacity: 0.06, opacity: 0.9 };
-  if (r.score === null) return { fillColor: '#ffffff', color: '#8B93A0', weight: 2, dashArray: '3 3', fillOpacity: 0.4, opacity: 0.6 };
+  if (r.excluded) return { fillColor: '#F5A623', color: '#854F0B', weight: 2, dashArray: '4 3', fillOpacity: 0.05, opacity: 0.9 };
+  if (r.score === null) return { fillColor: '#ffffff', color: '#8B93A0', weight: 1.5, dashArray: '3 3', fillOpacity: 0.3, opacity: 0.5 };
   if (r.rank <= 5) return { fillColor: '#02A7C2', color: '#083D5F', weight: 2.5, fillOpacity: 0.95, opacity: 1 };
-  if (r.rank <= 15) return { fillColor: '#185FA5', color: '#ffffff', weight: 1, fillOpacity: 0.5, opacity: 0.7 };
-  return { fillColor: '#8B93A0', color: '#ffffff', weight: 0.8, fillOpacity: 0.28, opacity: 0.5 };
+  if (r.rank <= 15) return { fillColor: '#185FA5', color: '#ffffff', weight: 1, fillOpacity: 0.55, opacity: 0.75 };
+  return { fillColor: '#8B93A0', color: '#ffffff', weight: 0.6, fillOpacity: 0.25, opacity: 0.45 };
 }
-function drawMap(rows, key, tierIds) {
+function drawMap(rows, key) {
   if (typeof L === 'undefined') return;
   if (!MAP) {
     MAP = L.map('map', { zoomControl: true, attributionControl: false, scrollWheelZoom: false }).setView([37.8, -96], 4);
@@ -784,43 +769,33 @@ function drawMap(rows, key, tierIds) {
   }
   MAP_LAYER.clearLayers(); MAP_MARKERS = new Map();
   const pts = rows.filter(r => num(r.sims_latitude) !== null && num(r.sims_longitude) !== null);
-  // size scale from regular branches only, so a head office does not dwarf the rest
-  const rs0 = radiusScale(pts.filter(r => !r.excluded).map(r => r.latest_dep), 6, 20);
-  const rs = v => Math.min(rs0(v), 24);
+  const rs0 = radiusScale(pts.filter(r => !r.excluded).map(r => r.latest_dep), 4, 16);
   pts.forEach(r => {
-    const rad = r.excluded ? 11 : (rs(r.latest_dep) + (r.rank <= 5 ? 5 : 0));
+    const base = r.excluded ? 10 : rs0(r.latest_dep);
+    const rad = r.rank <= 5 && !r.excluded ? Math.max(base, 11) + 4 : (r.rank <= 15 ? base : Math.min(base, 8));
     const m = L.circleMarker([+r.sims_latitude, +r.sims_longitude], { radius: rad, ...markerStyle(r) });
-    m.bindTooltip(`${esc(cleanName(r.namebr))}: ${r.score === null ? 'no score' : 'goal score ' + Math.round(r.score)} (#${r.rank})`, { direction: 'top' });
+    m.bindTooltip(`${esc(cleanName(r.namebr))}: ${r.score === null ? 'no score' : 'score ' + Math.round(r.score)} (#${r.rank})`, { direction: 'top' });
     m.on('click', () => selectBranch(r.uninumbr));
     m.addTo(MAP_LAYER);
-    if (r.rank <= 5 && !r.excluded) m.bindTooltip(String(r.rank), { permanent: true, direction: 'center', className: 'rk' });
+    if (r.rank <= 5 && !r.excluded) m.bindTooltip(String(r.rank), { permanent: true, direction: 'center', className: 'rkt' });
     MAP_MARKERS.set(String(r.uninumbr), { m, r });
   });
   const fit = pts.length && key !== MAP_KEY;
   const bounds = pts.map(r => [+r.sims_latitude, +r.sims_longitude]);
-  if (fit) { MAP.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 }); MAP_KEY = key; }
-  // The container may not have its final size yet: re-measure, then fit again.
-  setTimeout(() => { if (!MAP) return; MAP.invalidateSize(); if (fit) MAP.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 }); }, 80);
+  if (fit) { MAP.fitBounds(bounds, { padding: [30, 30], maxZoom: 11 }); MAP_KEY = key; }
+  setTimeout(() => { if (!MAP) return; MAP.invalidateSize(); if (fit) MAP.fitBounds(bounds, { padding: [30, 30], maxZoom: 11 }); }, 80);
+  if (SELECTED !== null) hoverRow(SELECTED, true);
 }
-// Select a branch from the map or the table: highlight its row, then open the panel.
-function selectBranch(uninumbr) {
-  document.querySelectorAll('#rows tr.sel').forEach(t => t.classList.remove('sel'));
-  const tr = document.querySelector(`#rows tr[data-id="${String(uninumbr).replace(/"/g, '')}"]`);
-  if (tr) { tr.classList.add('sel'); tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
-  openPanel(uninumbr);
-}
-// highlight the marker for a hovered table row
 function hoverRow(uninumbr, on) {
   const e = MAP_MARKERS.get(String(uninumbr));
   if (!e) return;
-  e.m.setStyle({ weight: on ? 4 : markerStyle(e.r).weight, color: on ? '#F5A623' : markerStyle(e.r).color });
+  const st = markerStyle(e.r);
+  e.m.setStyle({ weight: on ? 4 : st.weight, color: on ? '#F5A623' : st.color });
   if (on) e.m.bringToFront();
 }
 
-// ── side panel
-let RANKED = [], LAST_W = null, LAST_STD = true, RATES = null, RATES_FOR = null;
+// ── branch detail (replaces the map until "Back to map")
 const normName = s => (s || '').trim().toLowerCase();
-function closePanel() { g('sidePanel').classList.add('dn'); g('panelBackdrop').classList.add('dn'); }
 async function loadRates() {
   if (RATES) return RATES;
   const rows = await api('vw_rate_radar_latest', 'select=bank_name,cd_apy,cd_term,savings_apy,high_yield_savings_apy,money_market_apy,checking_apy,data_quality,run_at&order=run_at.desc&limit=2000');
@@ -828,85 +803,93 @@ async function loadRates() {
   (Array.isArray(rows) ? rows : []).forEach(r => { const k = normName(r.bank_name); if (!RATES[k]) RATES[k] = r; });
   return RATES;
 }
-function rateChips(r) {
+function rateChips(r, cls) {
   const chips = [];
-  const add = (label, v, extra) => { if (v !== null && v !== undefined && v !== '' && !isNaN(+v)) chips.push(`<span class="rate">${esc(label)} <b>${(+v).toFixed(2)}%</b>${extra ? ' ' + esc(extra) : ''}</span>`); };
+  const add = (label, v, extra) => { if (v !== null && v !== undefined && v !== '' && !isNaN(+v)) chips.push(`<span class="rate ${cls || ''}">${esc(label)} <b>${(+v).toFixed(2)}%</b>${extra ? ' ' + esc(extra) : ''}</span>`); };
   add('CD', r.cd_apy, r.cd_term ? r.cd_term + ' mo' : '');
   add('Savings', r.savings_apy); add('High-yield', r.high_yield_savings_apy);
   add('Money market', r.money_market_apy); add('Checking', r.checking_apy);
   return chips.join('');
 }
-async function openPanel(uninumbr) {
+function backToMap(silent) {
+  g('detail').classList.add('dn'); g('mapWrap').classList.remove('dn');
+  if (MAP) setTimeout(() => MAP.invalidateSize(), 50);
+  if (!silent) document.querySelectorAll('#rows tr.sel').forEach(t => t.classList.remove('sel'));
+}
+function selectBranch(uninumbr) {
+  if (SELECTED !== null) hoverRow(SELECTED, false);
+  SELECTED = uninumbr;
+  document.querySelectorAll('#rows tr.sel').forEach(t => t.classList.remove('sel'));
+  const tr = document.querySelector(`#rows tr[data-id="${String(uninumbr).replace(/"/g, '')}"]`);
+  if (tr) { tr.classList.add('sel'); tr.scrollIntoView({ block: 'nearest' }); }
+  hoverRow(uninumbr, true);
+  renderDetail(uninumbr);
+}
+async function renderDetail(uninumbr) {
   const r = RANKED.find(x => String(x.uninumbr) === String(uninumbr));
   if (!r) return;
-  const w = LAST_W;
-  const br = partBreakdown(r.parts, w);
-  const z = r.opportunity_zone || '';
-  const play = r.campaign || '';
-  const std = num(r.opportunity_score);
-  g('sidePanel').innerHTML = `
-    <div class="panel-h"><div class="t">${esc(cleanName(r.namebr))}</div>
-      <div class="s">${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))} &middot; ${esc(money(num(r.latest_dep) || 0))} deposits</div>
-      <button type="button" class="panel-x" id="panelClose" aria-label="Close">&times;</button></div>
-    <div class="psec"><div class="label">Where it ranks</div>
-      <div class="chips">
-        <div class="chip">Goal rank<b>#${esc(r.rank)}</b></div>
-        <div class="chip">Goal score<b>${r.score === null ? '—' : Math.round(r.score)}</b></div>
-        <div class="chip">Standard rank<b>#${esc(r.was)}</b></div>
-        <div class="chip">Standard score<b>${std === null ? '—' : Math.round(std)}</b></div>
-      </div>
-      ${r.partial ? '<p class="note">Some parts are missing for this branch, so the score uses the parts that exist.</p>' : ''}
-      ${r.excluded ? '<p class="note">Treated as a head-office or booking branch: left out of the goal share.</p>' : ''}
-    </div>
-    <div class="psec"><div class="label">Why this branch</div>
-      <p style="margin:0 0 4px;font-size:13px">${esc(whyPlain(r.parts, w))}.</p><p class="note" style="margin:0 0 8px">${esc(whyFor(r.parts, w))}.</p>
-      <table class="mini"><thead><tr><th>Part</th><th>Value</th><th>Weight</th><th>Points</th><th></th></tr></thead><tbody>
-      ${br.map(x => `<tr><td>${esc(x.label)}</td><td>${x.value === null ? '—' : Math.round(x.value)}</td><td>${Math.round(x.weight * 100)}%</td><td>${x.points === null ? '—' : x.points.toFixed(1)}</td><td><div class="bar"><i style="width:${x.value === null ? 0 : Math.round(x.value)}%"></i></div></td></tr>`).join('')}
-      </tbody></table>
-      <p class="note">Points add up to the goal score. Wealth, community and small-business density are compared with bank branches in the same state.</p>
-    </div>
-    <div class="psec"><div class="label">Play</div>
-      ${play ? `<div style="font-weight:700;font-size:13px">${esc(play)}${z ? ' &middot; ' + esc(z) + ' zone' : ''}</div>
-        <p style="margin:6px 0 0;font-size:12px">${esc(PLAY_ACTION[play] || (ZONE_PLAIN[z] || ''))}</p>` : '<p class="note">No play is stored for this branch.</p>'}
-      <p class="note">${LAST_STD ? 'From the standard ranking.' : 'This is the play from the standard ranking. Zone and play are not re-cut for your goals yet.'}</p>
-    </div>
-    <div class="psec"><div class="label">Nearby competitors</div><div id="panelComps" class="note">Loading…</div></div>`;
-  g('sidePanel').classList.remove('dn'); g('panelBackdrop').classList.remove('dn');
-  g('panelClose').addEventListener('click', closePanel);
+  const w = LAST_W, br = partBreakdown(r.parts, w);
+  const z = r.opportunity_zone || '', play = r.campaign || '', std = num(r.opportunity_score);
+  const a = LAST_ALLOC ? LAST_ALLOC.amounts.get(r.uninumbr) : 0, b = LAST_ALLOC ? LAST_ALLOC.bound.get(r.uninumbr) : null;
+  const inTier = LAST_ALLOC ? LAST_ALLOC.tierIds.has(r.uninumbr) : false;
+  const shareText = r.excluded ? 'Head office or booking branch: left out of the goal share.'
+    : (inTier ? esc(money(a || 0)) + (b ? ' (capped: ' + (b === 'market' ? 'limited to 1.5% of the deposits within 10 miles' : 'limited to 10% of the branch\u2019s deposits') + ')' : ' (not capped)') : 'Not in the top tier, so no share of this goal.');
+  g('mapWrap').classList.add('dn');
+  const d = g('detail');
+  d.classList.remove('dn');
+  d.innerHTML = `
+    <div class="dh"><div><div class="t">${esc(cleanName(r.namebr))}</div>
+      <div class="s">${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))} &middot; ${esc(money(num(r.latest_dep) || 0))} deposits &middot; goal rank #${esc(r.rank)}</div></div>
+      <button type="button" class="btn teal" id="backMap">Back to map</button></div>
+    <div class="dsec"><div class="chips">
+      <div class="chip">Goal score<b>${r.score === null ? '—' : Math.round(r.score)}</b></div>
+      <div class="chip">Standard<b>${std === null ? '—' : Math.round(std)} (#${esc(r.was)})</b></div>
+      <div class="chip">Goal share<b>${r.excluded || !inTier ? '—' : esc(money(a || 0))}</b></div></div>
+      <p class="note" style="margin:6px 0 0">${shareText}</p>
+      ${r.partial ? '<p class="note">Some parts are missing for this branch, so the score uses the parts that exist.</p>' : ''}</div>
+    <div class="dsec"><div class="label">Why</div>
+      <p style="margin:0 0 6px">${esc(whyPlain(r.parts, w))}.</p>
+      <table class="mini"><thead><tr><th>Part</th><th>Value</th><th>Weight</th><th></th></tr></thead><tbody>
+      ${br.map(x => `<tr><td>${esc(x.label)}</td><td>${x.value === null ? '—' : Math.round(x.value)}</td><td>${Math.round(x.weight * 100)}%</td><td style="width:40%"><div class="bar"><i style="width:${x.value === null ? 0 : Math.round(x.value)}%"></i></div></td></tr>`).join('')}
+      </tbody></table></div>
+    <div class="dsec"><div class="label">Play</div>
+      ${play ? `<div><b>${esc(play)}</b>${z ? ' &middot; ' + esc(z) + ' zone' : ''}</div><p style="margin:4px 0 0">${esc(PLAY_MEANING[play] || ZONE_PLAIN[z] || '')}</p>` : '<p class="note">No play is stored for this branch.</p>'}
+      <p class="note" style="margin:4px 0 0">${LAST_STD ? 'From the standard ranking.' : 'This is the play from the standard ranking; zone and play are not re-cut for your goals yet.'}</p></div>
+    <div class="dsec"><div class="label">Nearby competitors and rates</div><div id="detailComps" class="note">Loading…</div></div>`;
+  g('backMap').addEventListener('click', () => backToMap(false));
 
   const [comps, rates] = await Promise.all([
     api('branch_target_competitors', `my_branch_id=eq.${encodeURIComponent(uninumbr)}&select=target_namefull,target_dep_m,target_rank,vuln_score&order=target_rank.asc&limit=3`),
     loadRates()
   ]);
-  const box = g('panelComps');
-  if (!box) return;
+  const box = g('detailComps');
+  if (!box || String(SELECTED) !== String(uninumbr)) return;
   if (!Array.isArray(comps) || !comps.length) { box.textContent = 'No named competitors computed for this branch yet.'; return; }
+  const bankName = BRANCHES[0] ? BRANCHES[0].namefull : '';
+  const mine = rates[normName(bankName)];
   box.className = '';
-  box.innerHTML = comps.map(c => {
+  box.innerHTML = comps.map((c, i) => {
     const live = rates[normName(c.target_namefull)];
     const dep = num(c.target_dep_m);
-    const chips = live ? rateChips(live) : '';
-    return `<div class="comp"><div class="cn">${esc(c.target_namefull)}</div>
-      <div class="note">${dep !== null ? esc(money(dep * 1e6)) + ' deposits' : ''}${c.vuln_score !== null && c.vuln_score !== undefined ? ' &middot; vulnerability score ' + esc(Math.round(+c.vuln_score)) : ''}</div>
-      ${live && chips ? chips + `<div class="note" style="margin-top:4px">Rate Radar, ${esc(String(live.run_at || '').slice(0, 10))}${live.data_quality ? ' &middot; ' + esc(live.data_quality) + ' quality' : ''}</div>` : '<div class="note" style="margin-top:4px">No Rate Radar reading for this competitor yet.</div>'}</div>`;
+    const theirs = live ? rateChips(live) : '';
+    const ours = mine ? rateChips(mine, 'bank') : '';
+    return `<div class="comp"><div><b>${esc(cleanName(c.target_namefull))}</b>${i === 0 ? ' <span class="ic">top rival</span>' : ''}</div>
+      <div class="note">${dep !== null ? esc(money(dep * 1e6)) + ' deposits' : ''}${c.vuln_score !== null && c.vuln_score !== undefined ? ' &middot; vulnerability ' + esc(Math.round(+c.vuln_score)) : ''}</div>
+      ${live && theirs ? `<div class="note" style="margin-top:4px">Theirs (Rate Radar ${esc(String(live.run_at || '').slice(0, 10))}${live.data_quality ? ', ' + esc(live.data_quality) + ' quality' : ''})</div>${theirs}
+        ${ours ? `<div class="note" style="margin-top:4px">${esc(bankName)}</div>${ours}` : '<div class="note" style="margin-top:4px">The bank\u2019s own rates are not in Rate Radar yet.</div>'}`
+      : '<div class="note" style="margin-top:4px">No Rate Radar reading for this competitor yet.</div>'}</div>`;
   }).join('');
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
-g('panelBackdrop').addEventListener('click', closePanel);
-g('rows').addEventListener('mouseover', e => { const tr = e.target.closest('tr[data-id]'); if (tr) hoverRow(tr.dataset.id, true); });
-g('rows').addEventListener('mouseout', e => { const tr = e.target.closest('tr[data-id]'); if (tr) hoverRow(tr.dataset.id, false); });
-g('rows').addEventListener('click', e => {
-  const tr = e.target.closest('tr[data-id]');
-  if (tr) selectBranch(tr.dataset.id);
-});
-g('rows').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { const tr = e.target.closest('tr[data-id]'); if (tr) selectBranch(tr.dataset.id); }
-});
 
-g('applyAll').addEventListener('click', applySuggestions);
+// ── events
+g('rows').addEventListener('mouseover', e => { const tr = e.target.closest('tr[data-id]'); if (tr) hoverRow(tr.dataset.id, true); });
+g('rows').addEventListener('mouseout', e => { const tr = e.target.closest('tr[data-id]'); if (tr && String(tr.dataset.id) !== String(SELECTED)) hoverRow(tr.dataset.id, false); });
+g('rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr) selectBranch(tr.dataset.id); });
+g('rows').addEventListener('keydown', e => { if (e.key === 'Enter') { const tr = e.target.closest('tr[data-id]'); if (tr) selectBranch(tr.dataset.id); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !g('detail').classList.contains('dn')) backToMap(false); });
 g('changeBank').addEventListener('click', () => {
   history.replaceState(null, '', location.pathname);
-  g('plan').classList.add('dn'); g('changeBank').classList.add('dn'); g('pickCard').classList.remove('dn');
+  g('plan').classList.add('dn'); g('changeBank').classList.add('dn'); g('pickWrap').classList.remove('dn');
   g('bankName').textContent = 'Choose a bank'; g('si').value = ''; g('results').classList.add('dn'); g('si').focus();
 });
 g('loginBtn').addEventListener('click', login);

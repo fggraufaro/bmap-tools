@@ -61,11 +61,11 @@
   tbody tr:hover td{background:var(--lblue)}
   tr.top td{background:#f1f9fb}
   tr.sel td{background:#FFF3D6!important}
-  th.k-rk{width:46px}th.k-dep{width:78px}th.k-score{width:60px}th.k-std{width:82px}th.k-zp{width:168px}th.k-share{width:96px}th.k-why{width:26%}
+  th.k-rk{width:42px}th.k-dep{width:74px}th.k-score{width:52px}th.k-std{width:78px}th.k-zp{width:168px}th.k-share{width:108px}th.k-why{width:26%}
   .rk{display:inline-block;min-width:24px;height:24px;line-height:24px;text-align:center;border-radius:12px;font-weight:700;font-size:12px}
   .rk.t5{background:var(--teal);color:#fff}
-  .nm{font-weight:700;color:var(--text)}
-  .ct{color:var(--muted);font-weight:400}
+  .nm{display:block;font-weight:700;color:var(--text);line-height:1.25;overflow:hidden;text-overflow:ellipsis}
+  .ct{display:block;color:var(--muted);font-weight:400;font-size:11px;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
   .ic{display:inline-block;margin-left:5px;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;background:#FBF0DF;color:#854F0B;vertical-align:1px}
   .zone{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700;background:#f0efe8;color:var(--muted);white-space:nowrap}
   .zone.Invest{background:var(--lgreen);color:var(--green)}.zone.Analyze{background:var(--lblue);color:var(--blue)}.zone.Defend{background:#FBF0DF;color:#854F0B}.zone.Justify{background:var(--lred);color:var(--red)}
@@ -99,6 +99,7 @@
   .unv{color:#8B93A0;font-style:italic}
   .unv i{font-style:normal;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#ECEAE2;border-radius:3px;padding:1px 4px;margin-left:3px}
   .na{color:#B9BFC8}
+  .linkbtn{background:none;border:0;padding:0;color:var(--blue);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
   table.rt{margin-top:6px}
   table.rt th:nth-child(n+2),table.rt td:nth-child(n+2){width:38%}
   /* gate and search */
@@ -113,6 +114,7 @@
   #results button{display:block;width:100%;text-align:left;padding:9px 14px;border:0;border-bottom:1px solid var(--border);background:#fff;font-family:inherit;font-size:13px;cursor:pointer}
   #results button:hover{background:var(--lblue)}
   @media (max-width:1400px){th.k-why,td.c-why{display:none}}
+  @media (max-width:1699px){th.k-zp{width:92px}th.k-why{width:21%}.play{display:none}}
   @media (max-width:1100px){.work{display:block;height:auto}.tablecard{height:auto}.tscroll{max-height:62vh}.rightcol{height:430px;margin-top:12px}}
   @media (max-width:999px){.strip{grid-template-columns:minmax(0,1fr)}}
   @media (max-width:560px){.quad{grid-template-columns:minmax(0,1fr)}}
@@ -138,6 +140,7 @@
       <div style="display:flex;flex-direction:column;gap:1px">
         <div class="htitle">Verlocity Growth Plan</div>
         <div class="hsub">Verlocity &middot; BMAP Intelligence &middot; Internal draft</div>
+        <div class="hsub" id="dataDates" title="Branch deposits come from the FDIC Summary of Deposits; balance sheet and peers from the latest call reports."></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -297,7 +300,8 @@ function rankBranches(branches, answers, breaks) {
 // The goal is ADDITIONAL deposits from the campaign, on top of normal organic growth.
 // It is placed on the top tier only, in proportion to score, and each branch is
 // limited to the lower of 10% of its own deposits or 1.5% of the deposits within
-// 10 miles; the constraint that binds is reported.
+// 10 miles (competitors' deposits as stored, plus the branch's own); the constraint
+// that binds is reported.
 const TIER_SHARE = 0.25, TIER_MIN = 5, TIER_MAX = 40;
 const GOAL_PCT = { low: 0.03, mid: 0.05, high: 0.08 };
 const CAP_BRANCH = 0.10, CAP_MARKET = 0.015;
@@ -317,11 +321,28 @@ function goalRange(rows) {
   return { tierCount: t.length, tierDep: dep,
     low: m(GOAL_PCT.low * dep), mid: m(GOAL_PCT.mid * dep), high: m(GOAL_PCT.high * dep), stretch: m(2 * GOAL_PCT.high * dep) };
 }
+// total_deposits_10mi counts the other institutions' branches only, so the branch's own
+// deposits are added back to get the local market.
+function localMarket(r) {
+  const oth = num(r.total_deposits_10mi);
+  return oth === null ? null : oth + (num(r.latest_dep) || 0);
+}
 function capFor(r) {
-  const dep = num(r.latest_dep) || 0, mkt = num(r.total_deposits_10mi);
+  const dep = num(r.latest_dep) || 0, mkt = localMarket(r);
   const byBranch = CAP_BRANCH * dep;
   const byMarket = mkt !== null && mkt > 0 ? CAP_MARKET * mkt : Infinity;
   return byMarket < byBranch ? { cap: byMarket, by: 'market' } : { cap: byBranch, by: 'branch' };
+}
+const usdShort = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : (v >= 1e7 ? '$' + Math.round(v / 1e6) + 'M' : (v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v / 1e3) + 'K'));
+// Which limit applied to a branch's share, in words and with the numbers.
+// bound is 'market', 'branch' or null (not limited).
+function capNote(r, bound) {
+  const dep = num(r.latest_dep) || 0, mkt = localMarket(r);
+  const byBranch = CAP_BRANCH * dep, byMarket = mkt !== null && mkt > 0 ? CAP_MARKET * mkt : null;
+  const both = 'Branch size: 10% of its ' + usdShort(dep) + ' = ' + usdShort(byBranch) +
+    (byMarket !== null ? '. Local market: 1.5% of the ' + usdShort(mkt) + ' deposited within 10 miles = ' + usdShort(byMarket) : '') + '.';
+  if (!bound) return 'Not limited. ' + both;
+  return (bound === 'market' ? 'Limited by local market size. ' : 'Limited by branch size. ') + both;
 }
 // Water-filling: split the goal over the tier by score, capping each branch.
 function allocate(rows, goalDollars) {
@@ -373,7 +394,7 @@ function fundingImpact(fin, goalDollars, objective, peer) {
   if (objective === 'ltd') {
     return { kind: 'Loans / deposits', main: ratio, line: 'if the goal is net new deposits and loans stay flat' };
   }
-  return { kind: 'Loans / deposits', main: ratio, line: cof !== null ? '\u2248 ' + usd(goalDollars * cof / 100) + ' a year in interest at ' + cof.toFixed(2) + '% cost of funds' : 'if the goal is net new deposits and loans stay flat' };
+  return { kind: 'Loans / deposits', main: ratio, line: cof !== null ? '\u2248 ' + usd(goalDollars * cof / 100) + ' a year at average cost of funds (' + cof.toFixed(2) + '%); promotional rates cost more' : 'if the goal is net new deposits and loans stay flat' };
 }
 // Plain-language reason for a row: the two strongest parts (70 or more) and the
 // weakest part (under 40). The numbers stay in whyFor() for the hover text.
@@ -403,6 +424,20 @@ function cleanName(s) {
   return t;
 }
 
+// Branch name for a table cell: cleaned, without the trailing "Branch" or "Office".
+function shortBranch(s) {
+  const t = cleanName(s).replace(/\s+(Branch|Office)$/i, '').trim();
+  return t || cleanName(s);
+}
+// "Data: branch deposits June 2026 · call report Q2 2026", from the loaded rows.
+function dataDatesText(rows, fin) {
+  const parts = [];
+  const y = rows && rows[0] ? num(rows[0].year) : null;
+  if (y) parts.push('branch deposits June ' + y);
+  const m = /^(\d{4})-(\d{2})/.exec(fin && fin.period ? String(fin.period) : '');
+  if (m) parts.push('call report Q' + Math.ceil(+m[2] / 3) + ' ' + m[1]);
+  return parts.length ? 'Data: ' + parts.join(' \u00b7 ') : '';
+}
 // Peer band by total assets (dollars) and the objective the balance sheet points to.
 function peerBand(assets) {
   if (assets === null) return null;
@@ -626,7 +661,7 @@ async function search(q) {
 
 // ── state
 let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null;
-let RANKED = [], LAST_W = null, LAST_STD = true, LAST_ALLOC = null, RATES = null, SELECTED = null, STAND = new Map();
+let RANKED = [], LAST_W = null, LAST_STD = true, LAST_ALLOC = null, RATES = null, SELECTED = null, STAND = new Map(), SHOW_UNV = false;
 const answers = { objective: 'none', focus: 'core', product: 'none', goalKey: 'mid', goalCustom: 250, market: 'all' };
 const OBJ_OPTS = [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']];
 const FOCUS_OPTS = [['core', 'Core growth'], ['wealth', 'Wealth'], ['community', 'Community'], ['share', 'Take share']];
@@ -637,7 +672,7 @@ async function loadBank(ik) {
   g('rows').innerHTML = '<tr><td colspan="8" class="note">Loading…</td></tr>';
   const [rows, fin] = await Promise.all([
     api('vw_branch_opportunity_cbsa',
-      `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,sims_latitude,sims_longitude,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
+      `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,year,namefull,namebr,citybr,stalpbr,sims_latitude,sims_longitude,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
     api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=total_assets,total_deposits,loans_to_deposits_pct,cost_of_funds_pct,nim,roa,dep_yoy_pct,period`)
   ]);
   if (!Array.isArray(rows) || !rows.length) {
@@ -647,6 +682,7 @@ async function loadBank(ik) {
   BRANCHES = rows; RATES = null; SELECTED = null;
   BANK_FIN = Array.isArray(fin) && fin.length ? fin[0] : null;
   BANK_GROWTH = BANK_FIN ? num(BANK_FIN.dep_yoy_pct) : null;
+  g('dataDates').textContent = dataDatesText(rows, BANK_FIN);
   g('bankName').textContent = rows[0].namefull || '';
   backToMap(true);
   render();
@@ -793,23 +829,23 @@ function render() {
     const mt = mv > 0 ? `<span class="up">\u25B2${mv}</span>` : (mv < 0 ? `<span class="down">\u25BC${-mv}</span>` : '');
     const z = r.opportunity_zone || '';
     const a = al.amounts.get(r.uninumbr), b = al.bound.get(r.uninumbr);
-    const nm = cleanName(r.namebr);
+    const nm = cleanName(r.namebr), nmShort = shortBranch(r.namebr);
     const city = [r.citybr, r.stalpbr].filter(Boolean).join(', ');
     const st = STAND.get(r.uninumbr);
     const why = whyShort(r.parts, w, st);
     const whyTip = whyPlain(r.parts, w) + (st ? '; ' + st.text + ' among the branches in view' : '');
-    const capTip = b === 'market' ? 'Limited to 1.5% of the deposits within 10 miles' : 'Limited to 10% of the branch\u2019s deposits';
+    const shareTip = a ? capNote(r, b || null) : '';
     const tags = (r.excluded ? '<span class="ic" title="Head office or booking branch: left out of the goal share">HQ</span>' : '') +
       (r.partial ? '<span class="ic" title="Some parts are missing: scored on the parts that exist">part</span>' : '') +
       (r.sameMarketAs ? `<span class="ic" title="Same market as #${esc(r.sameMarketAs)}">=#${esc(r.sameMarketAs)}</span>` : '');
     return `<tr class="${i < 5 ? 'top' : ''}${String(SELECTED) === String(r.uninumbr) ? ' sel' : ''}" data-id="${esc(r.uninumbr)}" tabindex="0" role="button" aria-label="Open ${esc(nm)}" title="${esc(whyTip)}">
       <td><span class="rk${r.rank <= 5 ? ' t5' : ''}">${r.rank}</span></td>
-      <td><span class="nm">${esc(nm)}</span> <span class="ct">${esc(city)}</span>${tags}</td>
+      <td><span class="nm" title="${esc(nm)}">${esc(nmShort)}</span><span class="ct">${esc(city)}${tags}</span></td>
       <td>${esc(money(num(r.latest_dep) || 0))}</td>
       <td><b>${r.score === null ? '—' : Math.round(r.score)}</b></td>
       <td>#${esc(r.was)} ${mt}</td>
-      ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span><span class="play">${esc(r.campaign || '')}</span></td>` : ''}
-      <td>${a ? esc(money(a)) + (b ? ` <span class="ic" title="${esc(capTip)}">cap</span>` : '') : '—'}</td>
+      ${isStandard ? `<td title="${esc(r.campaign ? 'Play: ' + r.campaign : '')}"><span class="zone ${esc(z)}">${esc(z || '—')}</span><span class="play">${esc(r.campaign || '')}</span></td>` : ''}
+      <td title="${esc(shareTip)}">${a ? esc(money(a)) + (b ? ` <span class="ic">${b === 'market' ? 'market' : 'branch'}</span>` : '') : '—'}</td>
       <td class="why c-why" title="${esc(whyTip + ' (' + whyFor(r.parts, w) + ')')}">${esc(why)}</td>
     </tr>`;
   }).join('');
@@ -941,19 +977,22 @@ function rateVal(r, key) {
   return v === null || v === undefined || v === '' || isNaN(+v) ? null : +v;
 }
 function rateIsTrusted(r, key) { return rateTrusted(r[key + '_provenance'], r[key + '_verified']); }
-function rateCell(r, key) {
+function rateShown(r, key, showUnv) { return rateVal(r, key) !== null && (showUnv || rateIsTrusted(r, key)); }
+function rateCell(r, key, showUnv) {
   const v = rateVal(r, key);
   if (v === null) return '<span class="na">\u2014</span>';
   const term = key === 'cd' && r.cd_term ? ' <span class="note">' + esc(r.cd_term) + ' mo</span>' : '';
   if (rateIsTrusted(r, key)) return '<b>' + v.toFixed(2) + '%</b>' + term;
+  if (!showUnv) return '<span class="na">\u2014</span>';
   return '<span class="unv" title="' + esc(UNV_TIP) + '">' + v.toFixed(2) + '%' + term + ' <i>unverified</i></span>';
 }
-// Theirs against ours, one row per product either side has.
-function ratesTable(theirs, ours) {
-  const rows = RATE_PRODUCTS.filter(([k]) => rateVal(theirs, k) !== null || rateVal(ours, k) !== null);
+// Theirs against ours, one row per product with a verified reading on either side
+// (unverified ones too when the viewer asks for them).
+function ratesTable(theirs, ours, showUnv) {
+  const rows = RATE_PRODUCTS.filter(([k]) => rateShown(theirs, k, showUnv) || rateShown(ours, k, showUnv));
   if (!rows.length) return '';
   return '<table class="mini rt"><thead><tr><th>Product</th><th>Theirs</th><th>Ours</th></tr></thead><tbody>' +
-    rows.map(([k, label]) => '<tr><td>' + esc(label) + '</td><td>' + (theirs ? rateCell(theirs, k) : '<span class="na">\u2014</span>') + '</td><td>' + (ours ? rateCell(ours, k) : '<span class="na">\u2014</span>') + '</td></tr>').join('') + '</tbody></table>';
+    rows.map(([k, label]) => '<tr><td>' + esc(label) + '</td><td>' + (theirs ? rateCell(theirs, k, showUnv) : '<span class="na">\u2014</span>') + '</td><td>' + (ours ? rateCell(ours, k, showUnv) : '<span class="na">\u2014</span>') + '</td></tr>').join('') + '</tbody></table>';
 }
 function backToMap(silent) {
   g('detail').classList.add('dn'); g('mapWrap').classList.remove('dn');
@@ -978,7 +1017,7 @@ async function renderDetail(uninumbr) {
   const a = LAST_ALLOC ? LAST_ALLOC.amounts.get(r.uninumbr) : 0, b = LAST_ALLOC ? LAST_ALLOC.bound.get(r.uninumbr) : null;
   const inTier = LAST_ALLOC ? LAST_ALLOC.tierIds.has(r.uninumbr) : false;
   const shareText = r.excluded ? 'Head office or booking branch: left out of the goal share.'
-    : (inTier ? esc(money(a || 0)) + (b ? ' (capped: ' + (b === 'market' ? 'limited to 1.5% of the deposits within 10 miles' : 'limited to 10% of the branch\u2019s deposits') + ')' : ' (not capped)') : 'Not in the top tier, so no share of this goal.');
+    : (inTier ? esc(money(a || 0)) + ' \u00b7 ' + esc(capNote(r, b || null)) : 'Not in the top tier, so no share of this goal.');
   g('mapWrap').classList.add('dn');
   const d = g('detail');
   d.classList.remove('dn');
@@ -1017,20 +1056,28 @@ async function renderDetail(uninumbr) {
   const mineTrusted = mine && RATE_PRODUCTS.some(([k]) => rateVal(mine, k) !== null && rateIsTrusted(mine, k));
   const ownNote = !mineAny ? 'No rates for ' + cleanName(bankName) + ' are in Rate Radar yet, so there is nothing to compare against.'
     : (!mineTrusted ? cleanName(bankName) + '\u2019s own rates in Rate Radar are unverified (web search only). They need the bank\u2019s own rate sheet before this comparison can be quoted.' : '');
-  let anyUnverified = !mineTrusted && mineAny;
+  const unvCount = x => x ? RATE_PRODUCTS.filter(([k]) => rateVal(x, k) !== null && !rateIsTrusted(x, k)).length : 0;
+  const nUnv = comps.reduce((a, c) => a + unvCount(rates[normName(c.target_namefull)]), 0) + unvCount(mine);
   box.className = '';
-  box.innerHTML = (ownNote ? '<div class="note" style="margin-bottom:6px">' + esc(ownNote) + '</div>' : '') + comps.map((c, i) => {
+  box.innerHTML = (nUnv ? `<div style="margin-bottom:6px"><button type="button" class="linkbtn" id="toggleUnv">${SHOW_UNV ? 'Hide' : 'Show'} ${nUnv} unverified reading${nUnv === 1 ? '' : 's'}</button></div>` : '') +
+    (ownNote ? '<div class="note" style="margin-bottom:6px">' + esc(ownNote) + '</div>' : '') + comps.map((c, i) => {
     const live = rates[normName(c.target_namefull)];
     const dep = num(c.target_dep_m);
     const tier = vulnTier(c.vuln_score);
     const liveAny = live && RATE_PRODUCTS.some(([k]) => rateVal(live, k) !== null);
-    if (liveAny && RATE_PRODUCTS.some(([k]) => rateVal(live, k) !== null && !rateIsTrusted(live, k))) anyUnverified = true;
     const q = live && live.data_quality ? ', ' + (QUALITY_LABEL[live.data_quality] || live.data_quality) : '';
+    const tbl = liveAny ? ratesTable(live, mine, SHOW_UNV) : '';
     return `<div class="comp"><div><b>${esc(cleanName(c.target_namefull))}</b>${i === 0 ? ' <span class="ic">top rival</span>' : ''}</div>
       <div class="note">${dep !== null ? esc(money(dep * 1e6)) + ' deposits' : ''}${tier ? ' &middot; <span title="' + esc(VULN_TIP) + '">' + esc(tier) + ' vulnerability</span>' : ''}</div>
-      ${liveAny ? ratesTable(live, mine) + `<div class="note" style="margin-top:4px">Rate Radar ${esc(String(live.run_at || '').slice(0, 10))}${esc(q)}</div>`
+      ${liveAny ? (tbl || '<div class="note" style="margin-top:4px">No verified rates yet.</div>') + `<div class="note" style="margin-top:4px">Rate Radar ${esc(String(live.run_at || '').slice(0, 10))}${esc(q)}</div>`
       : '<div class="note" style="margin-top:4px">No Rate Radar reading for this competitor yet.</div>'}</div>`;
-  }).join('') + (anyUnverified ? '<div class="note">Grey readings are unverified: found by web search, not read from the bank\u2019s own page.</div>' : '');
+  }).join('') + (SHOW_UNV && nUnv ? '<div class="note">Grey readings are unverified: found by web search, not read from the bank\u2019s own page.</div>' : '');
+  const tb = g('toggleUnv');
+  if (tb) tb.addEventListener('click', () => {
+    const top = g('detail').scrollTop;
+    SHOW_UNV = !SHOW_UNV;
+    renderDetail(uninumbr).then(() => { g('detail').scrollTop = top; });
+  });
 }
 
 // ── events

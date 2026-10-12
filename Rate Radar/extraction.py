@@ -213,6 +213,9 @@ TIER_PAT = re.compile(
     r"\s+\$\s?\d[\d,]{2,}", re.I)
 
 # Evidence that a page really has a CD / certificate section.
+# WEAK ON ITS OWN: site navigation ("Savings & CDs", "Certificates") appears on nearly every page of a
+# bank site, so this test mostly rejects pages that never mention CDs at all. The real guard against
+# a mislabelled CD is the PARSED TERM (see apply_plausibility_rules): no term / ladder => not a CD.
 CD_SECTION_PAT = re.compile(
     r"certificates?\s+of\s+deposit|\bCDs?\b|\bcertificates?\b|term\s+deposit|share\s+certificates?", re.I)
 
@@ -234,7 +237,8 @@ def apply_plausibility_rules(r, page_text, url=""):
     1. business URL -> no consumer rates taken from it;
     2. a CD needs a CD section on the page AND a parsed term (or a ladder); the
        extractor's last-resort 'best found' APY (the page's highest APY, labelled
-       CD) is never a CD rate."""
+       CD) is never a CD rate. The section test is weak (navigation text matches);
+       the parsed-term test is the one that actually carries the rule."""
     notes = []
     if is_business_url(url):
         dropped = [k for k in _RATE_KEYS if r.get(k) is not None]

@@ -12,7 +12,10 @@
             raw_rate_radar.min_balance AS attempt_min_balance
            FROM ( SELECT rr.*,
                     COALESCE(NULLIF(rr.rssdid, ''::text),
-                             max(NULLIF(rr.rssdid, ''::text)) OVER (PARTITION BY lower(rr.bank_name)),
+                             CASE WHEN min(NULLIF(rr.rssdid, ''::text)) OVER (PARTITION BY lower(rr.bank_name))
+                                     = max(NULLIF(rr.rssdid, ''::text)) OVER (PARTITION BY lower(rr.bank_name))
+                                  THEN max(NULLIF(rr.rssdid, ''::text)) OVER (PARTITION BY lower(rr.bank_name))
+                             END,
                              'name:'::text || lower(rr.bank_name)) AS identity_key
                    FROM raw_rate_radar rr ) raw_rate_radar
           ORDER BY raw_rate_radar.identity_key, raw_rate_radar.run_date DESC, raw_rate_radar.crawled_at DESC, raw_rate_radar.inserted_at DESC
@@ -121,51 +124,106 @@
                     WHEN rate_observations.product_type = 'money_market'::text THEN rate_observations.manually_verified
                     ELSE NULL::boolean
                 END) AS money_market_verified,
-            max(
+            CASE min(
                 CASE
-                    WHEN rate_observations.product_type = 'checking'::text THEN rate_observations.confidence
-                    ELSE NULL::text
-                END) AS checking_confidence,
+                    WHEN rate_observations.product_type = 'checking'::text THEN
+                        CASE rate_observations.confidence
+                            WHEN 'low'::text THEN 0
+                            WHEN 'medium'::text THEN 1
+                            WHEN 'high'::text THEN 2
+                            ELSE 0
+                        END
+                    ELSE NULL::integer
+                END)
+                WHEN 0 THEN 'low'::text
+                WHEN 1 THEN 'medium'::text
+                WHEN 2 THEN 'high'::text
+                ELSE NULL::text
+            END AS checking_confidence,
             bool_or(
                 CASE
                     WHEN rate_observations.product_type = 'checking'::text THEN rate_observations.is_conditional
                     ELSE NULL::boolean
                 END) AS checking_conditional,
-            max(
+            CASE min(
                 CASE
-                    WHEN rate_observations.product_type = 'savings'::text THEN rate_observations.confidence
-                    ELSE NULL::text
-                END) AS savings_confidence,
+                    WHEN rate_observations.product_type = 'savings'::text THEN
+                        CASE rate_observations.confidence
+                            WHEN 'low'::text THEN 0
+                            WHEN 'medium'::text THEN 1
+                            WHEN 'high'::text THEN 2
+                            ELSE 0
+                        END
+                    ELSE NULL::integer
+                END)
+                WHEN 0 THEN 'low'::text
+                WHEN 1 THEN 'medium'::text
+                WHEN 2 THEN 'high'::text
+                ELSE NULL::text
+            END AS savings_confidence,
             bool_or(
                 CASE
                     WHEN rate_observations.product_type = 'savings'::text THEN rate_observations.is_conditional
                     ELSE NULL::boolean
                 END) AS savings_conditional,
-            max(
+            CASE min(
                 CASE
-                    WHEN rate_observations.product_type = 'high_yield_savings'::text THEN rate_observations.confidence
-                    ELSE NULL::text
-                END) AS high_yield_savings_confidence,
+                    WHEN rate_observations.product_type = 'high_yield_savings'::text THEN
+                        CASE rate_observations.confidence
+                            WHEN 'low'::text THEN 0
+                            WHEN 'medium'::text THEN 1
+                            WHEN 'high'::text THEN 2
+                            ELSE 0
+                        END
+                    ELSE NULL::integer
+                END)
+                WHEN 0 THEN 'low'::text
+                WHEN 1 THEN 'medium'::text
+                WHEN 2 THEN 'high'::text
+                ELSE NULL::text
+            END AS high_yield_savings_confidence,
             bool_or(
                 CASE
                     WHEN rate_observations.product_type = 'high_yield_savings'::text THEN rate_observations.is_conditional
                     ELSE NULL::boolean
                 END) AS high_yield_savings_conditional,
-            max(
+            CASE min(
                 CASE
-                    WHEN rate_observations.product_type = 'cd'::text THEN rate_observations.confidence
-                    ELSE NULL::text
-                END) AS cd_confidence,
+                    WHEN rate_observations.product_type = 'cd'::text THEN
+                        CASE rate_observations.confidence
+                            WHEN 'low'::text THEN 0
+                            WHEN 'medium'::text THEN 1
+                            WHEN 'high'::text THEN 2
+                            ELSE 0
+                        END
+                    ELSE NULL::integer
+                END)
+                WHEN 0 THEN 'low'::text
+                WHEN 1 THEN 'medium'::text
+                WHEN 2 THEN 'high'::text
+                ELSE NULL::text
+            END AS cd_confidence,
             bool_or(
                 CASE
                     WHEN rate_observations.product_type = 'cd'::text THEN rate_observations.is_conditional
                     ELSE NULL::boolean
                 END) AS cd_conditional,
-            max(
+            CASE min(
                 CASE
-                    WHEN rate_observations.product_type = 'money_market'::text THEN rate_observations.confidence
-                    ELSE NULL::text
-                END) AS money_market_confidence,
+                    WHEN rate_observations.product_type = 'money_market'::text THEN
+                        CASE rate_observations.confidence
+                            WHEN 'low'::text THEN 0
+                            WHEN 'medium'::text THEN 1
+                            WHEN 'high'::text THEN 2
+                            ELSE 0
+                        END
+                    ELSE NULL::integer
+                END)
+                WHEN 0 THEN 'low'::text
+                WHEN 1 THEN 'medium'::text
+                WHEN 2 THEN 'high'::text
+                ELSE NULL::text
+            END AS money_market_confidence,
             bool_or(
                 CASE
                     WHEN rate_observations.product_type = 'money_market'::text THEN rate_observations.is_conditional

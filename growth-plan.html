@@ -6,6 +6,7 @@
 <title>Verlocity Growth Plan</title>
 <link rel="icon" type="image/png" href="https://fggraufaro.github.io/bmap-tools/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{--navy:#083D5F;--teal:#02A7C2;--amber:#F5A623;--green:#27500A;--lgreen:#EAF3DE;--blue:#185FA5;--lblue:#E6F1FB;--red:#A32D2D;--lred:#FCEBEB;--gray:#F5F5F2;--border:#E0DED8;--text:#213141;--muted:#777;--white:#fff}
@@ -72,6 +73,13 @@
   #results button{display:block;width:100%;text-align:left;padding:10px 14px;border:0;border-bottom:1px solid var(--border);background:#fff;font-family:inherit;font-size:13px;cursor:pointer}
   #results button:hover{background:var(--lblue)}
   .scroll{overflow-x:auto}
+  /* map */
+  .mapcard{padding:0;overflow:hidden;position:relative;z-index:0}
+  #map{height:400px;width:100%;position:relative;z-index:0;background:#e8eef2}
+  .maplegend{display:flex;flex-wrap:wrap;gap:14px;padding:8px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);align-items:center}
+  .maplegend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  .leaflet-tooltip.rk{background:transparent;border:0;box-shadow:none;color:#fff;font-weight:800;font-size:11px;padding:0}
+  .leaflet-tooltip.rk::before{display:none}
   /* side panel */
   #panelBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:900}
   .panel{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:#fff;border-left:3px solid var(--teal);box-shadow:-8px 0 24px rgba(0,0,0,.15);z-index:901;overflow-y:auto}
@@ -137,6 +145,17 @@
 
         <section>
           <div class="strip" id="strip"></div>
+          <div class="card mapcard">
+            <div id="map" role="img" aria-label="Map of the bank's branches, sized by deposits and colored by goal rank"></div>
+            <div class="maplegend">
+              <span><i style="background:#02A7C2"></i>Goal rank 1 to 5</span>
+              <span><i style="background:#185FA5"></i>Rank 6 to 15</span>
+              <span><i style="background:#8B93A0"></i>Other branches</span>
+              <span><i style="background:#fff;border:2px dashed #8B93A0"></i>No score</span>
+              <span><i style="background:#F5A623"></i>Head office / booking</span>
+              <span>Circle area follows deposits. Click a branch for detail.</span>
+            </div>
+          </div>
           <div class="card">
             <h2>Your branches, ranked for these goals</h2>
             <div class="banner" id="banner"></div>
@@ -157,6 +176,7 @@
   </main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <div id="panelBackdrop" class="dn"></div>
 <aside id="sidePanel" class="panel dn" aria-label="Branch detail"></aside>
 
@@ -454,7 +474,7 @@ async function loadBank(ik) {
   g('rows').innerHTML = '<tr><td colspan="9" class="note">Loading…</td></tr>';
   const [rows, fin] = await Promise.all([
     api('vw_branch_opportunity_cbsa',
-      `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
+      `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,sims_latitude,sims_longitude,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
     api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=total_assets,loans_to_deposits_pct,cost_of_funds_pct,nim,roa,dep_yoy_pct,period`)
   ]);
   if (!Array.isArray(rows) || !rows.length) {
@@ -539,6 +559,7 @@ function render() {
   const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
   const { w, rows } = rankBranches(scope, answers, BREAKS);
   RANKED = rows; LAST_W = w;
+  drawMap(rows, (BRANCHES[0] ? BRANCHES[0].uninumbr : 0) + '|' + answers.market);
   const isStandard = answers.focus === 'core' && answers.objective === 'none' && answers.product === 'none';
   LAST_STD = isStandard;
   const goalDollars = answers.goal * 1e6;
@@ -601,6 +622,57 @@ function render() {
 
   g('wtable').innerHTML = PART_KEYS.filter(k => w[k] > 0)
     .map(k => `<tr><td>${esc(PART_LABEL[k])}</td><td>${Math.round(w[k] * 100)}%</td></tr>`).join('');
+}
+
+// ── map
+let MAP = null, MAP_LAYER = null, MAP_MARKERS = new Map(), MAP_KEY = null;
+function radiusScale(values, minR, maxR) {
+  const nums = values.map(v => +v || 0).filter(v => v > 0);
+  if (!nums.length) return () => (minR + maxR) / 2;
+  const min = Math.min(...nums), max = Math.max(...nums);
+  if (min === max) return () => (minR + maxR) / 2;
+  return v => { v = Math.max(min, Math.min(max, +v || min)); return minR + Math.sqrt((v - min) / (max - min)) * (maxR - minR); };
+}
+function markerStyle(r) {
+  if (r.excluded) return { fillColor: '#F5A623', color: '#854F0B', weight: 2, fillOpacity: 0.85 };
+  if (r.score === null) return { fillColor: '#ffffff', color: '#8B93A0', weight: 2, dashArray: '3 3', fillOpacity: 0.6 };
+  if (r.rank <= 5) return { fillColor: '#02A7C2', color: '#083D5F', weight: 1.5, fillOpacity: 0.92 };
+  if (r.rank <= 15) return { fillColor: '#185FA5', color: '#ffffff', weight: 1.5, fillOpacity: 0.8 };
+  return { fillColor: '#8B93A0', color: '#ffffff', weight: 1.2, fillOpacity: 0.65 };
+}
+function drawMap(rows, key) {
+  if (typeof L === 'undefined') return;
+  if (!MAP) {
+    MAP = L.map('map', { zoomControl: true, attributionControl: false, scrollWheelZoom: false }).setView([37.8, -96], 4);
+    L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(MAP);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', subdomains: 'abc', maxZoom: 19 }).addTo(MAP);
+    MAP_LAYER = L.layerGroup().addTo(MAP);
+  }
+  MAP_LAYER.clearLayers(); MAP_MARKERS = new Map();
+  const pts = rows.filter(r => num(r.sims_latitude) !== null && num(r.sims_longitude) !== null);
+  // size scale from regular branches only, so a head office does not dwarf the rest
+  const rs0 = radiusScale(pts.filter(r => !r.excluded).map(r => r.latest_dep), 6, 20);
+  const rs = v => Math.min(rs0(v), 26);
+  pts.forEach(r => {
+    const m = L.circleMarker([+r.sims_latitude, +r.sims_longitude], { radius: rs(r.latest_dep), ...markerStyle(r) });
+    m.bindTooltip(`${esc(r.namebr)}: ${r.score === null ? 'no score' : 'goal score ' + Math.round(r.score)} (#${r.rank})`, { direction: 'top' });
+    m.on('click', () => openPanel(r.uninumbr));
+    m.addTo(MAP_LAYER);
+    if (r.rank <= 5 && !r.excluded) m.bindTooltip(String(r.rank), { permanent: true, direction: 'center', className: 'rk' });
+    MAP_MARKERS.set(String(r.uninumbr), { m, r });
+  });
+  const fit = pts.length && key !== MAP_KEY;
+  const bounds = pts.map(r => [+r.sims_latitude, +r.sims_longitude]);
+  if (fit) { MAP.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 }); MAP_KEY = key; }
+  // The container may not have its final size yet: re-measure, then fit again.
+  setTimeout(() => { if (!MAP) return; MAP.invalidateSize(); if (fit) MAP.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 }); }, 80);
+}
+// highlight the marker for a hovered table row
+function hoverRow(uninumbr, on) {
+  const e = MAP_MARKERS.get(String(uninumbr));
+  if (!e) return;
+  e.m.setStyle({ weight: on ? 4 : markerStyle(e.r).weight, color: on ? '#F5A623' : markerStyle(e.r).color });
+  if (on) e.m.bringToFront();
 }
 
 // ── side panel
@@ -679,6 +751,8 @@ async function openPanel(uninumbr) {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
 g('panelBackdrop').addEventListener('click', closePanel);
+g('rows').addEventListener('mouseover', e => { const tr = e.target.closest('tr[data-id]'); if (tr) hoverRow(tr.dataset.id, true); });
+g('rows').addEventListener('mouseout', e => { const tr = e.target.closest('tr[data-id]'); if (tr) hoverRow(tr.dataset.id, false); });
 g('rows').addEventListener('click', e => {
   const tr = e.target.closest('tr[data-id]');
   if (tr) openPanel(tr.dataset.id);

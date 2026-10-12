@@ -34,6 +34,7 @@ try:
 except ImportError:
     PLAYWRIGHT_OK = False
 
+from extraction import apply_plausibility_rules, choose_vision_targets, is_business_url
 from extraction import (
     extract_rates, extract_domain, check_rate_staleness, detect_rebrand,
     parse_json_object, _clean_cd_ladder, extract_rates_from_json,
@@ -160,6 +161,21 @@ def _track_llm_usage(resp):
 # BANK_EXTRA_URLS moved to shared.py (imported above)
 
 # Rate-extraction regex patterns + tag_rate_context/check_rate_staleness/detect_rebrand/extract_domain moved to extraction.py
+
+
+async def _settle_page(page):
+    """Cancel any navigation still pending on `page` (the search-engine rescue
+    leaves Bing's rdr= redirect running, which interrupts the next goto with
+    'Navigation ... is interrupted by another navigation')."""
+    try:
+        await page.evaluate("() => window.stop()")
+    except Exception:
+        pass
+    try:
+        await page.goto("about:blank", wait_until="commit", timeout=5000)
+    except Exception:
+        pass
+    await asyncio.sleep(0.3)
 
 
 async def _goto_with_retry(page, url, timeout=PAGE_LOAD_TIMEOUT_MS,
@@ -1174,6 +1190,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     found_on    = None
     source_urls = {}
     visited     = set()
+    rate_pages_no_apy = []   # a40: pages the crawl reached that mention rates but gave no APY (vision targets)
     rate_tags   = {}   # accumulated tags across all pages
     rebrand_hint = bank.get("_rebrand_hint")   # pre-populated from preflight if found
     bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
@@ -1337,6 +1354,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                     f"    [Deep] {path_part or '/'}: "
                     + ("min balance found, no APY — digging deeper..."
                        if r.get("min_balance") else "rate-keyword page, no APY — digging..."))
+                if is_rate_url and not is_business_url(url) and url not in rate_pages_no_apy:
+                    rate_pages_no_apy.append(url)
                 # Pass 1: scroll + expand accordions (if not already done), re-read
                 if not did_expand:
                     await expand_page_content(page)
@@ -1389,6 +1408,19 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                     pending_detail = []
             else:
                 pending_detail = []
+
+            # a40 quality rules, applied AFTER every dig pass has merged into r
+            # (accordion expansion, CTA click, hidden text) and right before r is
+            # merged into the bank's best values: business pages are not consumer
+            # rate sources; a CD needs a CD section and a parsed term (never a
+            # "best found" APY, the page's highest APY labelled CD).
+            try:
+                _full_text = await page.inner_text("body")
+            except Exception:
+                _full_text = text
+            r, _rule_notes = apply_plausibility_rules(r, _full_text or text, url)
+            for _n in _rule_notes:
+                crawl_state["log"].append(f"    [Rule] {path_part or '/'}: {_n}")
 
             for k in best:
                 if k == "rate_tags": continue
@@ -1527,22 +1559,17 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             # Pick the single best candidate URL — prefer found_on, then extra, then /rates
             domain = re.match(r"https?://[^/]+", base)
             domain_str = domain.group(0) if domain else base
-            if found_on:
-                vision_targets = [found_on]
-            elif search_candidates:
-                # Fix 2: search-engine hits are the best vision candidates —
-                # they're confirmed on-domain rate pages we couldn't regex
-                vision_targets = list(search_candidates)[:2]
-            elif extra:
-                vision_targets = list(extra)[:2]
-            else:
-                vision_targets = [domain_str + "/rates", domain_str + "/personal/rates", base]
+            # a40: pages the crawl really reached (rate-keyword, no APY) come
+            # before guessed URLs; business pages are never targets.
+            vision_targets = choose_vision_targets(
+                found_on, rate_pages_no_apy, search_candidates, extra, domain_str, base)
+            await _settle_page(page)
 
             crawl_state["log"].append(f"    [AI] regex got {count}/3 — trying vision on up to {len(vision_targets)} page(s)...")
 
             for v_url in vision_targets[:3]:  # max 3 vision attempts per bank
                 try:
-                    v_resp = await page.goto(v_url, timeout=12000, wait_until="domcontentloaded")
+                    v_resp = await _goto_with_retry(page, v_url, timeout=12000, retries=1)
                     # v3.6: don't screenshot a 404 — wastes an API call
                     if v_resp is not None and v_resp.status >= 400:
                         crawl_state["log"].append(f"    [AI] skip {v_url}: HTTP {v_resp.status}")

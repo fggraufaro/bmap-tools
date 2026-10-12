@@ -236,7 +236,7 @@ def build_rate_observations(results, run_id):
                 "source_url":        str(specific_url or source_url) if (specific_url or source_url) else None,
                 "extraction_method": provenance,
                 "confidence":        "high" if edited else _confidence(provenance),
-                "is_conditional":    "conditional" in tags,
+                "is_conditional":    "conditional" in tags or "tiered" in tags,
                 "is_promo":          "promo" in tags,
                 "observed_at":       now_iso,
                 "manually_verified": edited,

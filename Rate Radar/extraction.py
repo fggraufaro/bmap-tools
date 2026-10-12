@@ -204,6 +204,79 @@ JSON_PRODUCT_HINTS = [
 
 # ── v3 helper utilities ───────────────────────────────────────────────────────
 
+# ── a40 quality rules (pure functions, unit-tested in test_quality_fixes.py) ──
+
+# Balance-tier language: a rate that depends on how much is on deposit is not
+# "the" APY of a product. Tagged like 'conditional' so it is stored is_conditional.
+TIER_PAT = re.compile(
+    r"(?:up\s+to|over|above|under|less\s+than|more\s+than|greater\s+than|balances?\s+(?:of|over|under))"
+    r"\s+\$\s?\d[\d,]{2,}", re.I)
+
+# Evidence that a page really has a CD / certificate section.
+CD_SECTION_PAT = re.compile(
+    r"certificates?\s+of\s+deposit|\bCDs?\b|\bcertificates?\b|term\s+deposit|share\s+certificates?", re.I)
+
+# A consumer rate must not come from a business-product page.
+BUSINESS_PATH_PAT = re.compile(
+    r"/(?:business|commercial|corporate|treasury|small-business|smb|wealth|private-?bank(?:ing)?)(?:/|$|[-_?#])", re.I)
+
+_RATE_KEYS = ("checking", "savings", "high_yield_savings", "cd", "money_market")
+
+
+def is_business_url(url):
+    """True when the URL path is a business / commercial product page."""
+    m = re.match(r"https?://[^/]+(/.*)?$", url or "")
+    return bool(BUSINESS_PATH_PAT.search((m.group(1) if m and m.group(1) else "") or ""))
+
+
+def apply_plausibility_rules(r, page_text, url=""):
+    """Reject readings the page cannot support. Mutates and returns (r, notes).
+    1. business URL -> no consumer rates taken from it;
+    2. a CD needs a CD section on the page AND a parsed term (or a ladder); the
+       extractor's last-resort 'best found' APY (the page's highest APY, labelled
+       CD) is never a CD rate."""
+    notes = []
+    if is_business_url(url):
+        dropped = [k for k in _RATE_KEYS if r.get(k) is not None]
+        for k in _RATE_KEYS + ("cd_ladder",):
+            r[k] = None
+        r["cd_term"] = None
+        for k in dropped:
+            r.get("rate_tags", {}).pop(k, None)
+        if dropped:
+            notes.append(f"business page ignored for consumer rates ({', '.join(dropped)})")
+        return r, notes
+    if r.get("cd") is not None:
+        term_ok = _parse_term_months(r.get("cd_term")) is not None or bool(r.get("cd_ladder"))
+        section = bool(CD_SECTION_PAT.search(page_text or ""))
+        if r.get("cd_term") == "best found" or not term_ok or not section:
+            why = ("no CD section on the page" if not section
+                   else "best-found APY, not labelled as a CD" if r.get("cd_term") == "best found" else "no parsed term")
+            r["cd"], r["cd_term"], r["cd_ladder"] = None, None, None
+            r.get("rate_tags", {}).pop("cd", None)
+            notes.append(f"CD rejected: {why}")
+    return r, notes
+
+
+def choose_vision_targets(found_on, rate_pages_no_apy, search_candidates, extra, domain_str, base, limit=3):
+    """Order of the pages the AI-vision fallback screenshots. Pages the crawl
+    actually reached (rate-keyword pages with no readable APY) come BEFORE
+    guessed URLs, which on most bank sites are 403/404 and waste the call."""
+    def clean(urls, n):
+        out = []
+        for u in urls or []:
+            if u and u not in out and not is_business_url(u):
+                out.append(u)
+        return out[:n]
+    if found_on and not is_business_url(found_on):
+        return [found_on]
+    for group, n in ((rate_pages_no_apy, limit), (search_candidates, 2), (extra, 2)):
+        got = clean(group, n)
+        if got:
+            return got
+    return [domain_str + "/rates", domain_str + "/personal/rates", base][:limit]
+
+
 def tag_rate_context(text, match_pos):
     """
     Look at text surrounding a rate match and return any relevant tags.
@@ -215,6 +288,8 @@ def tag_rate_context(text, match_pos):
         tags.append("conditional")
     if PROMO_PAT.search(window):
         tags.append("promo")
+    if TIER_PAT.search(window):
+        tags.append("tiered")
     return tags
 
 

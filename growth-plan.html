@@ -21,12 +21,16 @@
   .htitle{color:#fff;font-size:15px;font-weight:700;letter-spacing:.01em}
   .hsub{color:rgba(255,255,255,.45);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-variant-numeric:tabular-nums}
   .live-badge{background:rgba(2,167,194,.15);border:1px solid rgba(2,167,194,.3);color:var(--teal);font-size:11px;font-variant-numeric:tabular-nums;padding:3px 10px;border-radius:12px}
-  main{max-width:1640px;margin:0 auto;padding:18px 20px 48px}
+  main{max-width:none;margin:0 auto;padding:18px 20px 48px}
   .card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px}
   .card h2{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--navy)}
   .label,.strip h3,th{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-transform:uppercase}
   .sub{color:var(--muted);font-size:12px;margin:0 0 10px}
-  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+  .layout{display:grid;grid-template-columns:310px minmax(0,1fr);gap:16px;align-items:start}
+  .work{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(380px,1fr);gap:14px;align-items:start}
+  .mapcol{position:sticky;top:12px}
+  td.why{font-size:11px;color:var(--muted);min-width:150px}
+  tr.sel td{background:#FFF3D6!important}
   .side{position:sticky;top:12px;margin-bottom:0}
   .q{padding:10px 0;border-top:1px solid #f0efe8}
   .q:first-of-type{border-top:0}
@@ -75,7 +79,7 @@
   .scroll{overflow-x:auto}
   /* map */
   .mapcard{padding:0;overflow:hidden;position:relative;z-index:0}
-  #map{height:400px;width:100%;position:relative;z-index:0;background:#e8eef2}
+  #map{height:calc(100vh - 150px);min-height:460px;width:100%;position:relative;z-index:0;background:#e8eef2}
   .maplegend{display:flex;flex-wrap:wrap;gap:14px;padding:8px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);align-items:center}
   .maplegend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
   .leaflet-tooltip.rk{background:transparent;border:0;box-shadow:none;color:#fff;font-weight:800;font-size:11px;padding:0}
@@ -97,6 +101,7 @@
   .comp{border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:8px}
   .comp .cn{font-weight:700;font-size:12px}
   .rate{display:inline-block;background:var(--lblue);color:var(--blue);border-radius:5px;padding:2px 7px;font-size:11px;margin:5px 5px 0 0;font-variant-numeric:tabular-nums}
+  @media (max-width:1280px){.work{grid-template-columns:1fr}.mapcol{position:static}#map{height:420px;min-height:0}}
   @media (max-width:980px){.layout{grid-template-columns:1fr}.side{position:static}}
 </style>
 </head>
@@ -145,18 +150,8 @@
 
         <section>
           <div class="strip" id="strip"></div>
-          <div class="card mapcard">
-            <div id="map" role="img" aria-label="Map of the bank's branches, sized by deposits and colored by goal rank"></div>
-            <div class="maplegend">
-              <span><i style="background:#02A7C2"></i>Goal rank 1 to 5</span>
-              <span><i style="background:#185FA5"></i>Rank 6 to 15</span>
-              <span><i style="background:#8B93A0"></i>Other branches</span>
-              <span><i style="background:#fff;border:2px dashed #8B93A0"></i>No score</span>
-              <span><i style="background:#F5A623"></i>Head office / booking</span>
-              <span>Circle area follows deposits. Click a branch for detail.</span>
-            </div>
-          </div>
-          <div class="card">
+          <div class="work">
+          <div class="card tablecard">
             <h2>Your branches, ranked for these goals</h2>
             <div class="banner" id="banner"></div>
             <div class="scroll"><table>
@@ -169,6 +164,20 @@
               <table><thead><tr><th>Part</th><th>Share of the score</th></tr></thead><tbody id="wtable"></tbody></table>
               <p class="note">Small-business density as the signal for "lower funding cost" is an assumption, for Brock and Marc to confirm with the weights.</p>
             </details>
+          </div>
+          <div class="mapcol">
+          <div class="card mapcard">
+            <div id="map" role="img" aria-label="Map of the bank's branches, sized by deposits and colored by goal rank"></div>
+            <div class="maplegend">
+              <span><i style="background:#02A7C2"></i>Goal rank 1 to 5</span>
+              <span><i style="background:#185FA5"></i>Rank 6 to 15</span>
+              <span><i style="background:#8B93A0"></i>Other branches</span>
+              <span><i style="background:#fff;border:2px dashed #8B93A0"></i>No score</span>
+              <span><i style="background:#F5A623"></i>Head office / booking</span>
+              <span>Circle area follows deposits. Click a branch for detail.</span>
+            </div>
+          </div>
+          </div>
           </div>
         </section>
       </div>
@@ -286,26 +295,88 @@ function rankBranches(branches, answers, breaks) {
   return { w, rows };
 }
 
-// Split the goal across eligible branches in proportion to score, capping each
-// branch at capFrac of its own deposits (water-filling). Whatever cannot be
-// placed under the caps is reported as unallocated.
-function allocate(rows, goalDollars, capFrac = CAP_FRACTION) {
-  const out = new Map(); rows.forEach(r => out.set(r.uninumbr, 0));
-  let active = rows.filter(r => r.score !== null && !r.excluded && num(r.latest_dep) > 0)
-                   .map(r => ({ r, cap: capFrac * num(r.latest_dep), got: 0 }));
+// ── Campaign goal logic (draft, for Brock and Marc to confirm) ──
+// The goal is ADDITIONAL deposits from the campaign, on top of normal organic growth.
+// It is placed on the top tier only, in proportion to score, and each branch is
+// limited to the lower of 10% of its own deposits or 1.5% of the deposits within
+// 10 miles; the constraint that binds is reported.
+const TIER_SHARE = 0.25, TIER_MIN = 5, TIER_MAX = 40;
+const GOAL_PCT = { low: 0.03, mid: 0.05, high: 0.08 };
+const CAP_BRANCH = 0.10, CAP_MARKET = 0.015;
+const fmtM = v => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'B' : '$' + Math.round(v) + 'M';
+const roundTo = (v, step) => Math.max(step, Math.round(v / step) * step);
+
+// The top tier: the best quarter of scored branches by goal score (5 to 40), head offices out.
+function tierOf(rows) {
+  const el = rows.filter(r => r.score !== null && !r.excluded);
+  const n = Math.min(TIER_MAX, Math.max(TIER_MIN, Math.round(el.length * TIER_SHARE)));
+  return el.slice(0, n);
+}
+function goalRange(rows) {
+  const t = tierOf(rows);
+  const dep = t.reduce((a, r) => a + (num(r.latest_dep) || 0), 0);
+  const m = v => roundTo(v / 1e6, 25);
+  return { tierCount: t.length, tierDep: dep,
+    low: m(GOAL_PCT.low * dep), mid: m(GOAL_PCT.mid * dep), high: m(GOAL_PCT.high * dep), stretch: m(2 * GOAL_PCT.high * dep) };
+}
+function capFor(r) {
+  const dep = num(r.latest_dep) || 0, mkt = num(r.total_deposits_10mi);
+  const byBranch = CAP_BRANCH * dep;
+  const byMarket = mkt !== null && mkt > 0 ? CAP_MARKET * mkt : Infinity;
+  return byMarket < byBranch ? { cap: byMarket, by: 'market' } : { cap: byBranch, by: 'branch' };
+}
+// Water-filling: split the goal over the tier by score, capping each branch.
+function allocate(rows, goalDollars) {
+  const tier = tierOf(rows);
+  const amounts = new Map(), bound = new Map();
+  rows.forEach(r => amounts.set(r.uninumbr, 0));
+  let active = tier.filter(r => num(r.latest_dep) > 0).map(r => ({ r, ...capFor(r), got: 0 }));
+  const capacity = active.reduce((a, x) => a + x.cap, 0);
   let rem = goalDollars;
   for (let it = 0; it < 40 && active.length && rem > 1; it++) {
     const tot = active.reduce((a, x) => a + x.r.score, 0);
     if (tot <= 0) break;
     const over = active.filter(x => x.got + rem * x.r.score / tot > x.cap);
-    if (!over.length) { active.forEach(x => { x.got += rem * x.r.score / tot; out.set(x.r.uninumbr, x.got); }); rem = 0; break; }
+    if (!over.length) { active.forEach(x => { x.got += rem * x.r.score / tot; amounts.set(x.r.uninumbr, x.got); }); rem = 0; break; }
     let used = 0;
-    over.forEach(x => { used += x.cap - x.got; x.got = x.cap; out.set(x.r.uninumbr, x.cap); });
+    over.forEach(x => { used += x.cap - x.got; x.got = x.cap; amounts.set(x.r.uninumbr, x.cap); bound.set(x.r.uninumbr, x.by); });
     rem -= used;
     active = active.filter(x => !over.includes(x));
   }
-  return { amounts: out, unallocated: Math.max(rem, 0) };
+  return { amounts, bound, unallocated: Math.max(rem, 0), capacity, tierIds: new Set(tier.map(r => r.uninumbr)) };
 }
+// What the goal does to the balance sheet, for question 1.
+function fundingImpact(fin, goalDollars, objective, peer) {
+  if (!fin || objective === 'none') return null;
+  const D = num(fin.total_deposits), ltd = num(fin.loans_to_deposits_pct);
+  if (!D || ltd === null) return null;
+  const loans = D * ltd / 100;
+  const after = 100 * loans / (D + goalDollars);
+  if (objective === 'ltd') return { title: 'Loans to deposits', main: ltd.toFixed(1) + '% to ' + after.toFixed(1) + '%', note: 'Assumes the campaign deposits are net new and loans stay flat.' };
+  if (objective === 'loans' && peer) {
+    const room = Math.max(peer.ltd / 100 * (D + goalDollars) - loans, 0);
+    return { title: 'Loan capacity', main: fmtM(room / 1e6), note: 'Extra lending that fits at the peer median loans-to-deposits of ' + peer.ltd.toFixed(1) + '%, after the goal.' };
+  }
+  return { title: 'Loans to deposits', main: ltd.toFixed(1) + '% to ' + after.toFixed(1) + '%', note: 'Interest saved and liquidity effects need funding-mix data, which is not available yet.' };
+}
+// Plain-language reason for a row; the numbers stay in whyFor() for the hover text.
+const WHY_PLAIN = {
+  mg: ['growing market', 'slow market'], rg: ['winning share', 'losing share'], id: ['few rivals nearby', 'crowded market'],
+  ds: ['strong deposit base', 'small deposit base'], wl: ['high-income area', 'lower-income area'],
+  lm: ['lower-income area', 'higher-income area'], sb: ['many small businesses', 'few small businesses']
+};
+function whyPlain(parts, w) {
+  const items = PART_KEYS.filter(k => w[k] > 0 && parts[k] !== null).map(k => ({ k, c: w[k] * parts[k], v: parts[k] })).sort((a, b) => b.c - a.c);
+  if (!items.length) return 'Not enough data to explain';
+  const pos = items.filter(x => x.v >= 50).slice(0, 2).map(x => WHY_PLAIN[x.k][0]);
+  const weak = items.filter(x => x.v < 40 && w[x.k] >= 0.12).sort((a, b) => a.v - b.v)[0];
+  let t = pos.length ? pos.join(' and ') : 'Mostly average across the parts';
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  return t + (weak ? '; the ' + WHY_PLAIN[weak.k][1] + ' holds it back' : '');
+}
+// Display-layer cleanup of source names: "Banktrust Of BrewtonBranch" to "Banktrust Of Brewton Branch".
+const cleanName = s => String(s == null ? '' : s).replace(/([a-z])(Branch|Office)\b/g, '$1 $2');
+
 // Peer band by total assets (dollars) and the objective the balance sheet points to.
 function peerBand(assets) {
   if (assets === null) return null;
@@ -354,12 +425,12 @@ function suggestFocus(partsRows) {
   if (cands[0][1] >= 0.35) return { key: cands[0][0], why: cands[0][2] };
   return { key: 'core', why: 'No single footprint pattern stands out (wealthy ' + pct(wealthy) + ', lower-income ' + pct(lower) + ', winning ' + pct(winning) + ' of deposits).' };
 }
-// One year of growth at last year's pace, matched to the nearest goal option ($M).
-function suggestGoal(totalDep, growthPct, options) {
-  if (!totalDep || growthPct === null || growthPct === undefined || growthPct <= 0) return null;
-  const annualM = totalDep * growthPct / 100 / 1e6;
-  const key = options.reduce((best, o) => Math.abs(o - annualM) < Math.abs(best - annualM) ? o : best, options[0]);
-  return { key, annualM, why: 'At last year\u2019s ' + growthPct.toFixed(1) + '% pace the bank adds about $' + (annualM >= 1000 ? (annualM / 1000).toFixed(1) + 'B' : Math.round(annualM) + 'M') + ' a year.' };
+// Suggested campaign goal: about 5% of the top-tier deposits, shown as a 3 to 8% range.
+function suggestGoal(rows) {
+  const gr = goalRange(rows);
+  if (!gr.tierDep) return null;
+  return { key: 'mid', range: gr, why: 'About 5% of the ' + (gr.tierDep >= 1e9 ? '$' + (gr.tierDep / 1e9).toFixed(1) + 'B' : '$' + Math.round(gr.tierDep / 1e6) + 'M') +
+    ' in your ' + gr.tierCount + ' strongest branches, a range of ' + fmtM(gr.low) + ' to ' + fmtM(gr.high) + '. Draft rule.' };
 }
 // The state whose branches score best, weighted by deposits, if clearly above the bank overall.
 function suggestMarket(rows) {
@@ -459,13 +530,12 @@ async function search(q) {
 
 // ── state
 let BRANCHES = [], BANK_GROWTH = null, BANK_FIN = null;
-const answers = { objective: 'none', focus: 'core', product: 'none', goal: 500, market: 'all' };
-const GOALS = [250, 500, 1000];
+const answers = { objective: 'none', focus: 'core', product: 'none', goalKey: 'mid', goalCustom: 250, market: 'all' };
 const QUESTIONS = [
   { key: 'objective', label: '1  What should new deposits do for the balance sheet?', opts: [['none', 'No preference'], ['cost', 'Lower funding cost'], ['liquidity', 'Improve liquidity'], ['loans', 'Fund loan growth'], ['ltd', 'Reduce loans/deposits']] },
   { key: 'focus', label: '2  Which growth focus?', opts: [['core', 'Core growth'], ['wealth', 'Wealth'], ['community', 'Community'], ['share', 'Take share']] },
   { key: 'product', label: '3  Which product leads?', opts: [['none', 'No preference'], ['checking', 'Checking & savings'], ['cd', 'CDs'], ['mm', 'Money market'], ['wealth', 'Wealth']] },
-  { key: 'goal', label: '4  What is the deposit goal?', opts: GOALS.map(v => [v, v >= 1000 ? '$' + (v / 1000) + 'B' : '$' + v + 'M']) },
+  { key: 'goalKey', label: '4  How many additional deposits should the campaign bring in, on top of normal growth?', opts: 'goal' },
   { key: 'market', label: '5  Which markets?', opts: null }
 ];
 
@@ -475,7 +545,7 @@ async function loadBank(ik) {
   const [rows, fin] = await Promise.all([
     api('vw_branch_opportunity_cbsa',
       `inst_key=eq.${encodeURIComponent(ik)}&select=uninumbr,namefull,namebr,citybr,stalpbr,sims_latitude,sims_longitude,latest_dep,total_deposits_10mi,opportunity_score,opportunity_zone,campaign,household_income,smb_index,market_growth_normalized,rel_growth_norm,inv_density_norm_winsor,deposit_size_norm,institution_type&order=opportunity_score.desc.nullslast&limit=2000`),
-    api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=total_assets,loans_to_deposits_pct,cost_of_funds_pct,nim,roa,dep_yoy_pct,period`)
+    api('bank_financial_snapshot_latest', `inst_key=eq.${encodeURIComponent(ik)}&select=total_assets,total_deposits,loans_to_deposits_pct,cost_of_funds_pct,nim,roa,dep_yoy_pct,period`)
   ]);
   if (!Array.isArray(rows) || !rows.length) {
     g('rows').innerHTML = '<tr><td colspan="9" class="note">No branch data found for this institution.</td></tr>';
@@ -488,40 +558,56 @@ async function loadBank(ik) {
   render();
 }
 
+// The goal in dollars for the current answers, from the range for the selected markets.
+function goalFor(range) {
+  if (answers.goalKey === 'custom') return Math.max(+answers.goalCustom || 0, 0) * 1e6;
+  return (range[answers.goalKey] || range.mid) * 1e6;
+}
+function scopeRows() {
+  const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
+  return rankBranches(scope, answers, BREAKS).rows;
+}
 function renderQuestions(sugg) {
   sugg = sugg || {};
   const states = ['all', ...Array.from(new Set(BRANCHES.map(b => b.stalpbr).filter(Boolean))).sort()];
+  const range = goalRange(scopeRows());
+  const goalOpts = [['low', 'Low ' + fmtM(range.low)], ['mid', 'Suggested ' + fmtM(range.mid)], ['high', 'High ' + fmtM(range.high)], ['stretch', 'Stretch ' + fmtM(range.stretch)], ['custom', 'Other amount']];
   const labelOf = (q, v, opts) => { const o = opts.find(x => String(x[0]) === String(v)); return o ? o[1] : String(v); };
   g('questions').innerHTML = QUESTIONS.map(q => {
-    const opts = q.opts || states.map(st => [st, st === 'all' ? 'All markets' : st]);
+    const opts = q.opts === 'goal' ? goalOpts : (q.opts || states.map(st => [st, st === 'all' ? 'All markets' : st]));
     const sg = sugg[q.key];
+    const extra = q.opts === 'goal' ? (answers.goalKey === 'custom'
+        ? `<div style="margin-top:8px"><label class="note" for="goalCustom">Amount in $M</label><input type="text" id="goalCustom" inputmode="numeric" value="${esc(answers.goalCustom)}" style="max-width:120px"></div>` : '') +
+        '<div class="note" style="margin-top:6px">Stretch needs a rate offer or a competitor disruption. Normal organic growth is not part of this number.</div>' : '';
     return `<div class="q"><b>${esc(q.label)}</b><div class="pills">${opts.map(([v, l]) => {
       const isSug = sg && String(sg.key) === String(v);
       return `<button type="button" class="pill${isSug ? ' sug' : ''}" data-k="${esc(q.key)}" data-v="${esc(v)}" aria-pressed="${String(answers[q.key]) === String(v)}">${esc(l)}${isSug ? '<span class="stag">Suggested</span>' : ''}</button>`;
-    }).join('')}</div>${sg ? `<div class="note" style="margin-top:6px"><b>${esc(labelOf(q, sg.key, opts))}:</b> ${esc(sg.why)}</div>` : (q.key === 'product' ? '<div class="note" style="margin-top:6px">Needs the deposit-mix comparison (planned).</div>' : '')}</div>`;
+    }).join('')}</div>${extra}${sg ? `<div class="note" style="margin-top:6px"><b>${esc(labelOf(q, sg.key, opts))}:</b> ${esc(sg.why)}</div>` : (q.key === 'product' ? '<div class="note" style="margin-top:6px">Needs the deposit-mix comparison (planned).</div>' : '')}</div>`;
   }).join('');
   g('questions').querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => {
-    const k = p.dataset.k; answers[k] = (k === 'goal') ? +p.dataset.v : p.dataset.v; render();
+    answers[p.dataset.k] = p.dataset.v; render();
   }));
+  const gc = g('goalCustom');
+  if (gc) gc.addEventListener('change', () => { answers.goalCustom = gc.value.replace(/[^0-9.]/g, ''); render(); });
 }
 function applySuggestions() {
   const sg = currentSuggestions();
   if (sg.objective) answers.objective = sg.objective.key;
   if (sg.focus) answers.focus = sg.focus.key;
-  if (sg.goal) answers.goal = sg.goal.key;
+  if (sg.goal) answers.goalKey = sg.goal.key;
   if (sg.market) answers.market = sg.market.key;
   render();
 }
 function currentSuggestions() {
   const partsRows = withParts(BRANCHES, BREAKS);
   const peer = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
-  const totalAll = BRANCHES.reduce((a, b) => a + (num(b.latest_dep) || 0), 0);
   const out = {
     objective: peer ? suggestObjective(BANK_FIN, peer) : null,
     focus: suggestFocus(partsRows),
-    goal: suggestGoal(totalAll, BANK_GROWTH, GOALS)
+    goal: null
   };
   out.market = suggestMarket(rankBranches(BRANCHES, answers, BREAKS).rows);
+  out.goal = suggestGoal(scopeRows());
   return out;
 }
 
@@ -559,25 +645,32 @@ function render() {
   const scope = answers.market === 'all' ? BRANCHES : BRANCHES.filter(b => b.stalpbr === answers.market);
   const { w, rows } = rankBranches(scope, answers, BREAKS);
   RANKED = rows; LAST_W = w;
-  drawMap(rows, (BRANCHES[0] ? BRANCHES[0].uninumbr : 0) + '|' + answers.market);
   const isStandard = answers.focus === 'core' && answers.objective === 'none' && answers.product === 'none';
   LAST_STD = isStandard;
-  const goalDollars = answers.goal * 1e6;
-  const { amounts } = allocate(rows, goalDollars);
+  const range = goalRange(rows);
+  const goalDollars = goalFor(range);
+  const al = allocate(rows, goalDollars);
+  drawMap(rows, (BRANCHES[0] ? BRANCHES[0].uninumbr : 0) + '|' + answers.market, al.tierIds);
   const totalDep = scope.reduce((a, b) => a + (num(b.latest_dep) || 0), 0);
-  const allocated = [...amounts.values()].reduce((a, v) => a + v, 0);
+  const allocated = goalDollars - al.unallocated;
+  const peerRow = PEERS && PEERS.bands && BANK_FIN ? PEERS.bands[peerBand(num(BANK_FIN.total_assets))] : null;
+  const organic = (BANK_GROWTH !== null && BANK_FIN && num(BANK_FIN.total_deposits)) ? num(BANK_FIN.total_deposits) * BANK_GROWTH / 100 : null;
+  const nBranchBound = [...al.bound.values()].filter(v => v === 'branch').length;
+  const nMarketBound = [...al.bound.values()].filter(v => v === 'market').length;
 
-  // top strip: goal check
-  const pct = totalDep > 0 ? 100 * goalDollars / totalDep : null;
-  const mult = (pct !== null && BANK_GROWTH && BANK_GROWTH > 0) ? pct / BANK_GROWTH : null;
+  const impact = fundingImpact(BANK_FIN, goalDollars, answers.objective, peerRow);
   g('strip').innerHTML = `
-    <div class="card"><h3>Goal check</h3>
-      <div class="big ${pct !== null && pct > 15 ? 'warn' : ''}">${pct === null ? '—' : pct.toFixed(0) + '% growth'}</div>
-      <div class="note">${esc(money(goalDollars))} on the ${esc(money(totalDep))} these branches hold today.${BANK_GROWTH !== null ? ' The bank&rsquo;s deposits grew ' + esc(BANK_GROWTH.toFixed(1)) + '% last year' + (mult ? ', so this goal is about ' + esc(mult.toFixed(1)) + ' times that pace' : '') + '.' : ''}</div></div>
-    ${balanceCard()}
+    <div class="card"><h3>Normal growth (baseline)</h3>
+      <div class="big">${BANK_GROWTH === null ? '—' : '+' + esc(BANK_GROWTH.toFixed(1)) + '%'}</div>
+      <div class="note">${organic !== null ? 'About ' + esc(money(organic)) + ' last year without a campaign' : 'Last year\u2019s deposit growth'}${peerRow ? '; similar-size banks grew ' + esc(peerRow.depyoy.toFixed(1)) + '%' : ''}. The campaign goal is on top of this.</div></div>
+    <div class="card"><h3>Campaign goal</h3>
+      <div class="big">${esc(money(goalDollars))}</div>
+      <div class="note">${totalDep > 0 ? esc((100 * goalDollars / totalDep).toFixed(1)) + '% of the ' + esc(money(totalDep)) + ' in these branches' : ''}${al.tierIds.size ? '; ' + esc((100 * goalDollars / Math.max(rows.filter(r => al.tierIds.has(r.uninumbr)).reduce((a, r) => a + (num(r.latest_dep) || 0), 0), 1)).toFixed(1)) + '% of the top ' + al.tierIds.size + ' branches' : ''}.</div></div>
     <div class="card"><h3>What can be placed</h3>
-      <div class="big">${esc(money(allocated))}</div>
-      <div class="note">of ${esc(money(goalDollars))} fits under a cap of ${Math.round(CAP_FRACTION * 100)}% of each branch&rsquo;s deposits${allocated < goalDollars - 1 ? '; ' + esc(money(goalDollars - allocated)) + ' is left over, so the goal needs more branches, more time or a smaller target' : ''}.</div></div>`;
+      <div class="big ${al.unallocated > 1 ? 'warn' : ''}">${esc(money(allocated))}</div>
+      <div class="note">of ${esc(money(goalDollars))} fits in the top ${al.tierIds.size} branches under the lower of 10% of a branch&rsquo;s deposits or 1.5% of its 10-mile market${al.bound.size ? ' (' + nBranchBound + ' held by branch size, ' + nMarketBound + ' by market size)' : ''}${al.unallocated > 1 ? '; ' + esc(money(al.unallocated)) + ' is left over: more branches, more time or a smaller target' : ''}.</div></div>
+    ${impact ? `<div class="card"><h3>Funding impact</h3><div class="big">${esc(impact.main)}</div><div class="note"><b>${esc(impact.title)}.</b> ${esc(impact.note)}</div></div>` : ''}
+    ${balanceCard()}`;
 
   const useBtn = g('useSuggestion');
   if (useBtn) useBtn.addEventListener('click', () => { answers.objective = useBtn.dataset.k; render(); });
@@ -585,37 +678,35 @@ function render() {
     ? '<b>Standard formula.</b> No goal preferences set: this ranking matches the stored one. Change the answers to see a re-weighted scenario.'
     : '<b>Scenario view.</b> The goal score re-weights the stored branch scores to match your answers. It has not been tested against history.';
 
-  // columns: zone and play only for the standard formula
-  const cols = ['#', 'Branch', 'Market', 'Deposits', 'Goal score', 'Standard rank', 'Move'];
+  const cols = ['#', 'Branch', 'Deposits', 'Goal score', 'Standard rank'];
   if (isStandard) cols.push('Zone', 'Play');
-  cols.push('Why', 'Goal share');
+  cols.push('Goal share', 'Why');
   g('thead').innerHTML = cols.map(c => `<th>${esc(c)}</th>`).join('');
 
   g('rows').innerHTML = rows.slice(0, 40).map((r, i) => {
     const mv = (r.was || r.rank) - r.rank;
     const mt = mv > 0 ? `<span class="up">▲ ${mv}</span>` : (mv < 0 ? `<span class="down">▼ ${-mv}</span>` : '—');
     const z = r.opportunity_zone || '';
-    const a = amounts.get(r.uninumbr);
-    return `<tr class="${i < 5 ? 'top' : ''}" data-id="${esc(r.uninumbr)}" tabindex="0" role="button" aria-label="Open ${esc(r.namebr)}">
+    const a = al.amounts.get(r.uninumbr);
+    const b = al.bound.get(r.uninumbr);
+    return `<tr class="${i < 5 ? 'top' : ''}" data-id="${esc(r.uninumbr)}" tabindex="0" role="button" aria-label="Open ${esc(cleanName(r.namebr))}">
       <td><b>${r.rank}</b></td>
-      <td><span class="name">${esc(r.namebr)}</span>${r.excluded ? '<span class="tag">HQ / booking</span>' : ''}${r.partial ? '<span class="tag">partial data</span>' : ''}${r.sameMarketAs ? `<span class="tag">same market as #${esc(r.sameMarketAs)}</span>` : ''}</td>
-      <td>${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))}</td>
+      <td><span class="name">${esc(cleanName(r.namebr))}</span>${r.excluded ? '<span class="tag">HQ / booking</span>' : ''}${r.partial ? '<span class="tag">partial data</span>' : ''}${r.sameMarketAs ? `<span class="tag">same market as #${esc(r.sameMarketAs)}</span>` : ''}<div class="note">${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))}</div></td>
       <td>${esc(money(num(r.latest_dep) || 0))}</td>
       <td><b>${r.score === null ? '—' : Math.round(r.score)}</b></td>
-      <td>#${esc(r.was)}</td>
-      <td>${mt}</td>
+      <td>#${esc(r.was)} ${mt}</td>
       ${isStandard ? `<td><span class="zone ${esc(z)}">${esc(z || '—')}</span></td><td>${esc(r.campaign || '—')}</td>` : ''}
-      <td class="note">${esc(whyFor(r.parts, w))}</td>
-      <td>${a ? esc(money(a)) : '—'}</td>
+      <td>${a ? esc(money(a)) + (b ? `<div class="note">limited by ${b === 'market' ? 'market size' : 'branch size'}</div>` : '') : '—'}</td>
+      <td class="why" title="${esc(whyFor(r.parts, w))}">${esc(whyPlain(r.parts, w))}</td>
     </tr>`;
   }).join('');
 
   const isCU = BRANCHES.length && BRANCHES[0].institution_type && BRANCHES[0].institution_type !== 'bank';
   g('foot').innerHTML = [
-    'Click a row for the branch detail.',
+    'Click a row or a map circle for the branch detail; hover a row for the numbers behind "Why".',
     isStandard ? '' : 'Zone and play are hidden while goals are set: they are not re-cut for goals in this draft.',
     'Wealth, community and small-business density are compared with bank branches in the same state.',
-    'Goal share splits the goal in proportion to score, caps each branch at ' + Math.round(CAP_FRACTION * 100) + '% of its deposits and leaves out head-office or booking branches.',
+    'Goal share goes to the top quarter of branches (5 to 40) in proportion to score, and leaves out head-office or booking branches.',
     isCU && answers.focus === 'share' ? 'Credit union: relative growth is measured for the institution, not each branch, so take-share cannot separate its branches.' : '',
     'Top 40 shown.'
   ].filter(Boolean).map(esc).join(' ');
@@ -634,13 +725,13 @@ function radiusScale(values, minR, maxR) {
   return v => { v = Math.max(min, Math.min(max, +v || min)); return minR + Math.sqrt((v - min) / (max - min)) * (maxR - minR); };
 }
 function markerStyle(r) {
-  if (r.excluded) return { fillColor: '#F5A623', color: '#854F0B', weight: 2, fillOpacity: 0.85 };
-  if (r.score === null) return { fillColor: '#ffffff', color: '#8B93A0', weight: 2, dashArray: '3 3', fillOpacity: 0.6 };
-  if (r.rank <= 5) return { fillColor: '#02A7C2', color: '#083D5F', weight: 1.5, fillOpacity: 0.92 };
-  if (r.rank <= 15) return { fillColor: '#185FA5', color: '#ffffff', weight: 1.5, fillOpacity: 0.8 };
-  return { fillColor: '#8B93A0', color: '#ffffff', weight: 1.2, fillOpacity: 0.65 };
+  if (r.excluded) return { fillColor: '#F5A623', color: '#854F0B', weight: 2, dashArray: '4 3', fillOpacity: 0.06, opacity: 0.9 };
+  if (r.score === null) return { fillColor: '#ffffff', color: '#8B93A0', weight: 2, dashArray: '3 3', fillOpacity: 0.4, opacity: 0.6 };
+  if (r.rank <= 5) return { fillColor: '#02A7C2', color: '#083D5F', weight: 2.5, fillOpacity: 0.95, opacity: 1 };
+  if (r.rank <= 15) return { fillColor: '#185FA5', color: '#ffffff', weight: 1, fillOpacity: 0.5, opacity: 0.7 };
+  return { fillColor: '#8B93A0', color: '#ffffff', weight: 0.8, fillOpacity: 0.28, opacity: 0.5 };
 }
-function drawMap(rows, key) {
+function drawMap(rows, key, tierIds) {
   if (typeof L === 'undefined') return;
   if (!MAP) {
     MAP = L.map('map', { zoomControl: true, attributionControl: false, scrollWheelZoom: false }).setView([37.8, -96], 4);
@@ -652,11 +743,12 @@ function drawMap(rows, key) {
   const pts = rows.filter(r => num(r.sims_latitude) !== null && num(r.sims_longitude) !== null);
   // size scale from regular branches only, so a head office does not dwarf the rest
   const rs0 = radiusScale(pts.filter(r => !r.excluded).map(r => r.latest_dep), 6, 20);
-  const rs = v => Math.min(rs0(v), 26);
+  const rs = v => Math.min(rs0(v), 24);
   pts.forEach(r => {
-    const m = L.circleMarker([+r.sims_latitude, +r.sims_longitude], { radius: rs(r.latest_dep), ...markerStyle(r) });
-    m.bindTooltip(`${esc(r.namebr)}: ${r.score === null ? 'no score' : 'goal score ' + Math.round(r.score)} (#${r.rank})`, { direction: 'top' });
-    m.on('click', () => openPanel(r.uninumbr));
+    const rad = r.excluded ? 11 : (rs(r.latest_dep) + (r.rank <= 5 ? 5 : 0));
+    const m = L.circleMarker([+r.sims_latitude, +r.sims_longitude], { radius: rad, ...markerStyle(r) });
+    m.bindTooltip(`${esc(cleanName(r.namebr))}: ${r.score === null ? 'no score' : 'goal score ' + Math.round(r.score)} (#${r.rank})`, { direction: 'top' });
+    m.on('click', () => selectBranch(r.uninumbr));
     m.addTo(MAP_LAYER);
     if (r.rank <= 5 && !r.excluded) m.bindTooltip(String(r.rank), { permanent: true, direction: 'center', className: 'rk' });
     MAP_MARKERS.set(String(r.uninumbr), { m, r });
@@ -666,6 +758,13 @@ function drawMap(rows, key) {
   if (fit) { MAP.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 }); MAP_KEY = key; }
   // The container may not have its final size yet: re-measure, then fit again.
   setTimeout(() => { if (!MAP) return; MAP.invalidateSize(); if (fit) MAP.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 }); }, 80);
+}
+// Select a branch from the map or the table: highlight its row, then open the panel.
+function selectBranch(uninumbr) {
+  document.querySelectorAll('#rows tr.sel').forEach(t => t.classList.remove('sel'));
+  const tr = document.querySelector(`#rows tr[data-id="${String(uninumbr).replace(/"/g, '')}"]`);
+  if (tr) { tr.classList.add('sel'); tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  openPanel(uninumbr);
 }
 // highlight the marker for a hovered table row
 function hoverRow(uninumbr, on) {
@@ -703,7 +802,7 @@ async function openPanel(uninumbr) {
   const play = r.campaign || '';
   const std = num(r.opportunity_score);
   g('sidePanel').innerHTML = `
-    <div class="panel-h"><div class="t">${esc(r.namebr)}</div>
+    <div class="panel-h"><div class="t">${esc(cleanName(r.namebr))}</div>
       <div class="s">${esc([r.citybr, r.stalpbr].filter(Boolean).join(', '))} &middot; ${esc(money(num(r.latest_dep) || 0))} deposits</div>
       <button type="button" class="panel-x" id="panelClose" aria-label="Close">&times;</button></div>
     <div class="psec"><div class="label">Where it ranks</div>
@@ -717,7 +816,7 @@ async function openPanel(uninumbr) {
       ${r.excluded ? '<p class="note">Treated as a head-office or booking branch: left out of the goal share.</p>' : ''}
     </div>
     <div class="psec"><div class="label">Why this branch</div>
-      <p style="margin:0 0 8px;font-size:13px">${esc(whyFor(r.parts, w))}.</p>
+      <p style="margin:0 0 4px;font-size:13px">${esc(whyPlain(r.parts, w))}.</p><p class="note" style="margin:0 0 8px">${esc(whyFor(r.parts, w))}.</p>
       <table class="mini"><thead><tr><th>Part</th><th>Value</th><th>Weight</th><th>Points</th><th></th></tr></thead><tbody>
       ${br.map(x => `<tr><td>${esc(x.label)}</td><td>${x.value === null ? '—' : Math.round(x.value)}</td><td>${Math.round(x.weight * 100)}%</td><td>${x.points === null ? '—' : x.points.toFixed(1)}</td><td><div class="bar"><i style="width:${x.value === null ? 0 : Math.round(x.value)}%"></i></div></td></tr>`).join('')}
       </tbody></table>
@@ -755,10 +854,10 @@ g('rows').addEventListener('mouseover', e => { const tr = e.target.closest('tr[d
 g('rows').addEventListener('mouseout', e => { const tr = e.target.closest('tr[data-id]'); if (tr) hoverRow(tr.dataset.id, false); });
 g('rows').addEventListener('click', e => {
   const tr = e.target.closest('tr[data-id]');
-  if (tr) openPanel(tr.dataset.id);
+  if (tr) selectBranch(tr.dataset.id);
 });
 g('rows').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { const tr = e.target.closest('tr[data-id]'); if (tr) openPanel(tr.dataset.id); }
+  if (e.key === 'Enter') { const tr = e.target.closest('tr[data-id]'); if (tr) selectBranch(tr.dataset.id); }
 });
 
 g('applyAll').addEventListener('click', applySuggestions);

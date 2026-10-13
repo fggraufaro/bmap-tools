@@ -413,7 +413,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .mq-q4{background:#FCEBEB}.mq-q4 .mq-qlbl{color:#A32D2D}.mq-q4 .mq-play{color:#A32D2D}.mq-q4 .mq-tile{background:rgba(255,255,255,.55)}.mq-q4 .mq-tile:hover,.mq-q4 .mq-tile.sel{background:#fff;outline:1.5px solid #A32D2D}
 .mq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px}
 .mq-qlbl{font-size:9px;font-weight:700;letter-spacing:.03em}
-.mq-play{font-size:8px;font-weight:600;margin-bottom:5px;min-height:11px}
+.mq-play{font-size:9px;font-weight:500;margin-bottom:5px;min-height:11px;opacity:.85}
+.mq-axes{font-size:10px;color:var(--muted);margin-top:6px}
 .mq-tiles{display:flex;flex-direction:column;gap:3px;overflow-y:auto;max-height:170px}
 .mq-tile{border-radius:5px;padding:4px 7px;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:5px;transition:background .1s}
 .mq-tile-info{flex:1;min-width:0}
@@ -601,27 +602,28 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
         </div>
       </div>
       <div class="matrix-2x2">
+        <div class="mq mq-q1">
+          <div class="mq-head"><span class="mq-qlbl">Q1 · Grow and Perform</span></div>
+          <div class="mq-play" id="mqPlay1">High market attractiveness · lower branch performance</div>
+          <div class="mq-tiles" id="mqQ1"></div>
+        </div>
         <div class="mq mq-q2">
-          <div class="mq-head"><span class="mq-qlbl">Q1 · Market Domination</span></div>
-          <div class="mq-play" id="mqPlay2"></div>
+          <div class="mq-head"><span class="mq-qlbl">Q2 · Invest and Protect</span></div>
+          <div class="mq-play" id="mqPlay2">High market attractiveness · high branch performance</div>
           <div class="mq-tiles" id="mqQ2"></div>
         </div>
-        <div class="mq mq-q1">
-          <div class="mq-head"><span class="mq-qlbl">Q2 · Grow and Perform</span></div>
-          <div class="mq-play" id="mqPlay1"></div>
-          <div class="mq-tiles" id="mqQ1"></div>
+        <div class="mq mq-q4">
+          <div class="mq-head"><span class="mq-qlbl">Q4 · Review / Restructure / Redeploy</span></div>
+          <div class="mq-play" id="mqPlay4">Lower market attractiveness · lower branch performance</div>
+          <div class="mq-tiles" id="mqQ4"></div>
         </div>
         <div class="mq mq-q3">
           <div class="mq-head"><span class="mq-qlbl">Q3 · Maintain and Improve</span></div>
-          <div class="mq-play" id="mqPlay3"></div>
+          <div class="mq-play" id="mqPlay3">Lower market attractiveness · high branch performance</div>
           <div class="mq-tiles" id="mqQ3"></div>
         </div>
-        <div class="mq mq-q4">
-          <div class="mq-head"><span class="mq-qlbl">Q4 · Reassess</span></div>
-          <div class="mq-play" id="mqPlay4"></div>
-          <div class="mq-tiles" id="mqQ4"></div>
-        </div>
       </div>
+      <div class="mq-axes">Down: market attractiveness, high to low. Across: branch performance, low to high.</div>
     </div>
 
     <div class="dash-priority-card">
@@ -1184,6 +1186,10 @@ async function rpc(fnName,body){
   }catch(e){console.error(e);return[];}
 }
 const g=id=>document.getElementById(id);
+// One vocabulary for the four quadrants, the same as the methodology and the stored numbering.
+// The stored text for Q4 ('Rationalize and Exit') is closure-framed, so it is never shown.
+const QUAD_LABEL={Q1:'Q1 - Grow and Perform',Q2:'Q2 - Invest and Protect',Q3:'Q3 - Maintain and Improve',Q4:'Q4 - Review / Restructure / Redeploy'};
+const quadLabel=mq=>{const k=((mq||'').match(/^Q\d/)||[])[0];return QUAD_LABEL[k]||mq||'—';};
 const show=id=>{const el=g(id);if(el)el.classList.remove('dn');};
 const hide=id=>{const el=g(id);if(el)el.classList.add('dn');};
 const set=(id,v)=>{const el=g(id);if(el)el.textContent=v;};
@@ -1337,7 +1343,7 @@ async function loadBank(ik){
       </div>
       <div class="br-sigs">
         <div class="br-sig"><span class="br-sig-l">Deposit size</span><span class="br-sig-v">${dsn} / 100</span></div>
-        <div class="br-sig"><span class="br-sig-l">Quadrant</span><span class="br-sig-v">${b.matrix_quadrant||'—'}</span></div>
+        <div class="br-sig"><span class="br-sig-l">Quadrant</span><span class="br-sig-v">${quadLabel(b.matrix_quadrant)}</span></div>
         <div class="br-sig"><span class="br-sig-l">Play</span><span class="br-sig-v">${play}</span></div>
       </div>
       <div class="br-radius-card" style="margin-top:10px;padding:12px 14px;background:var(--gray);border:1px solid var(--border);border-radius:8px">
@@ -1535,7 +1541,7 @@ async function loadBank(ik){
       const qBrs = brs.filter(b=>(b.matrix_quadrant||'').startsWith(q))
                       .sort((a,b)=>cardRank(b)-cardRank(a));
       // Quadrant tagline is now fixed in the header markup (Market Domination /
-      // Grow and Perform / Maintain and Improve / Reassess), not the dynamic
+      // Grow and Perform / Maintain and Improve / Review-Restructure-Redeploy), not the dynamic
       // per-bank dominant play — that used to make the same box read a
       // different name for every bank, which isn't a stable customer-facing
       // label. mqPlay elements are left empty on purpose.
@@ -2669,7 +2675,7 @@ function agRenderSegGrid(focusRows,personaMap){
     const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
     const sel=b._selReason||b.opportunity_zone;
     const sentence=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.`;
-    const selLine=[`Selection: ${sel}`,b.matrix_quadrant?`Matrix: ${b.matrix_quadrant}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
+    const selLine=[`Selection: ${sel}`,b.matrix_quadrant?`Matrix: ${quadLabel(b.matrix_quadrant)}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
     const bullets=[
       `ZIP: ${zip} — ${city}`,
       `Household income: ${inc}${incYoY} · Population: ${pop}${popYoY}`,
@@ -2777,7 +2783,7 @@ async function agGenerate(){
     const zhvi=b.zhvi?`$${Math.round(+b.zhvi/1000)}k`:'—';
     const zhviYoY=b.zhvi_yoy_pct?` (${(+b.zhvi_yoy_pct)>0?'+':''}${(+b.zhvi_yoy_pct).toFixed(1)}% YoY)`:'';
     const score=b.opportunity_score?(+b.opportunity_score).toFixed(0):'—';
-    const selLine=[`Selection: ${b._selReason||b.opportunity_zone}`,b.matrix_quadrant?`Matrix: ${b.matrix_quadrant}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
+    const selLine=[`Selection: ${b._selReason||b.opportunity_zone}`,b.matrix_quadrant?`Matrix: ${quadLabel(b.matrix_quadrant)}`:null,b.priority_tier?`Priority tier: ${b.priority_tier}`:null].filter(Boolean).join(' · ');
     txt+=`BRANCH ${i+1} — ${b.namebr.toUpperCase()}\n`;
     txt+=`Target audience in ${city} (ZIP ${zip}) — ${b.opportunity_zone} zone, opportunity score ${score}/100.\n\n`;
     txt+=`  • ZIP: ${zip} — ${city}\n`;
@@ -3053,7 +3059,7 @@ async function generate(){
   const defend=rows.filter(r=>r.opportunity_zone==='Defend').length;
   const justify=rows.filter(r=>r.opportunity_zone==='Justify').length;
   const t=Array.isArray(tgt)?tgt[0]:tgt;
-  const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}`;
+  const brLine=b=>`${b.namebr} — ${b.citybr}, ${b.stalpbr} | Score: ${(+b.opportunity_score).toFixed(1)} | Deposits: $${(b.latest_dep/1e6).toFixed(0)}M | YoY: ${(+b.yoy_deposits*100).toFixed(1)}% | Matrix: ${quadLabel(b.matrix_quadrant)} | Priority: ${b.priority_tier}`;
   const top3Score=br.slice(0,3);const top3Invest=br.filter(b=>b.opportunity_zone==='Invest').slice(0,3);
   const top3Q2=br.filter(b=>b.matrix_quadrant&&b.matrix_quadrant.startsWith('Q2')&&(+b.latest_dep||0)>=5e6).slice(0,3);
   const top3P1=br.filter(b=>b.priority_tier&&b.priority_tier.startsWith('1')).slice(0,3);
@@ -3064,7 +3070,7 @@ async function generate(){
     const uid=g('bselect').value;if(!uid){g('ld').classList.remove('on');g('gb').disabled=false;alert('Select a branch first.');return;}
     const[cd,fin,bf]=await Promise.all([api('branch_target_competitors',`my_branch_id=eq.${uid}&select=*&order=target_rank.asc&limit=3`),api('bank_financial_snapshot_latest',`inst_key=eq.${ik}&select=*&limit=1`),api('branch_opportunity_base',`uninumbr=eq.${uid}&select=*&limit=1`)]);
     const b=bf?.[0]||{};const fn=fin?.[0]||{};
-    txt=`VERLOCITY INTELLIGENCE HUB — BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${b.matrix_quadrant} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%`;
+    txt=`VERLOCITY INTELLIGENCE HUB — BRANCH DEEP DIVE\nWorkflow: Verlocity Branch Deep Dive\nSource: BMAP · Community_Banks_Rates · Live\n\nSELECTED BRANCH\n${b.namebr} — ${b.citybr}, ${b.stalpbr} ${b.zipbr||''}\nInstitution: ${rows[0]?.namefull}\n\nBRANCH SCORES\nOpportunity score: ${(+b.opportunity_score||0).toFixed(1)} / 100\nZone: ${b.opportunity_zone} | Matrix: ${quadLabel(b.matrix_quadrant)} | Priority: ${b.priority_tier}\nSMB index: ${b.smb_index||'—'} (${b.smb_zone||'—'}) | SMB establishments: ${b.smb_establishments||'—'}\n\nDEPOSITS\nTotal: $${((+b.latest_dep||0)/1e6).toFixed(1)}M\nYoY: ${((+b.yoy_deposits||0)*100).toFixed(1)}% | Competitor avg YoY: ${((+b.avg_comp_yoy||0)*100).toFixed(1)}%\n\nMARKET CONTEXT\nCompetitors within 10 miles: ${b.branches_in_radius||'—'}\nTotal market deposits (10mi): $${((+b.total_deposits_10mi||0)/1e9).toFixed(2)}B\nHome value (ZHVI): $${(+b.zhvi||0).toLocaleString()} | YoY: ${(+b.zhvi_yoy_pct||0).toFixed(1)}%\nHousehold income: $${((+b.household_income||0)).toLocaleString()} | Pop YoY: ${((+b.yoy_pop_growth||0)*100).toFixed(1)}%\n\nTARGET COMPETITORS\n${cd&&cd.length?cd.map(c=>`Rank ${c.target_rank}: ${c.target_namefull}\n  Deposits: $${c.target_dep_m}M | YoY: ${c.target_yoy_pct}% | Vuln: ${c.vuln_score} | ${c.target_dist_mi} mi\n  ROA: ${c.target_roa||'—'}% | Noncurrent: ${c.target_noncurrent_pct||'—'}%`).join('\n\n'):'No target competitors computed.'}\n\nINSTITUTION FINANCIAL HEALTH\nROA: ${fn.roa||'—'}% | NIM: ${fn.nim||'—'}% | Efficiency: ${fn.efficiency_ratio||'—'}%\nCost of funds: ${fn.cost_of_funds_pct||'—'}% | Savings: ${fn.save_interest_pct||'—'}% | CD: ${fn.cd_interest_pct||'—'}%`;
   }
   g('ld').classList.remove('on');
   try{g('gb').disabled=false;}catch(e){}

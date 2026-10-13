@@ -968,10 +968,16 @@ function hoverRow(uninumbr, on) {
 
 // ── branch detail (replaces the map until "Back to map")
 const normName = s => (s || '').trim().toLowerCase();
-// Rate Radar row for a bank: by RSSD id when both sides have one (inst_key is bank_<rssd>), else by name.
+// Rate Radar row for a bank: by RSSD id when both sides have one (inst_key is bank_<rssd>),
+// else by name. A name match whose row carries a different RSSD id is another bank with the
+// same name (three registry banks are called First Bank), so it is refused, never shown.
 function rateFor(rates, name, instKey) {
   const m = /^bank_(\d+)$/.exec(instKey || '');
-  return (m && rates['#' + m[1]]) || rates[normName(name)];
+  const byId = m ? rates['#' + m[1]] : null;
+  if (byId) return byId;
+  const row = rates[normName(name)];
+  if (row && m && row.rssdid && String(row.rssdid) !== m[1]) return undefined;
+  return row;
 }
 async function loadRates() {
   if (RATES) return RATES;

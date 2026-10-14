@@ -88,6 +88,8 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .legend-row{display:flex;align-items:center;gap:6px;padding:1.5px 0}
 .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .legend-note{color:var(--muted);margin-top:4px;font-size:9.5px}
+.br-tip{font-size:11px;line-height:1.35;padding:6px 8px}
+.legend-dia{width:8px;height:8px;transform:rotate(45deg);border-radius:1px;flex-shrink:0}
 .radius-card{position:absolute;top:0;right:0;bottom:0;width:300px;max-width:80%;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.14);z-index:600;display:none;flex-direction:column}
 .radius-card.on{display:flex}
 .radius-card-hdr{background:var(--navy);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;flex-shrink:0}
@@ -308,13 +310,20 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
         </div>
         <div class="map-wrap">
           <div id="map"></div>
-          <div class="map-legend">
+          <div class="map-legend" id="legendBranches">
             <div class="legend-t">Branch priority</div>
             <div class="legend-row"><span class="legend-dot" style="background:#CDD61A"></span>Act now</div>
             <div class="legend-row"><span class="legend-dot" style="background:#66CC99"></span>Next up</div>
             <div class="legend-row"><span class="legend-dot" style="background:#02A7C2"></span>Worth watching</div>
             <div class="legend-row"><span class="legend-dot" style="background:#8B93A0"></span>Not flagged</div>
-            <div class="legend-note">Circle size = deposits</div>
+            <div class="legend-note">Circle size = deposits. Hover a branch for details.</div>
+          </div>
+          <div class="map-legend" id="legendComp" style="display:none">
+            <div class="legend-t">Nearby competitors</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#083D5F"></span>Your branches</div>
+            <div class="legend-row"><span class="legend-dia" style="background:#E07A2F"></span>Competitor bank</div>
+            <div class="legend-row"><span class="legend-dia" style="background:#8E5BA8"></span>Credit union</div>
+            <div class="legend-note">Size = deposits. Hover for details.</div>
           </div>
           <div class="radius-card" id="radiusCard">
             <div class="radius-card-hdr">
@@ -780,6 +789,19 @@ const PRIORITY_TIER_COLOR = { top: '#CDD61A', next: '#66CC99', opportunity: '#02
 // dollars), diamond competitors, priority-tier coloring hardcoded on (no
 // toggle UI — a CEO view has nothing to switch, per req #5). ──
 let map, branchLayer, competitorLayer, radiusLayer;
+// 'branches': your branches coloured by priority. 'competitors': a branch is open, so priority
+// colouring and its legend step aside and the map shows who is nearby (one colour per kind).
+let MAP_MODE = 'branches';
+const COMP_COLOR = { bank: '#E07A2F', cu: '#8E5BA8' }, MINE_COLOR = '#083D5F';
+const escHtml = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const fmtMapM = v => { const m = (+v || 0) / 1e6; return Math.abs(m) >= 1000 ? '$' + (m / 1000).toFixed(2) + 'B' : '$' + m.toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M'; };
+function setMapMode(mode) {
+  MAP_MODE = mode;
+  const a = g('legendBranches'), c = g('legendComp');
+  if (a) a.style.display = mode === 'branches' ? '' : 'none';
+  if (c) c.style.display = mode === 'competitors' ? '' : 'none';
+  if (typeof visibleBranches !== 'undefined' && visibleBranches.length) drawBranches(visibleBranches);
+}
 function diamondIcon(size, color) {
   const s = Math.max(6, size);
   return L.divIcon({ className: '', iconSize: [s, s], iconAnchor: [s / 2, s / 2],
@@ -838,8 +860,14 @@ function drawBranches(list) {
   const rScale = depositRadiusScale(list.map(b => b.latest_dep), minR, maxR);
   list.forEach(b => {
     const tier = priorityTierOf(b.campaign);
-    const color = tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0';
-    const m = L.circleMarker([b.sims_latitude, b.sims_longitude], { radius: rScale(b.latest_dep), color: tier ? '#5B6472' : '#fff', weight: 1.5, fillColor: color, fillOpacity: tier ? 0.95 : 0.75 });
+    const compMode = MAP_MODE === 'competitors';
+    const isSel = compMode && radiusAnalysis && String(radiusAnalysis.branch.uninumbr) === String(b.uninumbr);
+    const color = compMode ? MINE_COLOR : (tier ? PRIORITY_TIER_COLOR[tier] : '#8B93A0');
+    const m = L.circleMarker([b.sims_latitude, b.sims_longitude], compMode
+      ? { radius: rScale(b.latest_dep), color: isSel ? '#F5A623' : '#fff', weight: isSel ? 3 : 1.5, fillColor: color, fillOpacity: isSel ? 0.95 : 0.7 }
+      : { radius: rScale(b.latest_dep), color: tier ? '#5B6472' : '#fff', weight: 1.5, fillColor: color, fillOpacity: tier ? 0.95 : 0.75 });
+    const yoyTxt = b.yoy_deposits != null && b.yoy_deposits !== '' ? ((+b.yoy_deposits) * 100).toFixed(1) + '% YoY' : '';
+    m.bindTooltip(`<b>${escHtml(b.namebr)}</b><br>${escHtml([b.citybr, b.stalpbr].filter(Boolean).join(', '))}<br>${fmtMapM(b.latest_dep)} deposits${yoyTxt ? ' · ' + yoyTxt : ''}<br><span style="color:#5B6472">${compMode ? 'Your branch' : (tier ? TIER_LABEL[tier] : 'Not flagged')}</span>`, { direction: 'top', offset: [0, -4], className: 'br-tip' });
     // No popup here anymore — it duplicated the Radius Market Summary panel
     // that onBranchClick already opens on this same click, and its "Click to
     // see nearby competitors" line was dead text (nothing was bound to it).
@@ -874,6 +902,8 @@ async function onBranchClick(branch) {
   g('radiusCardBody').innerHTML = 'Loading market data…';
   g('radiusCard').classList.add('on');
   g('mapHint').textContent = '';
+  radiusAnalysis = { branch, lat, lon, maxR: 0, enriched: [], myNearby: [] }; // marks the selected branch while data loads
+  setMapMode('competitors');
   renderInlineROI(branch); // "What's next" section reflects whichever branch is selected on the map
 
   const maxR = Math.max(...RADIUS_MILES);
@@ -931,7 +961,9 @@ function renderRadius() {
   if (compInRadius.length) {
     const rScale = depositRadiusScale(compInRadius.map(c => c.deposits), 8, 22);
     compInRadius.forEach(c => {
-      const m = L.marker([c.lat, c.lon], { icon: diamondIcon(rScale(c.deposits) * 2, ZONE_COLOR[c.opportunity_zone] || '#B84A3E') });
+      const isCu = c.institution_type === 'cu';
+      const m = L.marker([c.lat, c.lon], { icon: diamondIcon(rScale(c.deposits) * 2, isCu ? COMP_COLOR.cu : COMP_COLOR.bank) });
+      m.bindTooltip(`<b>${escHtml(c.bank_name)}</b>${isCu ? ' <span style="color:#8E5BA8">credit union</span>' : ''}<br>${fmtMapM(c.deposits)} ${isCu ? 'institution-wide' : 'deposits'}${c.yoy_deposits != null ? ' · ' + ((+c.yoy_deposits) * 100).toFixed(1) + '% YoY' : ''}<br>${(+c.distance_miles).toFixed(1)} mi away`, { direction: 'top', offset: [0, -6], className: 'br-tip' });
       m.bindPopup(`<div class="pop-t">${c.bank_name}</div><div class="pop-r">Deposits: $${((+c.deposits || 0) / 1e6).toFixed(1)}M · YoY: ${c.yoy_deposits != null ? ((+c.yoy_deposits) * 100).toFixed(1) + '%' : '—'}</div><div class="pop-r">Distance: ${(+c.distance_miles).toFixed(1)} mi</div>`);
       m.addTo(radiusLayer);
     });
@@ -1018,6 +1050,7 @@ function renderRadius() {
 function clearRadius() {
   radiusAnalysis = null;
   if (radiusLayer) radiusLayer.clearLayers();
+  if (MAP_MODE !== 'branches') setMapMode('branches');
   g('radiusCard') && g('radiusCard').classList.remove('on');
   g('mapHint') && (g('mapHint').textContent = 'Click a branch to see nearby competitors');
   g('mapSelectedROI') && (g('mapSelectedROI').innerHTML = '');

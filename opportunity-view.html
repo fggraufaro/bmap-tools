@@ -90,6 +90,33 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
 .legend-note{color:var(--muted);margin-top:4px;font-size:9.5px}
 .br-tip{font-size:11px;line-height:1.35;padding:6px 8px}
 .legend-dia{width:8px;height:8px;transform:rotate(45deg);border-radius:1px;flex-shrink:0}
+/* all-branches ranking table */
+.rank-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.rank-head{background:var(--navy);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rank-head .rt{font-size:14px;font-weight:700}
+.rank-head .rs{font-size:11.5px;color:rgba(255,255,255,.65)}
+.rank-tools{display:flex;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--gray)}
+.rank-tools input,.rank-tools select{height:30px;border:1.5px solid var(--border);border-radius:7px;padding:0 8px;font-family:inherit;font-size:12.5px;background:#fff;color:var(--text)}
+.rank-tools input{width:230px;max-width:100%}
+.rank-tools .rc{font-size:11.5px;color:var(--muted);margin-left:auto}
+.rank-tools button{height:30px;border:0;border-radius:7px;padding:0 12px;background:var(--navy);color:#fff;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.rank-scroll{max-height:560px;overflow:auto}
+table.rank-table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.rank-table th{position:sticky;top:0;z-index:1;background:#F0EEE8;text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+.rank-table th.num,.rank-table td.num{text-align:right}
+.rank-table th .arr{font-size:9px;margin-left:3px;color:var(--navy)}
+.rank-table td{padding:7px 10px;border-bottom:1px solid #F0EEE8;white-space:nowrap}
+.rank-table td.nm{font-weight:600;color:var(--navy);max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.rank-table tbody tr{cursor:pointer}
+.rank-table tbody tr:hover td{background:var(--lblue)}
+.rank-table tbody tr.nogeo{cursor:default}
+.rank-table tbody tr.nogeo:hover td{background:transparent}
+.rank-table .up{color:#1E7A4C;font-weight:600}.rank-table .down{color:#A33C31;font-weight:600}
+.rank-table .zchip{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:700;background:#f0efe8;color:var(--muted)}
+.rank-table .z-Invest{background:var(--lgreen);color:#1E7A4C}.rank-table .z-Analyze{background:var(--lblue);color:#0B6E80}.rank-table .z-Defend{background:#FBF0DF;color:#854F0B}.rank-table .z-Justify{background:var(--lred);color:#A33C31}
+.rank-table .tchip{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.rank-table .t-top{background:#F4F7C9;color:#5E6400}.rank-table .t-next{background:var(--lgreen);color:#1E7A4C}.rank-table .t-opportunity{background:var(--lblue);color:#0B6E80}
+.rank-note{padding:8px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)}
 .radius-card{position:absolute;top:0;right:0;bottom:0;width:300px;max-width:80%;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.14);z-index:600;display:none;flex-direction:column}
 .radius-card.on{display:flex}
 .radius-card-hdr{background:var(--navy);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;flex-shrink:0}
@@ -344,6 +371,27 @@ body{min-height:100%;font-family:'Inter',system-ui,sans-serif;font-weight:300;ba
       <div class="section-lbl">What's next — how to win these deposits</div>
       <div class="actions" id="actionsRow"></div>
       <div id="mapSelectedROI"></div>
+    </div>
+
+    <div class="rank-wrap" id="rankSection" style="display:none">
+      <div class="rank-head"><span class="rt">All branches, ranked by opportunity score</span><span class="rs">Click a column to sort, click a row to see it on the map</span></div>
+      <div class="rank-tools">
+        <input type="text" id="rankFilter" placeholder="Filter by branch, city, metro or ZIP" aria-label="Filter branches">
+        <select id="rankState" aria-label="State"><option value="">All states</option></select>
+        <select id="rankTier" aria-label="Priority">
+          <option value="">All priorities</option><option value="top">Act now</option><option value="next">Next up</option><option value="opportunity">Worth watching</option><option value="none">Not flagged</option>
+        </select>
+        <select id="rankZone" aria-label="Zone"><option value="">All zones</option><option>Invest</option><option>Analyze</option><option>Defend</option><option>Justify</option></select>
+        <span class="rc" id="rankCount"></span>
+        <button type="button" id="rankCsv">Download CSV</button>
+      </div>
+      <div class="rank-scroll">
+        <table class="rank-table" id="rankTable">
+          <thead><tr id="rankHead"></tr></thead>
+          <tbody id="rankBody"></tbody>
+        </table>
+      </div>
+      <div class="rank-note">Deposit share is each branch's share of the bank's branch deposits. Growth shown as 100%+ is capped: the branch's deposits more than doubled, usually an acquisition or a new branch. Competitors' growth is the average for the branches around it.</div>
     </div>
 
     <div class="story-cta">
@@ -1206,7 +1254,7 @@ async function loadBank(ik) {
 
   const [summaryRows, branches, poolRows, bankFinRows] = await Promise.all([
     api('branch_opportunity_base', `inst_key=eq.${ik}&select=namefull,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone`),
-    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_income_growth,total_population,yoy_pop_growth,zhvi,zhvi_yoy_pct&order=opportunity_score.desc`),
+    api('vw_branch_opportunity_cbsa', `inst_key=eq.${ik}&select=uninumbr,namebr,citybr,stalpbr,zipbr,metro,sims_latitude,sims_longitude,latest_dep,yoy_deposits,avg_comp_yoy,opportunity_score,opportunity_zone,matrix_quadrant,priority_tier,campaign,household_income,yoy_income_growth,total_population,yoy_pop_growth,zhvi,zhvi_yoy_pct&order=opportunity_score.desc`),
     api('branch_target_competitors', `my_inst_key=eq.${ik}&select=my_branch_id,target_dep_m`),
     api('bank_financial_snapshot_latest', `inst_key=eq.${ik}&select=dep_yoy_pct`)
   ]);
@@ -1216,6 +1264,7 @@ async function loadBank(ik) {
   });
   if (!summaryRows || !summaryRows.length) { g('bn') && (g('bn').textContent = ''); g('emptyTitle').textContent = 'No data found for this institution'; g('empty').style.display = 'flex'; g('main').style.display = 'none'; return; }
   currentBranches = branches.filter(b => b.sims_latitude && b.sims_longitude);
+  initRankTable(Array.isArray(branches) ? branches : []);
 
   const bankName = summaryRows[0].namefull;
   g('hSub').textContent = bankName;
@@ -1307,6 +1356,99 @@ function setActionStatus(uninumbr, status) {
 // opens, "Selected on map" updates below). Looked up by uninumbr rather than
 // passing the branch object inline, matching the existing setActionStatus/
 // openROI pattern already used on these cards.
+// ── All branches, ranked. Same data as the cards and the map, every branch (also those
+// without coordinates), sortable and filterable; a row opens the branch on the map. ──
+const RANK_QUAD = { Q1: 'Q1 \u00b7 Grow and Perform', Q2: 'Q2 \u00b7 Invest and Protect', Q3: 'Q3 \u00b7 Maintain and Improve', Q4: 'Q4 \u00b7 Review / Restructure / Redeploy' };
+const RANK_TIER_LABEL = { top: 'Act now', next: 'Next up', opportunity: 'Worth watching' };
+let RANK_ROWS = [], RANK_SORT = { key: 'score', dir: -1 }, RANK_BOUND = false;
+const RANK_COLS = [
+  { k: 'rank', t: '#', num: true }, { k: 'name', t: 'Branch' }, { k: 'metro', t: 'Metro' }, { k: 'city', t: 'City' }, { k: 'zip', t: 'ZIP' }, { k: 'st', t: 'ST' },
+  { k: 'dep', t: 'Total deposits', num: true }, { k: 'share', t: 'Deposits share', num: true }, { k: 'yoy', t: 'YoY deposits', num: true },
+  { k: 'comp', t: 'Competitors YoY', num: true }, { k: 'gap', t: 'Gap (pts)', num: true }, { k: 'score', t: 'Opportunity score', num: true },
+  { k: 'zone', t: 'Zone' }, { k: 'quad', t: 'Matrix quadrant' }, { k: 'play', t: 'Play' }, { k: 'tierLabel', t: 'Priority' }
+];
+const RANK_TEXT_KEYS = ['name', 'metro', 'city', 'zip', 'st', 'zone', 'quad', 'play', 'tierLabel'];
+function escHtmlRank(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function initRankTable(branches) {
+  const total = branches.reduce((a, b) => a + (+b.latest_dep || 0), 0);
+  const scored = branches.filter(b => b.opportunity_score != null).sort((a, b) => (+b.opportunity_score) - (+a.opportunity_score));
+  const rankOf = new Map(); scored.forEach((b, i) => rankOf.set(b.uninumbr, i + 1));
+  RANK_ROWS = branches.map(b => {
+    const yoy = b.yoy_deposits != null && b.yoy_deposits !== '' ? +b.yoy_deposits * 100 : null;
+    const comp = b.avg_comp_yoy != null && b.avg_comp_yoy !== '' ? +b.avg_comp_yoy * 100 : null;
+    const tier = priorityTierOf(b.campaign);
+    const qk = ((b.matrix_quadrant || '').match(/^Q\d/) || [])[0];
+    return {
+      id: b.uninumbr, rank: rankOf.get(b.uninumbr) || null, name: b.namebr || '', metro: b.metro || '', city: b.citybr || '', zip: b.zipbr || '', st: b.stalpbr || '',
+      dep: +b.latest_dep || 0, share: total > 0 ? 100 * (+b.latest_dep || 0) / total : null, yoy, comp, gap: yoy !== null && comp !== null ? yoy - comp : null,
+      score: b.opportunity_score != null ? +b.opportunity_score : null, zone: b.opportunity_zone || '', quad: qk ? RANK_QUAD[qk] : (b.matrix_quadrant || ''),
+      play: b.campaign || '', tier: tier || 'none', tierLabel: RANK_TIER_LABEL[tier] || 'Not flagged', geo: !!(b.sims_latitude && b.sims_longitude)
+    };
+  });
+  const states = [...new Set(RANK_ROWS.map(r => r.st).filter(Boolean))].sort();
+  g('rankState').innerHTML = '<option value="">All states</option>' + states.map(s => `<option>${s}</option>`).join('');
+  g('rankHead').innerHTML = RANK_COLS.map(c => `<th class="${c.num ? 'num' : ''}" data-k="${c.k}">${c.t}<span class="arr"></span></th>`).join('');
+  if (!RANK_BOUND) {
+    RANK_BOUND = true;
+    g('rankHead').addEventListener('click', e => {
+      const th = e.target.closest('th'); if (!th) return;
+      const k = th.dataset.k;
+      RANK_SORT = RANK_SORT.key === k ? { key: k, dir: -RANK_SORT.dir } : { key: k, dir: RANK_TEXT_KEYS.includes(k) ? 1 : -1 };
+      renderRankTable();
+    });
+    ['rankFilter', 'rankState', 'rankTier', 'rankZone'].forEach(id => g(id).addEventListener(id === 'rankFilter' ? 'input' : 'change', renderRankTable));
+    g('rankBody').addEventListener('click', e => {
+      const tr = e.target.closest('tr[data-id]'); if (!tr || tr.classList.contains('nogeo')) return;
+      selectActionBranch(tr.dataset.id);
+    });
+    g('rankCsv').addEventListener('click', downloadRankCsv);
+  }
+  g('rankSection').style.display = RANK_ROWS.length ? '' : 'none';
+  renderRankTable();
+}
+function rankVisibleRows() {
+  const q = g('rankFilter').value.trim().toLowerCase(), st = g('rankState').value, tr = g('rankTier').value, zn = g('rankZone').value;
+  const rows = RANK_ROWS.filter(r =>
+    (!q || [r.name, r.city, r.metro, r.zip].some(v => String(v).toLowerCase().includes(q))) &&
+    (!st || r.st === st) && (!tr || r.tier === tr) && (!zn || r.zone === zn));
+  const { key, dir } = RANK_SORT;
+  const blank = v => v === null || v === '' || v === undefined;
+  return rows.slice().sort((a, b) => {
+    const x = a[key], y = b[key];
+    if (blank(x)) return blank(y) ? 0 : 1;
+    if (blank(y)) return -1;
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * dir;
+  });
+}
+function renderRankTable() {
+  const rows = rankVisibleRows();
+  const pct = (v, cap) => v === null ? '\u2014' : (cap && v >= 99.95 ? '100%+' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%');
+  const cls = v => v === null ? '' : (v >= 0 ? 'up' : 'down');
+  g('rankBody').innerHTML = rows.map(r => `<tr data-id="${escHtmlRank(r.id)}" class="${r.geo ? '' : 'nogeo'}" title="${r.geo ? 'Show on the map' : 'No map location for this branch'}">
+    <td class="num">${r.rank || '\u2014'}</td><td class="nm">${escHtmlRank(r.name)}</td><td>${escHtmlRank(r.metro)}</td><td>${escHtmlRank(r.city)}</td><td>${escHtmlRank(r.zip)}</td><td>${escHtmlRank(r.st)}</td>
+    <td class="num">$${(r.dep / 1e6).toFixed(1)}M</td><td class="num">${r.share === null ? '\u2014' : r.share.toFixed(2) + '%'}</td>
+    <td class="num ${cls(r.yoy)}">${pct(r.yoy, true)}</td><td class="num ${cls(r.comp)}">${pct(r.comp, false)}</td>
+    <td class="num ${cls(r.gap)}">${r.gap === null ? '\u2014' : (r.gap >= 0 ? '+' : '') + r.gap.toFixed(1)}</td>
+    <td class="num"><b>${r.score === null ? '\u2014' : r.score.toFixed(1)}</b></td>
+    <td>${r.zone ? `<span class="zchip z-${escHtmlRank(r.zone)}">${escHtmlRank(r.zone)}</span>` : '\u2014'}</td><td>${escHtmlRank(r.quad) || '\u2014'}</td><td>${escHtmlRank(r.play) || '\u2014'}</td>
+    <td>${r.tier !== 'none' ? `<span class="tchip t-${r.tier}">${r.tierLabel}</span>` : '<span style="color:var(--muted)">Not flagged</span>'}</td></tr>`).join('') ||
+    `<tr><td colspan="${RANK_COLS.length}" style="padding:18px;color:var(--muted)">No branches match.</td></tr>`;
+  g('rankCount').textContent = rows.length + ' of ' + RANK_ROWS.length + ' branches';
+  g('rankHead').querySelectorAll('th').forEach(th => { th.querySelector('.arr').textContent = th.dataset.k === RANK_SORT.key ? (RANK_SORT.dir < 0 ? '\u25BC' : '\u25B2') : ''; });
+}
+function downloadRankCsv() {
+  const rows = rankVisibleRows();
+  const head = ['Rank', 'Branch', 'Metro', 'City', 'ZIP', 'State', 'Total deposits ($)', 'Deposits share (%)', 'YoY deposits (%)', 'Competitors YoY (%)', 'Gap (pts)', 'Opportunity score', 'Zone', 'Matrix quadrant', 'Play', 'Priority'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const fx = (v, d) => v === null || v === undefined ? '' : v.toFixed(d);
+  const lines = [head.map(q).join(',')].concat(rows.map(r => [r.rank, r.name, r.metro, r.city, r.zip, r.st, r.dep, fx(r.share, 2), fx(r.yoy, 1), fx(r.comp, 1), fx(r.gap, 1), fx(r.score, 1), r.zone, r.quad, r.play, r.tierLabel].map(q).join(',')));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'branches_ranked.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 function selectActionBranch(uninumbr) {
   const b = currentBranches.find(x => String(x.uninumbr) === String(uninumbr));
   if (!b) return;

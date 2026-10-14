@@ -118,6 +118,9 @@ table.rank-table{width:100%;border-collapse:collapse;font-size:12px;font-variant
 .rank-table .z-Invest{background:var(--lgreen);color:#1E7A4C}.rank-table .z-Analyze{background:var(--lblue);color:#0B6E80}.rank-table .z-Defend{background:#FBF0DF;color:#854F0B}.rank-table .z-Justify{background:var(--lred);color:#A33C31}
 .rank-table .tchip{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:700}
 .rank-table .t-top{background:#F4F7C9;color:#5E6400}.rank-table .t-next{background:var(--lgreen);color:#1E7A4C}.rank-table .t-opportunity{background:var(--lblue);color:#0B6E80}
+.rank-table tr.grp td{background:#F7F6F1;font-weight:800;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--navy);padding:7px 10px;border-top:2px solid var(--border)}
+.rank-table tr.grp td span{font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px}
+.rank-table tr.g-top td{border-left:4px solid #CDD61A}.rank-table tr.g-next td{border-left:4px solid #66CC99}.rank-table tr.g-opportunity td{border-left:4px solid #02A7C2}.rank-table tr.g-none td{border-left:4px solid #8B93A0}
 .rank-note{padding:8px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)}
 .radius-card{position:absolute;top:0;right:0;bottom:0;width:300px;max-width:80%;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.14);z-index:600;display:none;flex-direction:column}
 .radius-card.on{display:flex}
@@ -320,7 +323,7 @@ table.rank-table{width:100%;border-collapse:collapse;font-size:12px;font-variant
         <div class="v-stat">
           <div class="val" id="vStat2Val">—</div>
           <div class="delta" id="vStat2Delta">—</div>
-          <div class="lbl">Branches ready for a deposit push</div>
+          <div class="lbl">Branches flagged for action</div>
         </div>
         <div class="v-stat">
           <div class="val" id="vStat3Val">—</div>
@@ -1295,6 +1298,10 @@ async function loadBank(ik) {
   const avgPeerYoy = (summaryRows.reduce((a, r) => a + (+r.avg_comp_yoy || 0), 0) / summaryRows.length) * 100;
   const gap = avgBankYoy != null ? avgBankYoy - avgPeerYoy : null;
   const investCount = summaryRows.filter(r => r.opportunity_zone === 'Invest').length;
+  // Flagged = the three priority tiers the cards and the ranked table use (set by the play).
+  const tierCount = { top: 0, next: 0, opportunity: 0 };
+  (Array.isArray(branches) ? branches : []).forEach(b => { const t = priorityTierOf(b.campaign); if (t) tierCount[t]++; });
+  const flaggedCount = tierCount.top + tierCount.next + tierCount.opportunity;
   const justifyDep = summaryRows.filter(r => r.opportunity_zone === 'Justify').reduce((a, r) => a + (+r.latest_dep || 0), 0);
 
   g('vBankline').textContent = `${bankName} · ${summaryRows.length} branches · $${(totalDep / 1e9).toFixed(1)}B in deposits`;
@@ -1303,14 +1310,14 @@ async function loadBank(ik) {
   else if (gap >= 1) sentence = `Your deposits are growing faster than the branches around you — ${gap.toFixed(1)} points ahead of peers over the past 12 months.`;
   else if (gap <= -1) sentence = `Your deposits are growing slower than the branches around you — ${Math.abs(gap).toFixed(1)} points behind peers over the past 12 months.`;
   else sentence = `Your deposit growth is roughly in line with the branches around you over the past 12 months.`;
-  if (investCount > 0) sentence += ` ${investCount} branch${investCount === 1 ? '' : 'es'} ${investCount === 1 ? 'looks' : 'look'} ready for a deposit push.`;
+  if (flaggedCount > 0) sentence += ` ${flaggedCount} branch${flaggedCount === 1 ? ' is' : 'es are'} flagged for action: ${tierCount.top} act now, ${tierCount.next} next up, ${tierCount.opportunity} worth watching.`;
   g('vSentence').textContent = sentence;
 
   g('vStat1Val').textContent = avgBankYoy != null ? (avgBankYoy >= 0 ? '+' : '') + avgBankYoy.toFixed(1) + '%' : '—';
   g('vStat1Delta').textContent = gap != null ? `${gap >= 0 ? '+' : ''}${gap.toFixed(1)}pp vs. peer average` : 'Not available';
   g('vStat1Delta').style.color = gap != null ? (gap >= 0 ? '#1E7A4C' : '#A33C31') : 'var(--muted)';
-  g('vStat2Val').textContent = investCount;
-  g('vStat2Delta').textContent = `of ${summaryRows.length} branches`;
+  g('vStat2Val').textContent = flaggedCount;
+  g('vStat2Delta').textContent = `of ${summaryRows.length} branches: ${tierCount.top} act now, ${tierCount.next} next up, ${tierCount.opportunity} worth watching`;
   g('vStat2Delta').style.color = 'var(--muted)';
   g('vStat3Val').textContent = fmtMoneyM(justifyDep);
   g('vStat3Delta').textContent = justifyDep > 0 ? 'showing signs of competitive pressure' : 'no branches currently at risk';
@@ -1425,19 +1432,33 @@ function rankVisibleRows() {
     return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * dir;
   });
 }
-function renderRankTable() {
-  const rows = rankVisibleRows();
-  const pct = (v, cap) => v === null ? '\u2014' : (cap && v >= 99.95 ? '100%+' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%');
-  const cls = v => v === null ? '' : (v >= 0 ? 'up' : 'down');
-  g('rankBody').innerHTML = rows.map(r => `<tr data-id="${escHtmlRank(r.id)}" class="${r.geo ? '' : 'nogeo'}" title="${r.geo ? 'Show on the map' : 'No map location for this branch'}">
+function rankRowHtml(r, pct, cls) {
+  return `<tr data-id="${escHtmlRank(r.id)}" class="${r.geo ? '' : 'nogeo'}" title="${r.geo ? 'Show on the map' : 'No map location for this branch'}">
     <td class="num">${r.rank || '\u2014'}</td><td class="nm">${escHtmlRank(r.name)}</td><td>${escHtmlRank(r.metro)}</td><td>${escHtmlRank(r.city)}</td><td>${escHtmlRank(r.zip)}</td><td>${escHtmlRank(r.st)}</td>
     <td class="num">$${(r.dep / 1e6).toFixed(1)}M</td><td class="num">${r.share === null ? '\u2014' : r.share.toFixed(2) + '%'}</td>
     <td class="num ${cls(r.yoy)}">${pct(r.yoy, true)}</td><td class="num ${cls(r.comp)}">${pct(r.comp, false)}</td>
     <td class="num ${cls(r.gap)}">${r.gap === null ? '\u2014' : (r.gap >= 0 ? '+' : '') + r.gap.toFixed(1)}</td>
     <td class="num"><b>${r.score === null ? '\u2014' : r.score.toFixed(1)}</b></td><td class="num">${r.pool ? '$' + r.pool.toFixed(0) + 'M' : '\u2014'}</td><td class="num">${r.pri ? r.pri.toFixed(1) : '\u2014'}</td>
     <td>${r.zone ? `<span class="zchip z-${escHtmlRank(r.zone)}">${escHtmlRank(r.zone)}</span>` : '\u2014'}</td><td>${escHtmlRank(r.quad) || '\u2014'}</td>
-    <td>${r.tier !== 'none' ? `<span class="tchip t-${r.tier}">${r.tierLabel}</span>` : '<span style="color:var(--muted)">Not flagged</span>'}</td></tr>`).join('') ||
-    `<tr><td colspan="${RANK_COLS.length}" style="padding:18px;color:var(--muted)">No branches match.</td></tr>`;
+    <td>${r.tier !== 'none' ? `<span class="tchip t-${r.tier}">${r.tierLabel}</span>` : '<span style="color:var(--muted)">Not flagged</span>'}</td></tr>`;
+}
+function renderRankTable() {
+  const rows = rankVisibleRows();
+  const pct = (v, cap) => v === null ? '\u2014' : (cap && v >= 99.95 ? '100%+' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%');
+  const cls = v => v === null ? '' : (v >= 0 ? 'up' : 'down');
+  // In priority order the rows sit under the three priorities, each with its own heading.
+  const grouped = RANK_SORT.key === 'rank' && RANK_SORT.dir === 1;
+  const tierNames = { top: 'Act now', next: 'Next up', opportunity: 'Worth watching', none: 'Not flagged' };
+  const tierTotals = {}; rows.forEach(r => { tierTotals[r.tier] = (tierTotals[r.tier] || 0) + 1; });
+  let lastTier = null;
+  g('rankBody').innerHTML = rows.map(r => {
+    let head = '';
+    if (grouped && r.tier !== lastTier) {
+      lastTier = r.tier;
+      head = `<tr class="grp g-${r.tier}"><td colspan="${RANK_COLS.length}">${tierNames[r.tier]} <span>${tierTotals[r.tier]} branch${tierTotals[r.tier] === 1 ? '' : 'es'}</span></td></tr>`;
+    }
+    return head + rankRowHtml(r, pct, cls);
+  }).join('') || `<tr><td colspan="${RANK_COLS.length}" style="padding:18px;color:var(--muted)">No branches match.</td></tr>`;
   const nFlagged = RANK_ROWS.filter(r => r.tier !== 'none').length;
   g('rankCount').textContent = rows.length + ' of ' + RANK_ROWS.length + ' branches' + (g('rankTier').value === 'flagged' ? ' (' + nFlagged + ' flagged)' : '');
   g('rankHead').querySelectorAll('th').forEach(th => { th.querySelector('.arr').textContent = th.dataset.k === RANK_SORT.key ? (RANK_SORT.dir < 0 ? '\u25BC' : '\u25B2') : ''; });

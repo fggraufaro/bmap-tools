@@ -1365,9 +1365,9 @@ const RANK_COLS = [
   { k: 'rank', t: '#', num: true }, { k: 'name', t: 'Branch' }, { k: 'metro', t: 'Metro' }, { k: 'city', t: 'City' }, { k: 'zip', t: 'ZIP' }, { k: 'st', t: 'ST' },
   { k: 'dep', t: 'Total deposits', num: true }, { k: 'share', t: 'Deposits share', num: true }, { k: 'yoy', t: 'YoY deposits', num: true },
   { k: 'comp', t: 'Competitors YoY', num: true }, { k: 'gap', t: 'Gap (pts)', num: true }, { k: 'score', t: 'Opportunity score', num: true },
-  { k: 'zone', t: 'Zone' }, { k: 'quad', t: 'Matrix quadrant' }, { k: 'play', t: 'Play' }, { k: 'tierLabel', t: 'Priority' }
+  { k: 'zone', t: 'Zone' }, { k: 'quad', t: 'Matrix quadrant' }, { k: 'tierLabel', t: 'Priority' }
 ];
-const RANK_TEXT_KEYS = ['name', 'metro', 'city', 'zip', 'st', 'zone', 'quad', 'play', 'tierLabel'];
+const RANK_TEXT_KEYS = ['name', 'metro', 'city', 'zip', 'st', 'zone', 'quad', 'tierLabel'];
 function escHtmlRank(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function initRankTable(branches) {
   const total = branches.reduce((a, b) => a + (+b.latest_dep || 0), 0);
@@ -1430,7 +1430,7 @@ function renderRankTable() {
     <td class="num ${cls(r.yoy)}">${pct(r.yoy, true)}</td><td class="num ${cls(r.comp)}">${pct(r.comp, false)}</td>
     <td class="num ${cls(r.gap)}">${r.gap === null ? '\u2014' : (r.gap >= 0 ? '+' : '') + r.gap.toFixed(1)}</td>
     <td class="num"><b>${r.score === null ? '\u2014' : r.score.toFixed(1)}</b></td>
-    <td>${r.zone ? `<span class="zchip z-${escHtmlRank(r.zone)}">${escHtmlRank(r.zone)}</span>` : '\u2014'}</td><td>${escHtmlRank(r.quad) || '\u2014'}</td><td>${escHtmlRank(r.play) || '\u2014'}</td>
+    <td>${r.zone ? `<span class="zchip z-${escHtmlRank(r.zone)}">${escHtmlRank(r.zone)}</span>` : '\u2014'}</td><td>${escHtmlRank(r.quad) || '\u2014'}</td>
     <td>${r.tier !== 'none' ? `<span class="tchip t-${r.tier}">${r.tierLabel}</span>` : '<span style="color:var(--muted)">Not flagged</span>'}</td></tr>`).join('') ||
     `<tr><td colspan="${RANK_COLS.length}" style="padding:18px;color:var(--muted)">No branches match.</td></tr>`;
   g('rankCount').textContent = rows.length + ' of ' + RANK_ROWS.length + ' branches';
@@ -1438,10 +1438,10 @@ function renderRankTable() {
 }
 function downloadRankCsv() {
   const rows = rankVisibleRows();
-  const head = ['Rank', 'Branch', 'Metro', 'City', 'ZIP', 'State', 'Total deposits ($)', 'Deposits share (%)', 'YoY deposits (%)', 'Competitors YoY (%)', 'Gap (pts)', 'Opportunity score', 'Zone', 'Matrix quadrant', 'Play', 'Priority'];
+  const head = ['Rank', 'Branch', 'Metro', 'City', 'ZIP', 'State', 'Total deposits ($)', 'Deposits share (%)', 'YoY deposits (%)', 'Competitors YoY (%)', 'Gap (pts)', 'Opportunity score', 'Zone', 'Matrix quadrant', 'Priority'];
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
   const fx = (v, d) => v === null || v === undefined ? '' : v.toFixed(d);
-  const lines = [head.map(q).join(',')].concat(rows.map(r => [r.rank, r.name, r.metro, r.city, r.zip, r.st, r.dep, fx(r.share, 2), fx(r.yoy, 1), fx(r.comp, 1), fx(r.gap, 1), fx(r.score, 1), r.zone, r.quad, r.play, r.tierLabel].map(q).join(',')));
+  const lines = [head.map(q).join(',')].concat(rows.map(r => [r.rank, r.name, r.metro, r.city, r.zip, r.st, r.dep, fx(r.share, 2), fx(r.yoy, 1), fx(r.comp, 1), fx(r.gap, 1), fx(r.score, 1), r.zone, r.quad, r.tierLabel].map(q).join(',')));
   const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'branches_ranked.csv';

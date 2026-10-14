@@ -602,6 +602,15 @@
     <div id="boardLanes"><div class="actions-empty">Loading…</div></div>
   </section>
 
+  <section class="board">
+    <div class="section-head">
+      <span class="tag">Credit union reference database</span>
+      <h2>Build board, by phase</h2>
+      <div class="sub">One table of every active credit union with a verified website and its rates page, feeding Rate Radar. Each phase ends with a report to Francisco before the next one starts.</div>
+    </div>
+    <div id="cuBoardLanes"><div class="actions-empty">Loading…</div></div>
+  </section>
+
   <section class="open-actions">
     <div class="section-head">
       <span class="tag">Track it, don't just log it</span>
@@ -930,6 +939,14 @@
     { n: '4', name: 'Backtest and deeper signals', sub: 'Once the MVP proves useful: the backtest on frozen weights, adjusted weights, better wealth and community measures, capturable deposits and rate gaps.' },
     { n: '5', name: 'Narrative and pitch', sub: 'Local context in the write-ups and the internal pitch mode that drafts a scope of work.' }
   ];
+  const CU_PHASES = [
+    { n: '0', name: 'Discovery', sub: 'Which NCUA file or endpoint carries the website, and how much of it. Findings reported before anything is built.' },
+    { n: '1', name: 'Raw ingest', sub: 'Institution and branch files loaded to the raw schema by charter number and cycle date; only the latest cycle counts as active.' },
+    { n: '2', name: 'Website table', sub: 'ref.cu_websites: one row per active credit union, with a normalised domain, source and status.' },
+    { n: '3', name: 'Validation', sub: 'Every domain resolved, redirects followed, parked and shared domains flagged, coverage summary produced.' },
+    { n: '4', name: 'Gap fill', sub: 'Search-based lookup for missing or dead sites; low-confidence results go to a manual review list.' },
+    { n: '5', name: 'Rate Radar integration', sub: 'Rates page discovery, credit union terminology in the parser, institution type in the output, quarterly refresh.' }
+  ];
   const STATUSES = ['To do', 'In progress', 'Review', 'Done'];
   const statusOf = it => (it.done || it.status === 'Done') ? 'Done' : (STATUSES.includes(it.status) ? it.status : 'To do');
 
@@ -941,6 +958,29 @@
       <div class="bc-own">${esc(it.owner || 'no owner')}</div>
       <select class="board-status" data-id="${esc(it.id)}" aria-label="Status">${STATUSES.map(x => `<option${x === st ? ' selected' : ''}>${x}</option>`).join('')}</select>
     </div>`;
+  }
+
+  function renderCuBoard(all){
+    const el = document.getElementById('cuBoardLanes');
+    if (!el) return;
+    const items = all.filter(it => it.cuPhase !== undefined && it.cuPhase !== null && String(it.cuPhase) !== '');
+    if (!items.length){ el.innerHTML = '<div class="actions-empty">No cards yet.</div>'; return; }
+    el.innerHTML = CU_PHASES.map(ph => {
+      const inPhase = items.filter(it => String(it.cuPhase) === ph.n).sort((a,b) => (a.order||0) - (b.order||0));
+      if (!inPhase.length) return '';
+      const cols = STATUSES.map(st => {
+        const cards = inPhase.filter(it => statusOf(it) === st);
+        return `<div class="board-col"><h4>${st} (${cards.length})</h4>${cards.map(boardCard).join('')}</div>`;
+      }).join('');
+      return `<div class="board-lane"><h3>Phase ${ph.n} &middot; ${ph.name}</h3><p class="lane-sub">${ph.sub}</p><div class="board-cols">${cols}</div></div>`;
+    }).join('');
+    el.querySelectorAll('.board-status').forEach(sel => {
+      sel.addEventListener('change', async (e) => {
+        const id = e.target.dataset.id, val = e.target.value;
+        try { await col.doc(id).update({ status: val, done: val === 'Done' }); }
+        catch (err) { e.target.value = statusOf(byIdAll[id] || {}); }
+      });
+    });
   }
 
   function renderBoard(all){
@@ -973,13 +1013,14 @@
     all.forEach(it => { byId[it.id] = it; });
     byIdAll = byId;
     renderBoard(all);
+    renderCuBoard(all);
     const openOnly = id => { const it = byId[id]; return it && !it.done ? it : null; };
 
     renderInto(p1El, P1_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
     renderInto(p2El, P2_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
     renderInto(p3El, P3_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
 
-    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...all.filter(it => it.phase !== undefined && it.phase !== null && String(it.phase) !== '').map(it => it.id)]);
+    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...all.filter(it => (it.phase !== undefined && it.phase !== null && String(it.phase) !== '') || (it.cuPhase !== undefined && it.cuPhase !== null && String(it.cuPhase) !== '')).map(it => it.id)]);
     const rest = all.filter(it => !it.done && !shown.has(it.id)).sort((a,b) => (a.order||0) - (b.order||0));
     renderInto(listEl, rest, 'No other open actions.');
 

@@ -376,12 +376,12 @@ table.rank-table{width:100%;border-collapse:collapse;font-size:12px;font-variant
     </div>
 
     <div class="rank-wrap" id="rankSection" style="display:none">
-      <div class="rank-head"><span class="rt">All branches, ranked by priority</span><span class="rs">Same order as the cards: Act now, Next up, Worth watching, then the rest. Click a column to sort, click a row to see it on the map</span></div>
+      <div class="rank-head"><span class="rt">Priority branches: Act now, Next up and Worth watching</span><span class="rs">Same order as the cards. Pick "All branches" to see the rest. Click a column to sort, click a row to see it on the map</span></div>
       <div class="rank-tools">
         <input type="text" id="rankFilter" placeholder="Filter by branch, city, metro or ZIP" aria-label="Filter branches">
         <select id="rankState" aria-label="State"><option value="">All states</option></select>
         <select id="rankTier" aria-label="Priority">
-          <option value="">All priorities</option><option value="top">Act now</option><option value="next">Next up</option><option value="opportunity">Worth watching</option><option value="none">Not flagged</option>
+          <option value="flagged" selected>Act now, Next up, Worth watching</option><option value="">All branches</option><option value="top">Act now</option><option value="next">Next up</option><option value="opportunity">Worth watching</option><option value="none">Not flagged</option>
         </select>
         <select id="rankZone" aria-label="Zone"><option value="">All zones</option><option>Invest</option><option>Analyze</option><option>Defend</option><option>Justify</option></select>
         <span class="rc" id="rankCount"></span>
@@ -1415,7 +1415,7 @@ function rankVisibleRows() {
   const q = g('rankFilter').value.trim().toLowerCase(), st = g('rankState').value, tr = g('rankTier').value, zn = g('rankZone').value;
   const rows = RANK_ROWS.filter(r =>
     (!q || [r.name, r.city, r.metro, r.zip].some(v => String(v).toLowerCase().includes(q))) &&
-    (!st || r.st === st) && (!tr || r.tier === tr) && (!zn || r.zone === zn));
+    (!st || r.st === st) && (!tr || (tr === 'flagged' ? r.tier !== 'none' : r.tier === tr)) && (!zn || r.zone === zn));
   const { key, dir } = RANK_SORT;
   const blank = v => v === null || v === '' || v === undefined;
   return rows.slice().sort((a, b) => {
@@ -1438,7 +1438,8 @@ function renderRankTable() {
     <td>${r.zone ? `<span class="zchip z-${escHtmlRank(r.zone)}">${escHtmlRank(r.zone)}</span>` : '\u2014'}</td><td>${escHtmlRank(r.quad) || '\u2014'}</td>
     <td>${r.tier !== 'none' ? `<span class="tchip t-${r.tier}">${r.tierLabel}</span>` : '<span style="color:var(--muted)">Not flagged</span>'}</td></tr>`).join('') ||
     `<tr><td colspan="${RANK_COLS.length}" style="padding:18px;color:var(--muted)">No branches match.</td></tr>`;
-  g('rankCount').textContent = rows.length + ' of ' + RANK_ROWS.length + ' branches';
+  const nFlagged = RANK_ROWS.filter(r => r.tier !== 'none').length;
+  g('rankCount').textContent = rows.length + ' of ' + RANK_ROWS.length + ' branches' + (g('rankTier').value === 'flagged' ? ' (' + nFlagged + ' flagged)' : '');
   g('rankHead').querySelectorAll('th').forEach(th => { th.querySelector('.arr').textContent = th.dataset.k === RANK_SORT.key ? (RANK_SORT.dir < 0 ? '\u25BC' : '\u25B2') : ''; });
 }
 function downloadRankCsv() {
@@ -1449,7 +1450,7 @@ function downloadRankCsv() {
   const lines = [head.map(q).join(',')].concat(rows.map(r => [r.rank, r.name, r.metro, r.city, r.zip, r.st, r.dep, fx(r.share, 2), fx(r.yoy, 1), fx(r.comp, 1), fx(r.gap, 1), fx(r.score, 1), r.pool ? r.pool.toFixed(0) : '', fx(r.pri, 1), r.zone, r.quad, r.tierLabel].map(q).join(',')));
   const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'branches_ranked.csv';
+  a.href = URL.createObjectURL(blob); a.download = g('rankTier').value === 'flagged' ? 'priority_branches.csv' : 'branches_ranked.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

@@ -981,7 +981,10 @@ let _inviteAccessToken = null;
   if(stored){
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
-    if(sessionStorage.getItem('hub_role') === 'bank_user') autoLoadOwnInstitution();
+    // Deferred on purpose: g(), show() and selBank are declared further down this script,
+    // so calling it synchronously here threw 'Cannot access g before initialization' on every
+    // refresh and a bank_user landed on the search card instead of their own institution.
+    if(sessionStorage.getItem('hub_role') === 'bank_user') setTimeout(autoLoadOwnInstitution, 0);
   }
 })();
 

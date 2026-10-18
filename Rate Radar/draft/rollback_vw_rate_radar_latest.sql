@@ -166,6 +166,8 @@ CREATE VIEW public.vw_rate_radar_latest AS
    FROM attempts a
      LEFT JOIN piv p ON p.run_id = a.run_id AND p.bank_name = a.bank_name;
 ALTER VIEW public.vw_rate_radar_latest OWNER TO postgres;
+-- a freshly created view in public receives ALL for anon/authenticated from the default privileges: remove them first, then restore the original grants exactly
+REVOKE ALL ON public.vw_rate_radar_latest FROM PUBLIC, anon, authenticated;
 GRANT MAINTAIN ON public.vw_rate_radar_latest TO anon;
 GRANT MAINTAIN ON public.vw_rate_radar_latest TO authenticated;
 GRANT DELETE ON public.vw_rate_radar_latest TO service_role;

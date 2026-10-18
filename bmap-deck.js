@@ -551,7 +551,7 @@ DEMOGRAPHIC SIGNALS (Census ACS 2024):
 
   try {
     const aiResp = await fetch(window.AI_PROXY||'', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sessionStorage.getItem('hub_token')||'')},
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:2000,
         
@@ -563,6 +563,7 @@ ${demoCtx}
 Search for current economic conditions and demographic trends in ${metro} then return the JSON array.`}]
       })
     });
+    if (aiResp.status === 401) { sessionStorage.removeItem('hub_token'); location.reload(); throw new Error('Session expired - sign in again'); }
     const aiData = await aiResp.json();
     // Extract text from content blocks
     let txt = '';
@@ -658,7 +659,7 @@ Top competitor: ${tgt?tgt.target_institution+' — '+tgt.branches_in_radius+' ov
 Top 3 branches: ${topBr.slice(0,3).map(b=>`${b.namebr.replace(/^\d+--/,'').trim()} ($${((+b.latest_dep)/1e6).toFixed(0)}M, ${((+b.yoy_deposits)*100).toFixed(1)}% YoY, score ${(+b.opportunity_score).toFixed(0)})`).join(', ')}`;
 
     const aiResp = await fetch(window.AI_PROXY||'', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sessionStorage.getItem('hub_token')||'')},
       body: JSON.stringify({
         model:'claude-sonnet-4-5', max_tokens:2400,
         system:`You are BMAP Executive Strategist at Verlocity. Write boardroom-quality slide narratives grounded in the exact numbers provided.
@@ -672,6 +673,7 @@ Return ONLY valid JSON — no markdown, no explanation:
         messages:[{role:'user',content:`Generate 4-slide narratives for:\n\n${aiCtx}`}]
       })
     });
+    if (aiResp.status === 401) { sessionStorage.removeItem('hub_token'); location.reload(); throw new Error('Session expired - sign in again'); }
     const aiJson = await aiResp.json();
     let aiTxt = (aiJson.content?.find(b=>b.type==='text')?.text||'{"slides":[]}')
       .replace(/```json|```/g,'').trim();

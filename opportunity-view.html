@@ -450,7 +450,7 @@ table.rank-table{width:100%;border-collapse:collapse;font-size:12px;font-variant
 <script>
 // ── Auth — same Railway session-proxy as the full Hub / Lite Hub ──
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
-const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
+const AI_PROXY = HUB_API + '/api/ai';  // Hub backend (signed-in session required); replaces the open Worker
 const g = id => document.getElementById(id);
 
 async function api(table, params) {
@@ -479,9 +479,10 @@ async function rpc(fnName, body) {
 
 async function callAI(system, userMsg, max_tokens = 1400, model = 'claude-sonnet-4-5') {
   const resp = await fetch(AI_PROXY, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionStorage.getItem('hub_token') },
     body: JSON.stringify({ model, max_tokens, system, messages: [{ role: 'user', content: userMsg }] })
   });
+  if (resp.status === 401) { sessionStorage.removeItem('hub_token'); location.reload(); throw new Error('Your session expired - please sign in again.'); }
   const data = await resp.json();
   if (data.error) throw new Error(data.error.message);
   return data.content?.find(b => b.type === 'text')?.text || '';

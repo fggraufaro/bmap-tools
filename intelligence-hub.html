@@ -948,7 +948,7 @@ if (CUSTOMER_FACING_MODE) {
 // the password — this closes that).
 const HUB_API = 'https://bmap-snapshot-production.up.railway.app';
 // ── ANTHROPIC API KEY ──────────────────────────────────────────
-const AI_PROXY = 'https://hello-worlds.francisco-gonzalez-2c9.workers.dev/';
+const AI_PROXY = HUB_API + '/api/ai';  // Hub backend (signed-in session required); replaces the open Worker
 window.AI_PROXY = AI_PROXY;
 
 // After an invite or password-reset email link, Supabase redirects here
@@ -1136,7 +1136,7 @@ function cardRank(b){
 async function aiCall(system, userMsg, max_tokens=800){
   const resp = await fetch(AI_PROXY,{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+sessionStorage.getItem('hub_token')},
     body:JSON.stringify({
       model:'claude-sonnet-4-5',
       max_tokens,
@@ -1144,6 +1144,14 @@ async function aiCall(system, userMsg, max_tokens=800){
       messages:[{role:'user',content:userMsg}]
     })
   });
+  if(resp.status===401){
+    sessionStorage.removeItem('hub_token');
+    sessionStorage.removeItem('hub_role');
+    sessionStorage.removeItem('hub_inst_key');
+    sessionStorage.removeItem('hub_email');
+    location.reload();
+    throw new Error('Your session expired - please sign in again.');
+  }
   const data = await resp.json();
   if(data.error) throw new Error(data.error.message);
   return data.content?.find(b=>b.type==='text')?.text||'';

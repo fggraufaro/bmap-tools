@@ -430,10 +430,20 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(row, {"savings_apy": 4.0})                     # no id at all: the old name-only path, one query
         self.assertEqual(len(urls), 1)
 
-    def test_the_crawler_call_site_passes_the_rssd(self):
-        src = (RR / "scrapers.py").read_text(encoding="utf-8")
-        call = src[src.index("await fetch_last_known_good("):][:200]
-        self.assertIn('rssdid=bank.get("RSSDID") or bank.get("rssdid")', call)
+    def test_the_crawler_call_site_passes_the_rssd_under_either_key(self):
+        """Evaluates the real rssdid= argument at the fetch_last_known_good call in scrapers.py, so the test breaks if the
+        fallback to the lowercase key is removed (the crawler reads bank["RSSDID"] or bank["rssdid"] elsewhere)."""
+        import ast
+        tree = ast.parse((RR / "scrapers.py").read_text(encoding="utf-8"))
+        calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "fetch_last_known_good"]
+        self.assertEqual(len(calls), 1)
+        arg = next(k.value for k in calls[0].keywords if k.arg == "rssdid")
+        def rssd(bank):
+            return eval(compile(ast.Expression(arg), "scrapers.py", "eval"), {"bank": bank})
+        self.assertEqual(rssd({"RSSDID": "111"}), "111")
+        self.assertEqual(rssd({"rssdid": "222"}), "222")                       # lowercase key works
+        self.assertEqual(rssd({"RSSDID": "111", "rssdid": "222"}), "111")      # upper-case wins when both exist
+        self.assertFalse(rssd({"RSSDID": "", "rssdid": ""}))                   # nothing: falsy, so the old name-only path
 
     def test_url_config_merges_registry_patterns_and_health(self):
         generic, bank_urls, health = asyncio.run(self.store.load_bank_url_config())

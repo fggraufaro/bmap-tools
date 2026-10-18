@@ -392,6 +392,20 @@
     g(isEmail ? 'emailInput' : 'tokenInput').focus();
   };
 
+  // a38: when the Hub reports that the shared access code is retired (GET /auth/config),
+  // offer only account sign-in. The server refuses the code either way; this only changes
+  // what the gate shows. If the call fails or says anything else, the gate stays as it is.
+  (function hideRetiredPasscode(){
+    fetch(HUB_API + '/auth/config').then(function(r){ return r.ok ? r.json() : null; }).then(function(c){
+      if (!c || c.passcode_enabled !== false) return;
+      document.querySelectorAll('[onclick]').forEach(function(el){
+        if ((el.getAttribute('onclick') || '').indexOf("gateSwitchMode('passcode')") !== -1) el.style.display = 'none';
+      });
+      document.getElementById('gatePasscodeMode').style.display = 'none';
+      document.getElementById('gateEmailMode').style.display = 'block';
+    }).catch(function(){});
+  })();
+
   // Per-account login. The roadmap is internal: bank accounts can sign in
   // elsewhere but are rejected here, same as Opportunity View.
   window.checkEmailLogin = async function checkEmailLogin(){

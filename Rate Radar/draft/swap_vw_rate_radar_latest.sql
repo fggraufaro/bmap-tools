@@ -336,6 +336,11 @@ BEGIN
   IF n_after <> n_before + 10 THEN
     RAISE EXCEPTION 'expected % columns after the swap, found %', n_before + 10, n_after;
   END IF;
+  -- privileges must be untouched: anon and authenticated may hold nothing that reads or writes the view
+  IF has_table_privilege('anon', 'public.vw_rate_radar_latest', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+     OR has_table_privilege('authenticated', 'public.vw_rate_radar_latest', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') THEN
+    RAISE EXCEPTION 'anon or authenticated can read or write public.vw_rate_radar_latest after the swap';
+  END IF;
 END $$;
 COMMIT;
 -- afterwards: re-check grants and RLS (select * from the public-key path must still be refused), re-run ingestion.run_security_check.

@@ -349,6 +349,9 @@ class DatabaseTests(unittest.TestCase):
         self.add_history("fb_legacy_b", "First Bank", None, 8.88, "2026-09-02")
         self.add_bank("3000010", "hist-solo.example", "Solo Bank", unique=True)
         self.add_history("fb_solo_legacy", "Solo Bank", None, 5.55, "2026-08-01")
+        # an empty-string rssdid does not occur in production (the writer stores NULL) and is never treated as legacy history
+        self.add_history("fb_solo_empty", "Solo Bank", "", 1.23, "2026-10-02")
+        self.add_history("fb_first_empty", "First Bank", "", 2.34, "2026-10-02")
         self.add_bank("3000011", "hist-solo-flag-off.example", "Solo Off Bank", unique=False)
         self.add_history("fb_off_legacy", "Solo Off Bank", None, 6.66, "2026-08-01")
         self.add_bank("3000012", "hist-both.example", "Both Bank", unique=True)
@@ -370,7 +373,7 @@ class DatabaseTests(unittest.TestCase):
     def test_legacy_pre_rssd_rows_are_used_only_for_a_name_flagged_unique(self):
         self.history_fixtures()
         solo = self.lookup("Solo Bank", "3000010")
-        self.assertEqual((solo["savings_apy"], solo["rssdid"]), (5.55, None))      # id finds nothing, unique name: legacy row
+        self.assertEqual((solo["savings_apy"], solo["rssdid"]), (5.55, None))      # id finds nothing, unique name: the NULL row, not the newer '' row
         self.assertIsNone(self.lookup("Solo Off Bank", "3000011"))                  # flag off: the database hides the legacy row
         self.assertEqual(self.lookup("Both Bank", "3000012")["savings_apy"], 2.22)  # an id match beats a newer legacy row
 
@@ -430,7 +433,7 @@ class DatabaseTests(unittest.TestCase):
     def test_the_crawler_call_site_passes_the_rssd(self):
         src = (RR / "scrapers.py").read_text(encoding="utf-8")
         call = src[src.index("await fetch_last_known_good("):][:200]
-        self.assertIn('rssdid=bank.get("RSSDID")', call)
+        self.assertIn('rssdid=bank.get("RSSDID") or bank.get("rssdid")', call)
 
     def test_url_config_merges_registry_patterns_and_health(self):
         generic, bank_urls, health = asyncio.run(self.store.load_bank_url_config())

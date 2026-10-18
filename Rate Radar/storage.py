@@ -65,9 +65,11 @@ async def fetch_last_known_good(bank_name, http_session, rssdid=None):
     When the caller has the bank's RSSD id, the lookup is by that id: bank names
     are not unique (three "First Bank" exist), so a name match could return
     another bank's rates. Rows written before the RSSD was recorded have
-    rssdid NULL, so if the id finds nothing the lookup retries by name over
-    rssdid-NULL rows only (never a row carrying another bank's id), and only
-    when no other bank in bank_registry shares that name.
+    rssdid NULL (checked 2026-10-18: 217 NULL, 121 with an id, none empty; the
+    writer turns "" into NULL), so if the id finds nothing the lookup retries
+    by name over rssdid-NULL rows only (never a row carrying another bank's
+    id), and only when no other bank in bank_registry shares that name. Two
+    sequential requests: each keeps the single apy or=(...) filter.
     """
     if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK and http_session):
         return None

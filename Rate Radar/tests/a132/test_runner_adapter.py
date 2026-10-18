@@ -323,6 +323,65 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(hist["run_date"], want[2])                     # an ISO string, as PostgREST gave it
         self.assertIsNone(asyncio.run(self.store.fetch_last_known_good("Bank C", None)))
 
+    def two_first_banks(self):
+        """Two watchlist banks that share a name (three 'First Bank' exist in the real data), each with its own history."""
+        for i, (rssd, savings) in enumerate((("3000001", 3.11), ("3000002", 4.22)), start=1):
+            key = f"first-{i}.example"
+            self.q("insert into public.bank_registry (bank_key, bank_name, bank_url, rssdid) values (%s, 'First Bank', %s, %s)",
+                   (key, f"https://www.{key}/", rssd))
+            self.q("insert into public.rate_radar_watchlist (rssdid, bank_key, bank_name, bank_url, added_by) values (%s, %s, 'First Bank', %s, 'approver_1')",
+                   (rssd, key, f"https://www.{key}/"))
+            self.q("insert into raw.raw_rate_radar (run_id, run_date, crawled_at, bank_name, rssdid, savings_apy, status) "
+                   "values (%s, '2026-10-20', '2026-10-20 11:00', 'First Bank', %s, %s, 'Found')", (f"fb_{rssd}", rssd, savings))
+
+        def cleanup():
+            self.q("delete from raw.raw_rate_radar where run_id like 'fb\_%'")
+            self.q("delete from public.rate_radar_watchlist where rssdid in ('3000001', '3000002')")
+            self.q("delete from public.bank_registry where bank_key like 'first-%.example'")
+        self.addCleanup(cleanup)
+
+    def test_two_banks_with_the_same_name_never_cross_in_the_history_lookup(self):
+        self.two_first_banks()
+        one = asyncio.run(self.store.fetch_last_known_good("First Bank", None, rssdid="3000001"))
+        two = asyncio.run(self.store.fetch_last_known_good("First Bank", None, rssdid="3000002"))
+        self.assertEqual((one["rssdid"], one["savings_apy"]), ("3000001", 3.11))
+        self.assertEqual((two["rssdid"], two["savings_apy"]), ("3000002", 4.22))
+        # an RSSD that is not on the watchlist finds nothing, even though the name matches two rows it can see
+        self.assertIsNone(asyncio.run(self.store.fetch_last_known_good("First Bank", None, rssdid="3000003")))
+
+    def test_storage_lookup_asks_for_the_rssd_when_it_has_one(self):
+        urls = []
+
+        class Resp:
+            status = 200
+            async def json(self):
+                return []
+
+        class Ctx:
+            async def __aenter__(self):
+                return Resp()
+
+            async def __aexit__(self, *exc):
+                return False
+
+        class Session:
+            def get(self, url, **kw):
+                urls.append(url)
+                return Ctx()
+        saved = (storage.SUPABASE_URL, storage.SUPABASE_KEY)
+        storage.SUPABASE_URL, storage.SUPABASE_KEY = "http://localhost:1", "x"
+        self.addCleanup(lambda: setattr(storage, "SUPABASE_URL", saved[0]) or setattr(storage, "SUPABASE_KEY", saved[1]))
+        asyncio.run(ORIGINALS["fetch_last_known_good"]("First Bank", Session(), rssdid="3000001"))
+        asyncio.run(ORIGINALS["fetch_last_known_good"]("First Bank", Session()))
+        self.assertIn("rssdid=eq.3000001", urls[0])
+        self.assertNotIn("bank_name=", urls[0])
+        self.assertIn("bank_name=eq.First%20Bank", urls[1])             # the old name-only path is unchanged without an id
+
+    def test_the_crawler_call_site_passes_the_rssd(self):
+        src = (RR / "scrapers.py").read_text(encoding="utf-8")
+        call = src[src.index("await fetch_last_known_good("):][:200]
+        self.assertIn('rssdid=bank.get("RSSDID")', call)
+
     def test_url_config_merges_registry_patterns_and_health(self):
         generic, bank_urls, health = asyncio.run(self.store.load_bank_url_config())
         self.assertIn("/rates-x", generic)

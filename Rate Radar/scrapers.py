@@ -2625,7 +2625,8 @@ async def run_crawler(banks):
                                                         "cd_apy","money_market_apy"]
                                            if result.get(k))
                     if core_count_final == 0:
-                        hist = await fetch_last_known_good(bank["bank_name"], http_session)
+                        hist = await fetch_last_known_good(bank["bank_name"], http_session,
+                                                            rssdid=bank.get("RSSDID"))
                         if hist:
                             filled = []
                             for k in ["checking_apy","savings_apy","cd_apy",

@@ -181,13 +181,18 @@ class RunnerStore:
             _log(f"  Config load warning: {type(e).__name__}: {e} (using built-in defaults)")
         return generic, bank_urls, health
 
-    async def fetch_last_known_good(self, bank_name, http_session):
+    async def fetch_last_known_good(self, bank_name, http_session, rssdid=None):
+        """By RSSD id when the crawler passes one (bank names are not unique), else by name as storage does."""
+        by_id = rssdid not in (None, "")
+
         def op(cur):
-            cur.execute("""
+            cur.execute(f"""
                 select * from raw.raw_rate_radar
-                where bank_name = %s and (checking_apy is not null or savings_apy is not null
-                                          or cd_apy is not null or money_market_apy is not null)
-                order by run_date desc nulls last, crawled_at desc nulls last limit 1""", (bank_name,))
+                where {"rssdid = %s" if by_id else "bank_name = %s"}
+                  and (checking_apy is not null or savings_apy is not null
+                       or cd_apy is not null or money_market_apy is not null)
+                order by run_date desc nulls last, crawled_at desc nulls last limit 1""",
+                        (str(rssdid) if by_id else bank_name,))
             return cur.fetchone()
         try:
             row = await self._arun(op)

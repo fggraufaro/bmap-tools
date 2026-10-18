@@ -7,7 +7,7 @@ Session 4 signs off and Francisco says yes. Owner of the crawler: Session 1 (rev
 
 `python weekly_runner.py` (in `Rate Radar/`): crawls the active, non-manual rows of `public.rate_radar_watchlist`
 (at most 10 banks, longest-since-last-run first), banks' own published rates only, and records the results as the
-restricted database login `rate_radar_runner`. First pitch: Tue 27 Oct 2026; first scheduled run: Mon 26 Oct.
+restricted database login `rate_radar_runner`. First pitch: Tue 27 Oct 2026; first scheduled run: Mon 26 Oct 11:00 UTC.
 
 ## Service definition
 
@@ -69,16 +69,19 @@ postgresql://rate_radar_runner.tuiiywphoynbmkxpoyps:<PASSWORD>@<POOLER-HOST>:543
 `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_KEY`. The runner refuses to start if any is set. It also never connects as any role
 other than `rate_radar_runner`.
 
-## Sequence
+## Sequence (everything on Wednesday 21 Oct; nothing on Thursday 22 or Friday 23: freeze)
 
 | When | Step | Who |
 | --- | --- | --- |
-| Tue 20 Oct | Branch review (Session 1); tests green; nothing applied | Session 1, 3 |
-| Wed 21 Oct | Sign-offs, then apply `draft/a132_runner_watchlist.sql` (with the a40 deploy); insert the watchlist rows; run `python draft/a132_make_runner_credential.py --out <path outside repos>`; run the printed `ALTER ROLE ... PASSWORD` once | Session 4 approves, Francisco applies |
-| Wed 21 Oct | Create the Railway service in stage 1 (above); set the four variables; deploy once; read the dry-run output | Francisco |
-| Thu 22 to Fri 23 Oct | One supervised real run: set the real start command, leave the schedule empty, redeploy; check the verification queries below; set the start command back to `--dry-run` if anything is off | Session 1, Francisco |
-| Fri 23 Oct | If the supervised run is clean: stage 2 (real start command, schedule `0 11 * * 1`) | Francisco |
-| Mon 26 Oct 11:00 UTC | First scheduled run; Session 1 checks the result by noon. If it did not record, Session 1 runs a manual forced crawl | Session 1 |
+| Tue 20 Oct | Code review done (Session 1 accepted); tests green; nothing applied | Session 1, 3 |
+| Wed 21 Oct, 1 | With Session 4's sign-off **and** Francisco's yes: apply `draft/a132_runner_watchlist.sql` (in one transaction; it aborts and rolls back if its own checks fail) together with the a40 deploy | Francisco |
+| Wed 21 Oct, 2 | Insert the approved watchlist rows (each `bank_key` must already be in `bank_registry`); run `python draft/a132_make_runner_credential.py --out <path outside every repo>` and the printed `ALTER ROLE ... PASSWORD` once | Francisco |
+| Wed 21 Oct, 3 | Create the Railway service in **stage 1** (above: empty schedule, `--dry-run`, four variables); deploy once; read the dry-run plan and confirm it lists the intended banks | Francisco |
+| Wed 21 Oct, 4 | Session 1's forced crawl of the 5 banks runs first | Session 1 |
+| Wed 21 Oct, 5 | **Supervised real run**, right after that crawl: set the real start command (`python weekly_runner.py`), schedule still empty, redeploy once; run the verification queries below and read the job log | Session 1, Francisco |
+| Wed 21 Oct evening | **Only if that run is clean** (exit 0, run row recorded, one raw row per bank crawled, watchlist `last_*` stamped, cost under the cap, no `REFUSED` or `CUT SHORT` lines): set the Cron Schedule to `0 11 * * 1`. If anything is off, set the start command back to `--dry-run`, leave the schedule empty, and tell Session 4 | Francisco |
+| Thu 22 and Fri 23 Oct | **No changes.** No Rate Radar deploys, no production changes | none |
+| Mon 26 Oct, 11:00 UTC | First scheduled run. Session 1 checks the result Monday; Francisco reviews it before the Tue 27 Oct pitch. If the schedule was never enabled or the run did not record, Session 1 does a manual forced crawl Monday | Session 1, Francisco |
 
 ## Verification after a run (run as the owner in the SQL editor)
 

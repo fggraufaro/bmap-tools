@@ -54,19 +54,25 @@ def build_supabase_rows(results, run_id, run_date):
     return rows
 
 
-async def fetch_last_known_good(bank_name, http_session):
+async def fetch_last_known_good(bank_name, http_session, rssdid=None):
     """
     Last-resort fallback for a bank that came back completely empty today.
     Looks up this bank's most recent PAST result in Supabase that actually
     had at least one rate, and returns it — clearly labeled as historical,
     never presented as fresh. Any failure here (network, schema, auth) is
     swallowed and logged; it must never break or slow down the crawl.
+
+    When the caller has the bank's RSSD id, the lookup is by that id: bank names
+    are not unique (three "First Bank" exist), so a name match could return
+    another bank's rates.
     """
     if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK and http_session):
         return None
     try:
+        who = (f"rssdid=eq.{quote(str(rssdid))}" if rssdid not in (None, "")
+               else f"bank_name=eq.{quote(bank_name)}")
         url = (f"{SUPABASE_URL}/rest/v1/raw_rate_radar"
-               f"?bank_name=eq.{quote(bank_name)}"
+               f"?{who}"
                f"&or=(checking_apy.not.is.null,savings_apy.not.is.null,"
                f"cd_apy.not.is.null,money_market_apy.not.is.null)"
                f"&order=run_date.desc,crawled_at.desc"

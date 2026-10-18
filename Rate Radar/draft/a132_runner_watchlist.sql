@@ -15,6 +15,11 @@
 --   5. Ends with an in-transaction assertion: if the runner holds any privilege beyond the intended set, or the
 --      watchlist is reachable by an API role, the whole migration fails and rolls back.
 --
+-- Role name and the Supabase pooler: the role is created under its plain name, rate_radar_runner. The pooler (Supavisor)
+-- needs the project reference in the USER NAME it is given, rate_radar_runner.<project-ref>; that suffix only routes the
+-- connection and never exists in Postgres (current_user is rate_radar_runner, which is what the runner checks).
+-- Use the session-mode pooler, port 5432 (see RAILWAY_CRON_WEEKLY.md).
+--
 -- Rollback: draft/a132_runner_watchlist_rollback.sql.
 
 -- ---------------------------------------------------------------- 0. save current state
@@ -115,23 +120,55 @@ create policy a132_runner_insert on raw.raw_rate_radar for insert to rate_radar_
 -- ---------------------------------------------------------------- 5. assertion: fail and roll back if anything is wider than intended
 do $$
 declare
-  stray int;
+  stray   int;
+  runner  oid := (select oid from pg_roles where rolname = 'rate_radar_runner');
 begin
-  -- the runner holds no privilege on any relation other than the seven intended ones
+  -- Privileges are read from the ACL entries, NOT with has_table_privilege(): that function is also true for a
+  -- privilege held only through PUBLIC, and production has relations granted to PUBLIC that the runner cannot reach.
+
+  -- (a) no ACL entry names the runner on any relation or column outside the seven intended tables
+  select count(*) into stray from (
+    select c.oid, c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      cross join lateral aclexplode(c.relacl) a
+    where a.grantee = runner
+      and c.relkind in ('r','v','m','p','f','S')
+      and (n.nspname, c.relname) not in (('raw','raw_rate_radar'), ('public','rate_observations'), ('public','rate_radar_runs'),
+                                         ('public','extraction_cache'), ('public','url_pattern_registry'), ('public','bank_registry'),
+                                         ('public','rate_radar_watchlist'))
+    union all
+    select c.oid, c.relname from pg_attribute at join pg_class c on c.oid = at.attrelid join pg_namespace n on n.oid = c.relnamespace
+      cross join lateral aclexplode(at.attacl) a
+    where a.grantee = runner
+      and (n.nspname, c.relname) not in (('raw','raw_rate_radar'), ('public','rate_observations'), ('public','rate_radar_runs'),
+                                         ('public','extraction_cache'), ('public','url_pattern_registry'), ('public','bank_registry'),
+                                         ('public','rate_radar_watchlist'))
+  ) x;
+  if stray <> 0 then
+    raise exception 'a132: rate_radar_runner is granted a privilege on % relation/column(s) outside the intended set', stray;
+  end if;
+
+  -- (b) a relation granted to PUBLIC counts only where the runner can reach it: it has USAGE on the schema. Today that is
+  -- public and raw. In public, production has three read-only PostGIS objects readable by anyone with schema usage
+  -- (owned by supabase_admin); they are allowed, SELECT only. The cron and extensions relations granted to PUBLIC are
+  -- not reachable because the runner has no USAGE on those schemas. Anything else granted to PUBLIC aborts the migration.
   select count(*) into stray
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
-  where c.relkind in ('r','v','m','p','f','S')
+    cross join lateral aclexplode(c.relacl) a
+  where a.grantee = 0
+    and c.relkind in ('r','v','m','p','f','S')
     and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
     and n.nspname not like 'pg\_temp\_%' and n.nspname not like 'pg\_toast\_temp\_%'    -- other sessions' temp tables
-    and (n.nspname, c.relname) not in (('raw','raw_rate_radar'), ('public','rate_observations'), ('public','rate_radar_runs'),
-                                       ('public','extraction_cache'), ('public','url_pattern_registry'), ('public','bank_registry'),
-                                       ('public','rate_radar_watchlist'))
-    and (case when c.relkind = 'S'
-              then has_sequence_privilege('rate_radar_runner', c.oid, 'USAGE,SELECT,UPDATE')
-              else has_table_privilege('rate_radar_runner', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-         end);
+    and has_schema_privilege('rate_radar_runner', n.oid, 'USAGE')
+    and not ((n.nspname, c.relname) in (('public','spatial_ref_sys'), ('public','geography_columns'), ('public','geometry_columns'))
+             and a.privilege_type = 'SELECT');
   if stray <> 0 then
-    raise exception 'a132: rate_radar_runner holds a privilege on % relation(s) outside the intended set', stray;
+    raise exception 'a132: % PUBLIC grant(s) on relations in schemas the runner can use (outside the three read-only PostGIS objects)', stray;
+  end if;
+
+  -- (c) the runner can create objects in no schema
+  if exists (select 1 from pg_namespace n where n.nspname not like 'pg\_%' and n.nspname <> 'information_schema'
+               and has_schema_privilege('rate_radar_runner', n.oid, 'CREATE')) then
+    raise exception 'a132: rate_radar_runner can create objects in a schema';
   end if;
 
   if exists (select 1 from pg_roles where rolname = 'rate_radar_runner' and (rolsuper or rolbypassrls or rolcreatedb or rolcreaterole or rolinherit)) then

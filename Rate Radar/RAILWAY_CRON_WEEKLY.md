@@ -47,6 +47,24 @@ Creating a service from a repo deploys it once; with these settings that deploy 
 | `RATE_RADAR_MAX_COST_USD` | `2.00` | LLM cost cap per run; the run is cancelled and its partial results recorded when it is reached |
 | `RATE_RADAR_MAX_MINUTES` | `25` | wall-clock cap, same ceiling as the app's crawl thread |
 
+### Connection string for `RATE_RADAR_DATABASE_URL` (no password shown here)
+
+```
+postgresql://rate_radar_runner.tuiiywphoynbmkxpoyps:<PASSWORD>@<POOLER-HOST>:5432/postgres?sslmode=require
+```
+
+- **Use the session-mode pooler (Supavisor), port 5432.** Copy `<POOLER-HOST>` from the Supabase dashboard, Connect page, "Session pooler"
+  (it looks like `aws-<n>-eu-north-1.pooler.supabase.com`; the project is in eu-north-1). Database `postgres`.
+- **User is `rate_radar_runner.<project-ref>`** (here `rate_radar_runner.tuiiywphoynbmkxpoyps`). The pooler needs the project
+  reference in the user name to route the connection; the suffix does not exist in Postgres. The role is created as plain
+  `rate_radar_runner`, and the runner checks `current_user = rate_radar_runner` after connecting, so a wrong role is refused.
+- **Not transaction mode (port 6543):** the runner relies on session state (the read-only session used by `--dry-run`) that
+  transaction pooling does not preserve. **Not the direct connection:** it is IPv6-only unless the project has the IPv4
+  add-on, and I have not verified Railway's outbound IPv6, so the pooler is the safe choice.
+- `<PASSWORD>` is the file written by `draft/a132_make_runner_credential.py` (URL-safe characters, no encoding needed).
+  Paste the finished string only into the Railway variable.
+- The role's connection limit (3) is enforced by Postgres on top of the pooler's own pool.
+
 **Must NOT exist on this service, or in project/shared variables it could inherit:** `SUPABASE_SERVICE_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_KEY`. The runner refuses to start if any is set. It also never connects as any role
 other than `rate_radar_runner`.

@@ -140,6 +140,24 @@ grant select on public.bank_registry, public.url_pattern_registry, public.extrac
                 public.rate_radar_runs, public.rate_observations, raw.raw_rate_radar to anon, authenticated;
 grant all on raw.raw_rate_radar to service_role;
 
+-- production-shaped relations granted to PUBLIC (read from production, read-only, 2026-10-18). The three PostGIS objects
+-- in public are reachable by anyone with schema usage; the cron and extensions relations sit in schemas the runner has
+-- no USAGE on. has_table_privilege() is true for the runner on every one of them, which is what broke the first assertion.
+create table public.spatial_ref_sys (srid int primary key, srtext text);
+create view public.geometry_columns as select 1 as f_table_catalog;
+create view public.geography_columns as select 1 as f_table_catalog;
+grant select on public.spatial_ref_sys, public.geometry_columns, public.geography_columns to public;
+create schema cron;
+create schema extensions;
+create table cron.job (jobid int primary key);
+create table cron.job_run_details (runid int primary key);
+create sequence cron.jobid_seq;
+create view extensions.pg_stat_statements as select 1 as queryid;
+grant select on cron.job to public;
+grant select, delete on cron.job_run_details to public;
+grant select on sequence cron.jobid_seq to public;
+grant select on extensions.pg_stat_statements to public;
+
 -- canary tables the runner must never reach
 create table public.canary_other (id int primary key, secret text);
 alter table public.canary_other enable row level security;

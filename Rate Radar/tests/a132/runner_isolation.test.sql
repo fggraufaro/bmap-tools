@@ -4,7 +4,7 @@
 -- Everything runs inside begin/rollback on synthetic data.
 begin;
 create extension if not exists pgtap;
-select plan(56);
+select plan(57);
 
 -- ---------- fixtures (as owner) ----------
 insert into public.bank_registry (bank_key, bank_name, bank_url, rssdid) values
@@ -72,22 +72,27 @@ select ok(exists (select 1 from pg_db_role_setting s join pg_roles r on r.oid = 
           'B3 runner has a statement timeout');
 
 -- ---------- C: nothing outside the intended set ----------
-select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-           where c.relkind in ('r', 'v', 'm', 'p', 'f') and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
-             and n.nspname not like 'pg\_temp\_%' and n.nspname not like 'pg\_toast\_temp\_%'   -- the pgTAP temp tables are PUBLIC by design
-             and (n.nspname, c.relname) not in (('raw','raw_rate_radar'), ('public','rate_observations'), ('public','rate_radar_runs'),
+-- Privileges are read from ACL entries naming the runner. has_table_privilege() would also count privileges that
+-- come only through PUBLIC (production has some, on relations the runner cannot reach); those are checked in C8.
+select is((select count(*)::int from (
+             select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace cross join lateral aclexplode(c.relacl) a
+              where a.grantee = 'rate_radar_runner'::regrole::oid and c.relkind in ('r', 'v', 'm', 'p', 'f')
+                and (n.nspname, c.relname) not in (('raw','raw_rate_radar'), ('public','rate_observations'), ('public','rate_radar_runs'),
                    ('public','extraction_cache'), ('public','url_pattern_registry'), ('public','bank_registry'), ('public','rate_radar_watchlist'))
-             and has_table_privilege('rate_radar_runner', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')), 0,
-          'C1 runner holds no privilege on any table or view outside the seven intended');
-select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-           where c.relkind = 'S' and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
-             and n.nspname not like 'pg\_temp\_%' and n.nspname not like 'pg\_toast\_temp\_%'
-             and case when c.relkind = 'S' then has_sequence_privilege('rate_radar_runner', c.oid, 'USAGE,SELECT,UPDATE') end), 0,
-          'C2 runner holds no privilege on any sequence');
+             union all
+             select c.oid from pg_attribute at join pg_class c on c.oid = at.attrelid join pg_namespace n on n.oid = c.relnamespace
+               cross join lateral aclexplode(at.attacl) a
+              where a.grantee = 'rate_radar_runner'::regrole::oid
+                and (n.nspname, c.relname) not in (('raw','raw_rate_radar'), ('public','rate_observations'), ('public','rate_radar_runs'),
+                   ('public','extraction_cache'), ('public','url_pattern_registry'), ('public','bank_registry'), ('public','rate_radar_watchlist'))) x), 0,
+          'C1 no table, view or column outside the seven intended is granted to the runner');
+select is((select count(*)::int from pg_class c cross join lateral aclexplode(c.relacl) a
+           where c.relkind = 'S' and a.grantee = 'rate_radar_runner'::regrole::oid), 0,
+          'C2 no sequence is granted to the runner');
 select is((select count(*)::int from pg_namespace n
-           where n.nspname = any (array['analytics', 'backup', 'geo', 'ref', 'app', 'tenant', 'auth', 'storage', 'vault', 'realtime'])
+           where n.nspname = any (array['analytics', 'backup', 'geo', 'ref', 'app', 'tenant', 'auth', 'storage', 'vault', 'realtime', 'cron', 'extensions'])
              and has_schema_privilege('rate_radar_runner', n.oid, 'USAGE')), 0,
-          'C3 runner has no USAGE on the analytics, backup, geo, ref, auth, storage, vault or realtime schemas');
+          'C3 runner has no USAGE on the analytics, backup, geo, ref, auth, storage, vault, realtime, cron or extensions schemas');
 select is((select count(*)::int from pg_namespace n
            where n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast') and n.nspname not like 'pg\_temp\_%' and n.nspname not like 'pg\_toast\_temp\_%'
              and has_schema_privilege('rate_radar_runner', n.oid, 'CREATE')), 0,
@@ -100,6 +105,14 @@ set local role rate_radar_runner;
 select throws_ok($$select * from public.canary_other$$, '42501', null, 'C6 runner cannot read another public table');
 select throws_ok($$select * from analytics.canary_snapshot$$, '42501', null, 'C7 runner cannot read another schema');
 reset role;
+select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace cross join lateral aclexplode(c.relacl) a
+           where a.grantee = 0 and c.relkind in ('r', 'v', 'm', 'p', 'f', 'S')
+             and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
+             and n.nspname not like 'pg\_temp\_%' and n.nspname not like 'pg\_toast\_temp\_%'
+             and has_schema_privilege('rate_radar_runner', n.oid, 'USAGE')
+             and not ((n.nspname, c.relname) in (('public','spatial_ref_sys'), ('public','geography_columns'), ('public','geometry_columns'))
+                      and a.privilege_type = 'SELECT')), 0,
+          'C8 no PUBLIC grant on a relation in a schema the runner can use, except the three read-only PostGIS objects');
 
 -- ---------- D: exact privileges ----------
 select is((select coalesce(array_agg(p order by p), '{}'::text[]) from unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p

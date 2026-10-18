@@ -65,6 +65,18 @@ MUTATIONS = [
      "grant create on schema public to rate_radar_runner;", {"C4"}),
     ("grant USAGE on an identity sequence",
      "grant usage on sequence public.rate_observations_id_seq to rate_radar_runner;", {"C2"}),
+    ("column-level SELECT on an unrelated table",
+     "grant select (secret) on public.canary_other to rate_radar_runner;", {"C1"}),
+    ("PUBLIC grant on a table in public",
+     "grant select on public.canary_other to public;", {"C8"}),
+    ("PUBLIC grant on a raw-schema table",
+     "create table raw.leaky (id int); grant select on raw.leaky to public;", {"C8"}),
+    ("extra privilege on an allowed PostGIS object",
+     "grant insert on public.spatial_ref_sys to public;", {"C8"}),
+    ("USAGE on the cron schema (its PUBLIC grants become reachable)",
+     "grant usage on schema cron to rate_radar_runner;", {"C3", "C8"}),
+    ("grant a sequence to the runner",
+     "grant select on sequence cron.jobid_seq to rate_radar_runner;", {"C2"}),
     ("grant full UPDATE on the watchlist",
      "grant update on public.rate_radar_watchlist to rate_radar_runner;", {"D1", "D2", "E3"}),
     ("grant SELECT on rate_radar_runs",
@@ -181,7 +193,7 @@ def main():
         base_fail = failed_labels(lines)
         n_ok = sum(1 for ln in lines if ln.startswith("ok "))
         print(f"-> {n_ok} ok, {len(base_fail)} failed")
-        if base_fail or r.returncode != 0 or n_ok != 56:
+        if base_fail or r.returncode != 0 or n_ok != 57:
             ok_all = False
             print("BASELINE DID NOT PASS", r.stderr.strip()[:400])
 
@@ -192,6 +204,30 @@ def main():
             good = expected <= fails and r.returncode == 0
             ok_all &= good
             print(f"{'OK  ' if good else 'MISS'} {name}: failed {sorted(fails)}; required {sorted(expected)}")
+
+        print()
+        print("== migration assertion refuses a wider starting state (applied to a modified baseline; must abort) ==")
+        refusals = [
+            ("a new PUBLIC-granted table in public", "create table public.leaky (id int); grant select on public.leaky to public;", "PUBLIC grant"),
+            ("PUBLIC INSERT on an allowed PostGIS object", "grant insert on public.spatial_ref_sys to public;", "PUBLIC grant"),
+            ("a PUBLIC-granted table in raw", "create table raw.leaky (id int); grant select on raw.leaky to public;", "PUBLIC grant"),
+            ("PUBLIC CREATE on public", "grant create on schema public to public;", "create objects"),
+            ("a leftover runner role with BYPASSRLS", "create role rate_radar_runner login bypassrls;", "role attribute"),
+        ]
+        for name, pre, needle in refusals:
+            drop_role()
+            db = "scen_ref"
+            pg.psql("postgres", sql=f"create database {db} template tpl")
+            try:
+                pg.psql(db, sql=pre)
+                r = pg.psql(db, file=MIGRATION, single_tx=True, check=False)
+                good = r.returncode != 0 and needle in r.stderr
+                ok_all &= good
+                print(f"{'OK  ' if good else 'MISS'} {name}: {'aborted' if r.returncode else 'APPLIED'}"
+                      f"{'' if good else ' / ' + r.stderr.strip()[-150:]}")
+            finally:
+                pg.psql("postgres", sql=f"drop database {db}", check=False)
+                drop_role()
 
         print("\n== rollback script on a migrated database ==")
         db = "scen_rb"

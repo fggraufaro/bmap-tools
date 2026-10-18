@@ -4,7 +4,7 @@
 -- Everything runs inside begin/rollback on synthetic data.
 begin;
 create extension if not exists pgtap;
-select plan(57);
+select plan(59);
 
 -- ---------- fixtures (as owner) ----------
 insert into public.bank_registry (bank_key, bank_name, bank_url, rssdid) values
@@ -20,6 +20,10 @@ insert into public.extraction_cache (content_hash, bank_name, page_url, extracte
   ('h-a', 'Bank A', 'u', '{}'), ('h-c', 'Bank C', 'u', '{}');
 insert into raw.raw_rate_radar (run_id, bank_name, rssdid, status) values
   ('r0', 'Bank A', '1000001', 'Found'), ('r0', 'Bank C', '1000003', 'Found');
+-- pre-RSSD history rows (rssdid NULL): Bank A's name is flagged unique, Bank B's is not, Bank C is not on the watchlist
+insert into raw.raw_rate_radar (run_id, bank_name, rssdid, status) values
+  ('r0n', 'Bank A', null, 'Found'), ('r0n', 'Bank B', null, 'Found'), ('r0n', 'Bank C', null, 'Found');
+update public.rate_radar_watchlist set name_unique_in_registry = true where rssdid = '1000001';
 insert into public.canary_other values (1, 'x');
 insert into analytics.canary_snapshot values (1, 'x');
 
@@ -207,7 +211,7 @@ select throws_ok($$insert into public.rate_observations (run_id, bank_name, rssd
 select throws_ok($$select * from public.rate_observations$$, '42501', null, 'E24 runner cannot read observations back');
 
 -- raw.raw_rate_radar
-select is((select count(*)::int from raw.raw_rate_radar), 1, 'E25 runner sees raw rows for watchlist banks only');
+select is((select count(*)::int from raw.raw_rate_radar), 2, 'E25 runner sees raw rows for watchlist banks only (Bank A: one carrying its RSSD, one pre-RSSD row)');
 select lives_ok($$insert into raw.raw_rate_radar (run_id, bank_name, rssdid, status) values ('r1', 'Bank A', '1000001', 'Found')
                    on conflict (run_id, bank_name) do nothing$$, 'E26 runner can write a raw row for a watchlist bank');
 select throws_ok($$insert into raw.raw_rate_radar (run_id, bank_name, rssdid, status) values ('r1', 'Bank C', '1000003', 'Found')$$,
@@ -216,6 +220,10 @@ select throws_ok($$insert into raw.raw_rate_radar (run_id, bank_name, rssdid, st
                  '42501', null, 'E28 runner cannot write a raw row without a bank id');
 select throws_ok($$update raw.raw_rate_radar set note = 'x'$$, '42501', null, 'E29 runner cannot update raw rows');
 select throws_ok($$delete from raw.raw_rate_radar$$, '42501', null, 'E30 runner cannot delete raw rows');
+select is((select count(*)::int from raw.raw_rate_radar where rssdid is null and bank_name = 'Bank A'), 1,
+          'E31 runner reads pre-RSSD history for a watchlist bank whose name the owner flagged unique');
+select is((select count(*)::int from raw.raw_rate_radar where rssdid is null and bank_name in ('Bank B', 'Bank C')), 0,
+          'E32 runner reads no pre-RSSD history for an unflagged watchlist bank or a bank off the watchlist');
 
 reset role;
 select * from finish();

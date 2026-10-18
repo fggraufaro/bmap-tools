@@ -64,30 +64,47 @@ async def fetch_last_known_good(bank_name, http_session, rssdid=None):
 
     When the caller has the bank's RSSD id, the lookup is by that id: bank names
     are not unique (three "First Bank" exist), so a name match could return
-    another bank's rates.
+    another bank's rates. Rows written before the RSSD was recorded have
+    rssdid NULL, so if the id finds nothing the lookup retries by name over
+    rssdid-NULL rows only (never a row carrying another bank's id), and only
+    when no other bank in bank_registry shares that name.
     """
     if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK and http_session):
         return None
     try:
-        who = (f"rssdid=eq.{quote(str(rssdid))}" if rssdid not in (None, "")
-               else f"bank_name=eq.{quote(bank_name)}")
-        url = (f"{SUPABASE_URL}/rest/v1/raw_rate_radar"
-               f"?{who}"
-               f"&or=(checking_apy.not.is.null,savings_apy.not.is.null,"
-               f"cd_apy.not.is.null,money_market_apy.not.is.null)"
-               f"&order=run_date.desc,crawled_at.desc"
-               f"&limit=1")
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Accept-Profile": "raw",
         }
-        async with http_session.get(url, headers=headers,
-                                    timeout=aiohttp.ClientTimeout(total=8)) as resp:
-            if resp.status != 200:
+
+        async def newest(who):
+            url = (f"{SUPABASE_URL}/rest/v1/raw_rate_radar"
+                   f"?{who}"
+                   f"&or=(checking_apy.not.is.null,savings_apy.not.is.null,"
+                   f"cd_apy.not.is.null,money_market_apy.not.is.null)"
+                   f"&order=run_date.desc,crawled_at.desc"
+                   f"&limit=1")
+            async with http_session.get(url, headers=headers,
+                                        timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status != 200:
+                    return None
+                rows = await resp.json()
+                return rows[0] if rows else None
+
+        if rssdid in (None, ""):
+            return await newest(f"bank_name=eq.{quote(bank_name)}")
+        row = await newest(f"rssdid=eq.{quote(str(rssdid))}")
+        if row:
+            return row
+        # pre-RSSD history: only if this name belongs to exactly one bank in the registry
+        async with http_session.get(
+                f"{SUPABASE_URL}/rest/v1/bank_registry?bank_name=eq.{quote(bank_name)}&select=bank_key",
+                headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+                timeout=aiohttp.ClientTimeout(total=8)) as resp:
+            if resp.status != 200 or len(await resp.json()) > 1:
                 return None
-            rows = await resp.json()
-            return rows[0] if rows else None
+        return await newest(f"bank_name=eq.{quote(bank_name)}&rssdid=is.null")
     except Exception as e:
         crawl_state["log"].append(f"    [History] lookup failed for {bank_name}: {e}")
         return None

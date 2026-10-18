@@ -43,6 +43,8 @@ create table public.rate_radar_watchlist (
   active        boolean not null default true,                      -- the runner crawls only active rows
   manual_only   boolean not null default false,                     -- blocked or large banks: skip the crawl, report "manual verification due"
   manual_reason text,
+  name_unique_in_registry boolean not null default false,           -- owner sets true ONLY if no other bank in bank_registry shares this name;
+                                                                    -- it is the only thing that lets the runner read pre-RSSD history rows (rssdid NULL) by name
   added_by      text not null,
   added_at      timestamptz not null default now(),
   notes         text,
@@ -112,8 +114,13 @@ create policy a132_runner_insert on public.rate_radar_runs for insert to rate_ra
 create policy a132_runner_insert on public.rate_observations for insert to rate_radar_runner
   with check (rssdid in (select w.rssdid from public.rate_radar_watchlist w));
 
+-- raw history: rows carrying a watchlist RSSD, plus pre-RSSD rows (rssdid NULL; production holds 217 of them) matched by
+-- name, but only for a watchlist bank whose name the owner has flagged unique in the registry. The runner cannot see the
+-- registry beyond the watchlist, so the database, not the adapter, enforces this: an ambiguous name ("First Bank" x3) never
+-- exposes another bank's old rows.
 create policy a132_runner_read on raw.raw_rate_radar for select to rate_radar_runner
-  using (rssdid in (select w.rssdid from public.rate_radar_watchlist w));
+  using (rssdid in (select w.rssdid from public.rate_radar_watchlist w)
+         or (rssdid is null and bank_name in (select w.bank_name from public.rate_radar_watchlist w where w.name_unique_in_registry)));
 create policy a132_runner_insert on raw.raw_rate_radar for insert to rate_radar_runner
   with check (rssdid in (select w.rssdid from public.rate_radar_watchlist w));
 

@@ -75,13 +75,29 @@ other than `rate_radar_runner`.
 | --- | --- | --- |
 | Tue 20 Oct | Code review done (Session 1 accepted); tests green; nothing applied | Session 1, 3 |
 | Wed 21 Oct, 1 | With Session 4's sign-off **and** Francisco's yes: apply `draft/a132_runner_watchlist.sql` (in one transaction; it aborts and rolls back if its own checks fail) together with the a40 deploy | Francisco |
-| Wed 21 Oct, 2 | Insert the approved watchlist rows (each `bank_key` must already be in `bank_registry`); run `python draft/a132_make_runner_credential.py --out <path outside every repo>` and the printed `ALTER ROLE ... PASSWORD` once | Francisco |
+| Wed 21 Oct, 2 | Insert the approved watchlist rows with the statement under "Adding watchlist banks" (each `bank_key` must already be in `bank_registry`); run `python draft/a132_make_runner_credential.py --out <path outside every repo>` and the printed `ALTER ROLE ... PASSWORD` once | Francisco |
 | Wed 21 Oct, 3 | Create the Railway service in **stage 1** (above: empty schedule, `--dry-run`, four variables); deploy once; read the dry-run plan and confirm it lists the intended banks | Francisco |
 | Wed 21 Oct, 4 | Session 1's forced crawl of the 5 banks runs first | Session 1 |
 | Wed 21 Oct, 5 | **Supervised real run**, right after that crawl: set the real start command (`python weekly_runner.py`), schedule still empty, redeploy once; run the verification queries below and read the job log | Session 1, Francisco |
 | Wed 21 Oct evening | **Only if that run is clean** (exit 0, run row recorded, one raw row per bank crawled, watchlist `last_*` stamped, cost under the cap, no `REFUSED` or `CUT SHORT` lines): set the Cron Schedule to `0 11 * * 1`. If anything is off, set the start command back to `--dry-run`, leave the schedule empty, and tell Session 4 | Francisco |
 | Thu 22 and Fri 23 Oct | **No changes.** No Rate Radar deploys, no production changes | none |
 | Mon 26 Oct, 11:00 UTC | First scheduled run. Session 1 checks the result Monday; Francisco reviews it before the Tue 27 Oct pitch. If the schedule was never enabled or the run did not record, Session 1 does a manual forced crawl Monday | Session 1, Francisco |
+
+## Adding watchlist banks (owner only, in the SQL editor)
+
+```sql
+insert into public.rate_radar_watchlist (rssdid, bank_key, bank_name, bank_url, added_by, name_unique_in_registry)
+select r.rssdid, r.bank_key, r.bank_name, r.bank_url, 'approver_1',
+       (select count(*) from public.bank_registry x where x.bank_name = r.bank_name) = 1
+from public.bank_registry r
+where r.rssdid in ('<approved RSSD>', '<approved RSSD>');      -- the approved list, nothing else
+```
+
+`name_unique_in_registry` decides whether the runner may use a bank's **pre-RSSD history** (217 old rows in `raw.raw_rate_radar`
+have no RSSD, so only the name identifies them). It must be true only when no other bank in `bank_registry` shares the name;
+the statement above computes that. It defaults to false, and the runner cannot change it. For a false bank (e.g. one of the
+three "First Bank") the last-known-good fill uses only rows carrying that bank's own RSSD, so it can never return another
+bank's rates.
 
 ## Verification after a run (run as the owner in the SQL editor)
 

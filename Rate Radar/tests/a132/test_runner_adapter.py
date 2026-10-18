@@ -323,59 +323,109 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(hist["run_date"], want[2])                     # an ISO string, as PostgREST gave it
         self.assertIsNone(asyncio.run(self.store.fetch_last_known_good("Bank C", None)))
 
-    def two_first_banks(self):
-        """Two watchlist banks that share a name (three 'First Bank' exist in the real data), each with its own history."""
-        for i, (rssd, savings) in enumerate((("3000001", 3.11), ("3000002", 4.22)), start=1):
-            key = f"first-{i}.example"
-            self.q("insert into public.bank_registry (bank_key, bank_name, bank_url, rssdid) values (%s, 'First Bank', %s, %s)",
-                   (key, f"https://www.{key}/", rssd))
-            self.q("insert into public.rate_radar_watchlist (rssdid, bank_key, bank_name, bank_url, added_by) values (%s, %s, 'First Bank', %s, 'approver_1')",
-                   (rssd, key, f"https://www.{key}/"))
-            self.q("insert into raw.raw_rate_radar (run_id, run_date, crawled_at, bank_name, rssdid, savings_apy, status) "
-                   "values (%s, '2026-10-20', '2026-10-20 11:00', 'First Bank', %s, %s, 'Found')", (f"fb_{rssd}", rssd, savings))
+    def add_bank(self, rssd, key, name, unique=False):
+        self.q("insert into public.bank_registry (bank_key, bank_name, bank_url, rssdid) values (%s, %s, %s, %s)",
+               (key, name, f"https://www.{key}/", rssd))
+        self.q("insert into public.rate_radar_watchlist (rssdid, bank_key, bank_name, bank_url, added_by, name_unique_in_registry) "
+               "values (%s, %s, %s, %s, 'approver_1', %s)", (rssd, key, name, f"https://www.{key}/", unique))
 
+    def add_history(self, run_id, name, rssd, savings, run_date="2026-10-20"):
+        self.q("insert into raw.raw_rate_radar (run_id, run_date, crawled_at, bank_name, rssdid, savings_apy, status) "
+               "values (%s, %s, %s::timestamptz, %s, %s, %s, 'Found')", (run_id, run_date, run_date + " 11:00", name, rssd, savings))
+
+    def history_fixtures(self):
+        """Three watchlist banks named 'First Bank' (names are not unique in the real data) plus two uniquely named banks,
+        with a mix of RSSD-carrying history and legacy pre-RSSD rows (rssdid NULL)."""
         def cleanup():
             self.q("delete from raw.raw_rate_radar where run_id like 'fb\_%'")
-            self.q("delete from public.rate_radar_watchlist where rssdid in ('3000001', '3000002')")
-            self.q("delete from public.bank_registry where bank_key like 'first-%.example'")
+            self.q("delete from public.rate_radar_watchlist where rssdid like '30000%'")
+            self.q("delete from public.bank_registry where bank_key like 'hist-%.example'")
         self.addCleanup(cleanup)
+        for rssd, key in (("3000001", "hist-first-1.example"), ("3000002", "hist-first-2.example"), ("3000004", "hist-first-4.example")):
+            self.add_bank(rssd, key, "First Bank")                      # ambiguous name: flag stays false
+        self.add_history("fb_1", "First Bank", "3000001", 3.11)
+        self.add_history("fb_2", "First Bank", "3000002", 4.22)
+        self.add_history("fb_legacy_a", "First Bank", None, 7.77, "2026-09-01")   # legacy rows: whose are they? nobody can say
+        self.add_history("fb_legacy_b", "First Bank", None, 8.88, "2026-09-02")
+        self.add_bank("3000010", "hist-solo.example", "Solo Bank", unique=True)
+        self.add_history("fb_solo_legacy", "Solo Bank", None, 5.55, "2026-08-01")
+        self.add_bank("3000011", "hist-solo-flag-off.example", "Solo Off Bank", unique=False)
+        self.add_history("fb_off_legacy", "Solo Off Bank", None, 6.66, "2026-08-01")
+        self.add_bank("3000012", "hist-both.example", "Both Bank", unique=True)
+        self.add_history("fb_both_id", "Both Bank", "3000012", 2.22, "2026-07-01")
+        self.add_history("fb_both_legacy", "Both Bank", None, 9.99, "2026-10-01")   # newer, but the id match wins
+
+    def lookup(self, name, rssd):
+        return asyncio.run(self.store.fetch_last_known_good(name, None, rssdid=rssd))
 
     def test_two_banks_with_the_same_name_never_cross_in_the_history_lookup(self):
-        self.two_first_banks()
-        one = asyncio.run(self.store.fetch_last_known_good("First Bank", None, rssdid="3000001"))
-        two = asyncio.run(self.store.fetch_last_known_good("First Bank", None, rssdid="3000002"))
-        self.assertEqual((one["rssdid"], one["savings_apy"]), ("3000001", 3.11))
-        self.assertEqual((two["rssdid"], two["savings_apy"]), ("3000002", 4.22))
-        # an RSSD that is not on the watchlist finds nothing, even though the name matches two rows it can see
-        self.assertIsNone(asyncio.run(self.store.fetch_last_known_good("First Bank", None, rssdid="3000003")))
+        self.history_fixtures()
+        self.assertEqual(self.lookup("First Bank", "3000001")["savings_apy"], 3.11)
+        self.assertEqual(self.lookup("First Bank", "3000002")["savings_apy"], 4.22)
+        # no own history, and the legacy NULL rows carry a name shared by three banks: nothing, never another bank's rates
+        self.assertIsNone(self.lookup("First Bank", "3000004"))
+        # an RSSD that is not on the watchlist finds nothing
+        self.assertIsNone(self.lookup("First Bank", "3000003"))
 
-    def test_storage_lookup_asks_for_the_rssd_when_it_has_one(self):
-        urls = []
+    def test_legacy_pre_rssd_rows_are_used_only_for_a_name_flagged_unique(self):
+        self.history_fixtures()
+        solo = self.lookup("Solo Bank", "3000010")
+        self.assertEqual((solo["savings_apy"], solo["rssdid"]), (5.55, None))      # id finds nothing, unique name: legacy row
+        self.assertIsNone(self.lookup("Solo Off Bank", "3000011"))                  # flag off: the database hides the legacy row
+        self.assertEqual(self.lookup("Both Bank", "3000012")["savings_apy"], 2.22)  # an id match beats a newer legacy row
 
-        class Resp:
-            status = 200
-            async def json(self):
-                return []
+    def test_storage_lookup_asks_for_the_rssd_then_retries_pre_rssd_rows_by_name(self):
+        def run(raw_by_filter, registry_rows, rssdid="3000001"):
+            urls = []
 
-        class Ctx:
-            async def __aenter__(self):
-                return Resp()
+            class Resp:
+                def __init__(self, body):
+                    self.status, self._body = 200, body
 
-            async def __aexit__(self, *exc):
-                return False
+                async def json(self):
+                    return self._body
 
-        class Session:
-            def get(self, url, **kw):
-                urls.append(url)
-                return Ctx()
-        saved = (storage.SUPABASE_URL, storage.SUPABASE_KEY)
-        storage.SUPABASE_URL, storage.SUPABASE_KEY = "http://localhost:1", "x"
-        self.addCleanup(lambda: setattr(storage, "SUPABASE_URL", saved[0]) or setattr(storage, "SUPABASE_KEY", saved[1]))
-        asyncio.run(ORIGINALS["fetch_last_known_good"]("First Bank", Session(), rssdid="3000001"))
-        asyncio.run(ORIGINALS["fetch_last_known_good"]("First Bank", Session()))
-        self.assertIn("rssdid=eq.3000001", urls[0])
+            class Ctx:
+                def __init__(self, body):
+                    self._body = body
+
+                async def __aenter__(self):
+                    return Resp(self._body)
+
+                async def __aexit__(self, *exc):
+                    return False
+
+            class Session:
+                def get(self, url, **kw):
+                    urls.append(url)
+                    if "/bank_registry" in url:
+                        return Ctx(registry_rows)
+                    for marker, rows in raw_by_filter.items():
+                        if marker in url:
+                            return Ctx(rows)
+                    return Ctx([])
+            saved = (storage.SUPABASE_URL, storage.SUPABASE_KEY)
+            storage.SUPABASE_URL, storage.SUPABASE_KEY = "http://localhost:1", "x"
+            try:
+                got = asyncio.run(ORIGINALS["fetch_last_known_good"]("First Bank", Session(), rssdid=rssdid))
+            finally:
+                storage.SUPABASE_URL, storage.SUPABASE_KEY = saved
+            return got, urls
+
+        row, urls = run({"rssdid=eq.3000001": [{"savings_apy": 1.0}]}, [])
+        self.assertEqual(row, {"savings_apy": 1.0})
+        self.assertEqual(len(urls), 1)                                  # id hit: no second query
         self.assertNotIn("bank_name=", urls[0])
-        self.assertIn("bank_name=eq.First%20Bank", urls[1])             # the old name-only path is unchanged without an id
+        row, urls = run({"rssdid=is.null": [{"savings_apy": 2.0}]}, [{"bank_key": "a"}])
+        self.assertEqual(row, {"savings_apy": 2.0})                     # id empty, unique name: legacy rows
+        self.assertIn("rssdid=eq.3000001", urls[0])
+        self.assertIn("bank_name=eq.First%20Bank&rssdid=is.null", urls[2])
+        row, urls = run({"rssdid=is.null": [{"savings_apy": 3.0}]}, [{"bank_key": "a"}, {"bank_key": "b"}])
+        self.assertIsNone(row)                                          # shared name: rssdid only, no legacy query
+        self.assertEqual(len(urls), 2)
+        row, urls = run({"bank_name=eq.First%20Bank": [{"savings_apy": 4.0}]}, [], rssdid=None)
+        self.assertEqual(row, {"savings_apy": 4.0})                     # no id at all: the old name-only path, one query
+        self.assertEqual(len(urls), 1)
 
     def test_the_crawler_call_site_passes_the_rssd(self):
         src = (RR / "scrapers.py").read_text(encoding="utf-8")

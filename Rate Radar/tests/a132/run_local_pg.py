@@ -75,6 +75,17 @@ MUTATIONS = [
      "grant insert on public.spatial_ref_sys to public;", {"C8"}),
     ("USAGE on the cron schema (its PUBLIC grants become reachable)",
      "grant usage on schema cron to rate_radar_runner;", {"C3", "C8"}),
+    ("raw read policy ignores the unique-name flag",
+     "drop policy a132_runner_read on raw.raw_rate_radar; "
+     "create policy a132_runner_read on raw.raw_rate_radar for select to rate_radar_runner "
+     "using (rssdid in (select w.rssdid from public.rate_radar_watchlist w) "
+     "or (rssdid is null and bank_name in (select w.bank_name from public.rate_radar_watchlist w)));", {"E32"}),
+    ("raw read policy exposes every pre-RSSD row",
+     "drop policy a132_runner_read on raw.raw_rate_radar; "
+     "create policy a132_runner_read on raw.raw_rate_radar for select to rate_radar_runner "
+     "using (rssdid is null or rssdid in (select w.rssdid from public.rate_radar_watchlist w));", {"E25", "E32"}),
+    ("runner may update the unique-name flag",
+     "grant update (name_unique_in_registry) on public.rate_radar_watchlist to rate_radar_runner;", {"D2"}),
     ("grant a sequence to the runner",
      "grant select on sequence cron.jobid_seq to rate_radar_runner;", {"C2"}),
     ("grant full UPDATE on the watchlist",
@@ -193,7 +204,7 @@ def main():
         base_fail = failed_labels(lines)
         n_ok = sum(1 for ln in lines if ln.startswith("ok "))
         print(f"-> {n_ok} ok, {len(base_fail)} failed")
-        if base_fail or r.returncode != 0 or n_ok != 57:
+        if base_fail or r.returncode != 0 or n_ok != 59:
             ok_all = False
             print("BASELINE DID NOT PASS", r.stderr.strip()[:400])
 

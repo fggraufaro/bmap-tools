@@ -182,18 +182,26 @@ class RunnerStore:
         return generic, bank_urls, health
 
     async def fetch_last_known_good(self, bank_name, http_session, rssdid=None):
-        """By RSSD id when the crawler passes one (bank names are not unique), else by name as storage does."""
+        """By RSSD id when the crawler passes one (bank names are not unique), else by name as storage does.
+        If the id finds nothing it retries over pre-RSSD rows (rssdid NULL) of the same name, never a row carrying another
+        id. The database only shows those rows for a watchlist bank whose name the owner flagged unique in the registry
+        (policy a132_runner_read), so an ambiguous name such as "First Bank" cannot pick up another bank's history."""
         by_id = rssdid not in (None, "")
 
-        def op(cur):
+        def newest(cur, where, param):
             cur.execute(f"""
                 select * from raw.raw_rate_radar
-                where {"rssdid = %s" if by_id else "bank_name = %s"}
+                where {where}
                   and (checking_apy is not null or savings_apy is not null
                        or cd_apy is not null or money_market_apy is not null)
-                order by run_date desc nulls last, crawled_at desc nulls last limit 1""",
-                        (str(rssdid) if by_id else bank_name,))
+                order by run_date desc nulls last, crawled_at desc nulls last limit 1""", (param,))
             return cur.fetchone()
+
+        def op(cur):
+            if not by_id:
+                return newest(cur, "bank_name = %s", bank_name)
+            return (newest(cur, "rssdid = %s", str(rssdid))
+                    or newest(cur, "bank_name = %s and rssdid is null", bank_name))
         try:
             row = await self._arun(op)
             return {k: _plain(v) for k, v in row.items()} if row else None

@@ -445,6 +445,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
 .br-sig{display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:5px 9px;background:var(--bg2);border-radius:5px}
 .br-sig-l{color:var(--muted)}
 .br-sig-v{font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums}
+/* Multi-bank deck building is admin-only (the server refuses it for bank_user); hide the controls so they are not offered. */
+body.role-bank-user .admin-batch-only{display:none !important}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -785,7 +787,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-weight:300;background:va
       <button class="gen-btn" style="margin-bottom:0;background:var(--amber);color:var(--navy)" id="assessBtn" onclick="assessmentExport()">⬇ Generate BMAP Assessment</button>
       <div class="loading" id="assessLd" style="margin-top:8px"><span class="spin"></span><span id="assessMsg">Building full-network assessment...</span></div>
     </div>
-    <div class="card card-pad" style="margin-bottom:14px;border-left:3px solid var(--teal)">
+    <div class="card card-pad admin-batch-only" style="margin-bottom:14px;border-left:3px solid var(--teal)">
       <div class="label" style="margin-bottom:6px">Batch Export — Multiple Banks from CSV</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px">
         Upload a CSV with one <code style="font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;background:var(--gray);padding:1px 4px;border-radius:3px">inst_key</code> per line (optional second column: bank name). Each deck includes brokered deposit analysis where applicable. All built server-side and downloaded as a single ZIP.
@@ -984,7 +986,10 @@ let _inviteAccessToken = null;
     // Deferred on purpose: g(), show() and selBank are declared further down this script,
     // so calling it synchronously here threw 'Cannot access g before initialization' on every
     // refresh and a bank_user landed on the search card instead of their own institution.
-    if(sessionStorage.getItem('hub_role') === 'bank_user') setTimeout(autoLoadOwnInstitution, 0);
+    if(sessionStorage.getItem('hub_role') === 'bank_user'){
+      document.body.classList.add('role-bank-user');
+      setTimeout(autoLoadOwnInstitution, 0);
+    }
   }
 })();
 
@@ -1124,7 +1129,10 @@ async function checkEmailLogin(){
     if(data.email) sessionStorage.setItem('hub_email', data.email);
     document.getElementById('authGate').style.display = 'none';
     document.getElementById('appWrap').style.display  = 'block';
-    if(data.role === 'bank_user') autoLoadOwnInstitution();
+    if(data.role === 'bank_user'){
+      document.body.classList.add('role-bank-user');
+      autoLoadOwnInstitution();
+    }
   }catch(e){
     errEl.textContent = 'Login service unavailable — try again';
     errEl.style.display = 'block';
@@ -3516,7 +3524,7 @@ function prExportCSV(){
         <span style="font-size:11px;color:var(--muted)">banks match current filters</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="pr-btn pr-btn-teal" id="prSnapAllBtn" onclick="prRunSnapshot(true)" style="font-size:11px;padding:6px 12px">⬇ Snapshot All Filtered</button>
+        <button class="pr-btn pr-btn-teal admin-batch-only" id="prSnapAllBtn" onclick="prRunSnapshot(true)" style="font-size:11px;padding:6px 12px">⬇ Snapshot All Filtered</button>
         <button class="pr-btn pr-btn-navy" id="prBriefAllBtn" onclick="prRunBrief(true)" style="font-size:11px;padding:6px 12px">⬇ Brief All Filtered</button>
       </div>
     </div>
@@ -3528,7 +3536,7 @@ function prExportCSV(){
         <span style="font-size:11px;color:var(--muted)">banks selected</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="pr-btn pr-btn-teal" id="prSnapBtn" onclick="prRunSnapshot(false)" style="font-size:11px;padding:6px 12px">⬇ Snapshot Selected</button>
+        <button class="pr-btn pr-btn-teal admin-batch-only" id="prSnapBtn" onclick="prRunSnapshot(false)" style="font-size:11px;padding:6px 12px">⬇ Snapshot Selected</button>
         <button class="pr-btn pr-btn-navy" id="prBriefBtn" onclick="prRunBrief(false)" style="font-size:11px;padding:6px 12px">⬇ Brief Selected</button>
       </div>
     </div>
@@ -3539,7 +3547,7 @@ function prExportCSV(){
     </div>
   </div>
 
-  <div class="loading" id="prSnapLd" style="margin-top:8px"><span class="spin"></span><span id="prSnapMsg">Building decks...</span></div>
+  <div class="loading admin-batch-only" id="prSnapLd" style="margin-top:8px"><span class="spin"></span><span id="prSnapMsg">Building decks...</span></div>
   <div class="loading" id="prBriefLd" style="margin-top:8px"><span class="spin"></span><span id="prBriefMsg">Building briefs...</span></div>
 
 </div>

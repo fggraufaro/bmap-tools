@@ -432,6 +432,26 @@
 
   footer{border-top:1px solid var(--line);padding-top:18px;color:var(--ink-faint);font-size:12.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 
+  /* ---------- notice board + team agenda ---------- */
+  .nb-every{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:12px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .nb-every .k{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:6px;}
+  .nb-every ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;}
+  .nb-weeks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .nb-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow);}
+  .nb-card.now{border-color:var(--accent);}
+  .nb-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px;}
+  .nb-state{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.07em;font-weight:600;padding:3px 9px;border-radius:5px;text-transform:uppercase;}
+  .nb-state.now{background:var(--accent-soft);color:var(--accent-ink);}
+  .nb-state.next{background:var(--gold-soft);color:var(--gold-ink);}
+  .nb-state.later{background:var(--line);color:var(--ink-soft);}
+  .nb-dates{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--ink-faint);}
+  .nb-theme{font-family:"Fraunces",Georgia,serif;font-weight:600;font-size:16px;margin:2px 0 6px;}
+  .nb-card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.5;}
+  .team-group{padding:9px 18px;background:var(--paper);border-bottom:1px solid var(--line);font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;}
+  .team-who{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--accent-ink);background:var(--accent-soft);border-radius:100px;padding:2px 9px;}
+  .team-due{font-family:"IBM Plex Mono";font-size:10.5px;color:var(--gold-ink);background:var(--gold-soft);border-radius:100px;padding:2px 9px;}
+  @media (max-width:760px){ .nb-weeks{grid-template-columns:1fr;} }
+
   /* ---------- sprint log ---------- */
   .sprint-list{display:flex;flex-direction:column;gap:18px;}
   .sprint-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;}
@@ -611,7 +631,7 @@
 
   <div class="masthead">
     <div>
-      <div class="eyebrow">Verlocity · working plan · Sept 2026</div>
+      <div class="eyebrow">Verlocity · working plan · Oct 2026</div>
       <h1>Verlocity Platform Roadmap</h1>
       <p>Two products built on one engine: what works today, what comes next, what it costs, and the security certification (SOC&nbsp;2) that banks will ask for. Reviewed monthly.</p>
     </div>
@@ -620,6 +640,64 @@
       <span class="cap">Overall readiness · average of the four areas below · updated Oct 8</span>
     </div>
   </div>
+  <section class="notice team-today">
+    <div class="section-head">
+      <span class="tag">For the team &middot; <span id="teamDate">today</span></span>
+      <h2>Open actions to cover with the team</h2>
+      <div class="sub">What we need from each person, grouped by what kind of answer it is. Tick one when it is settled. The reference chip points to the full action further down.</div>
+    </div>
+    <div class="actions-card"><div class="actions-list" id="teamList"><div class="actions-empty">Loading…</div></div></div>
+  </section>
+
+  <section class="notice">
+    <div class="section-head">
+      <span class="tag">Notice board</span>
+      <h2>What we do each week</h2>
+      <div class="sub">High level, week by week: the standing routine first, then this week and what follows.</div>
+    </div>
+    <div id="nbBody"><div class="actions-empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="tag">What happens when</span>
+      <h2>Now, next and later</h2>
+      <div class="sub">Updated Mon 19 Oct.</div>
+    </div>
+    <div class="nnl">
+      <div class="nnl-card">
+        <span class="tag">Now &middot; this week</span>
+        <ul>
+          <li>Settle the open decisions for our first bank customer&rsquo;s security review, and send the written pre-read on Thu 22 Oct.</li>
+          <li>After the pre-read goes out, only security fixes go to production until the review is done.</li>
+          <li>Everyone on the team signs in with a personal login. The shared access code stays on for now.</li>
+          <li>Choose the five banks Rate Radar tracks weekly for the pitch.</li>
+          <li>Finish the email domain set-up so login invitations can reach real users.</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">Next &middot; to mid-Nov</span>
+        <ul>
+          <li>Customer security review (target Tue 27 Oct), then resume the work held back until it is done: Rate Radar fixes and the weekly run, and moving development to company-owned accounts.</li>
+          <li>The checklist that must be met before any customer data is loaded: a second sign-in step for the Hub, a dedicated client-data environment, access logging, an independent penetration test, and the written security policies.</li>
+          <li>Switch off the shared password once invitations work, so every customer has only their own login.</li>
+          <li>Finish the Growth Plan screen: balance sheet against peers, and a suggested goal for each bank.</li>
+          <li>Credit union database: load, validate and connect to Rate Radar.</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">Later &middot; 4&ndash;12 months+</span>
+        <ul>
+          <li>Bring the elasticity tool into every customer&rsquo;s dashboard: it already compares the cost of winning deposits through a higher rate versus a media plan, using each branch&rsquo;s real competitor rates</li>
+          <li>A guide for every customer: an AI assistant that reads the bank&rsquo;s own data and suggests its next best move</li>
+          <li>First SOC&nbsp;2 report (Type&nbsp;I): banks can safely share their own data with us, which unlocks branch profitability insights</li>
+          <li>Auditors confirm our controls hold up over several months (Type&nbsp;II), and pilot banks become the proof it works</li>
+          <li>Only then: plan Product B in earnest</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <section class="readiness">
     <div class="section-head">
       <span class="tag">Where things stand</span>
@@ -677,42 +755,6 @@
       <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Gives a branch or a promotion its own campaign website. We're deciding whether to build it ourselves or bring in a proven one.</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Would show which branches actually make money. It's a tool from Kohl Analytics; next step is scoping how it plugs in.</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">Our route to market beyond the East Coast: partners who resell Product B. Not started yet, and it matters sooner than we planned.</span><span class="segment">Product B</span></div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-head">
-      <span class="tag">What happens when</span>
-      <h2>Now, next and later</h2>
-    </div>
-    <div class="nnl">
-      <div class="nnl-card">
-        <span class="tag">Now · this week · Francisco</span>
-        <ul>
-          <li>Set up our email domain so banks can receive login invitations. Waiting on technical records from the web team.</li>
-          <li>Polish the Growth Engine demo. Walk through the four building blocks first (branch deep dive, network snapshot, competitor rates, financial brief), then the advertising step.</li>
-          <li>Do a full live run-through of the handoff from AudienceFinder selection to MediaPredict before showing it live.</li>
-        </ul>
-      </div>
-      <div class="nnl-card">
-        <span class="tag">Next · 30–90 days</span>
-        <ul>
-          <li>Media Thesis meeting: shape the Activation step, from choosing an audience to running the ads.</li>
-          <li>Switch off the shared password once invitations work, so every customer has only their own login; then add a second sign-in step.</li>
-          <li>Launch customer accounts and the Product A dashboard. Logins and per-bank views work today; billing and usage tracking do not yet.</li>
-          <li>SOC&nbsp;2 (the security certification banks ask for): an outside advisor flagged items that could stop a bank from signing. They are tracked, and we chose not to lead with them yet.</li>
-        </ul>
-      </div>
-      <div class="nnl-card">
-        <span class="tag">Later · 4–12 months+</span>
-        <ul>
-          <li>Bring the elasticity tool into every customer&rsquo;s dashboard: it already compares the cost of winning deposits through a higher rate versus a media plan, using each branch&rsquo;s real competitor rates</li>
-          <li>A guide for every customer: an AI assistant that reads the bank&rsquo;s own data and suggests its next best move</li>
-          <li>First SOC&nbsp;2 report (Type&nbsp;I): banks can safely share their own data with us, which unlocks branch profitability insights</li>
-          <li>Auditors confirm our controls hold up over several months (Type&nbsp;II), and pilot banks become the proof it works</li>
-          <li>Only then: plan Product B in earnest</li>
-        </ul>
-      </div>
     </div>
   </section>
 
@@ -990,6 +1032,8 @@
   const p1El = document.getElementById('p1List');
   const p2El = document.getElementById('p2List');
   const p3El = document.getElementById('p3List');
+  const teamEl = document.getElementById('teamList');
+  const nbEl = document.getElementById('nbBody');
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
   // Top Priorities — 3-Month Plan, added 2026-09-13, P4 added 2026-09-17.
@@ -1009,11 +1053,59 @@
   const P2_IDS = ['a37','a77','a91','a47','a43','a26','a87','a84','a25','a27','a28','a22','a40','a63','a67','a68','a69','a70','a71'];
   const P3_IDS = ['a51','a52','a53','a54','a74','a75','a76','a79','a80','a81'];
 
+  // Notice board + team agenda: kinds teamhead, team, every, week (docs in the 'notice' collection).
+  let nCol = null;
+  function renderNotice(docs){
+    const all = docs.map(d => ({ id: d.id, ...d.data() }));
+    const kind = k => all.filter(x => x.kind === k).sort((a,b) => (a.order||0) - (b.order||0));
+    const head = kind('teamhead')[0];
+    if (head && head.date) document.getElementById('teamDate').textContent = head.date;
+    const team = kind('team');
+    if (!team.length) teamEl.innerHTML = '<div class="actions-empty">Nothing queued for the team.</div>';
+    else {
+      let last = null, out = '';
+      team.forEach(t => {
+        if (t.group !== last) { out += `<div class="team-group">${esc(t.group || 'Other')}</div>`; last = t.group; }
+        out += `<div class="action-row${t.done ? ' done-row' : ''}">
+          <input type="checkbox" class="action-check team-check" data-id="${esc(t.id)}" ${t.done ? 'checked' : ''} aria-label="Mark settled">
+          <div class="action-body">
+            <div class="action-line" style="margin-bottom:5px;${t.done ? 'text-decoration:line-through;color:var(--ink-faint);' : ''}">${esc(t.ask)}</div>
+            <div class="action-meta">
+              <span class="team-who">${esc(t.who || '')}</span>
+              ${t.due ? `<span class="team-due">${esc(t.due)}</span>` : ''}
+              ${t.ref ? `<span class="action-id">${esc(t.ref)}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+      });
+      teamEl.innerHTML = out;
+      teamEl.querySelectorAll('.team-check').forEach(cb => cb.addEventListener('change', async (e) => {
+        const next = e.target.checked;
+        try { if (nCol) await nCol.doc(e.target.dataset.id).update({ done: next }); }
+        catch (err) { e.target.checked = !next; }
+      }));
+    }
+    const every = kind('every')[0];
+    const weeks = kind('week');
+    let nb = '';
+    if (every) nb += `<div class="nb-every"><div class="k">${esc(every.title || 'Every week')}</div><ul>${(every.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`;
+    if (weeks.length) nb += `<div class="nb-weeks">${weeks.map(w => `<div class="nb-card ${esc(w.state || '')}">
+      <div class="nb-top"><span class="nb-state ${esc(w.state || 'later')}">${esc(w.label || '')}</span><span class="nb-dates">${esc(w.dates || '')}</span></div>
+      <div class="nb-theme">${esc(w.theme || '')}</div>
+      <ul>${(w.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('')}</div>`;
+    nbEl.innerHTML = nb || '<div class="actions-empty">Nothing on the board yet.</div>';
+  }
+  // Same content as the 'notice' docs, shown where the live tracker is not available (the hosted page);
+  // kept high level on purpose because that page is public. The tracker copy wins when it has docs.
+  const NOTICE_STATIC = [{"id": "teamhead", "kind": "teamhead", "date": "Mon 19 Oct", "order": 0}, {"id": "t01", "kind": "team", "order": 1, "group": "Decide by Tue 20 Oct", "ask": "How fast we tell the customer about a security incident. Proposal: within 24 hours.", "who": "Tom, Brock, Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t02", "kind": "team", "order": 2, "group": "Decide by Tue 20 Oct", "ask": "Give this customer a dedicated client-data environment (recommended) or a shared one with row-level separation.", "who": "Francisco, Tom", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t03", "kind": "team", "order": 3, "group": "Decide by Tue 20 Oct", "ask": "Move the database plan to Team so we can hand over a SOC 2 report. This is a cost decision.", "who": "Francisco, Tom", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t04", "kind": "team", "order": 4, "group": "Decide by Tue 20 Oct", "ask": "Independent penetration test: pick the vendor and book a date.", "who": "Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t05", "kind": "team", "order": 5, "group": "Decide by Tue 20 Oct", "ask": "Written statement on what customer data may go to AI providers: agree the wording.", "who": "Tom, Brock, Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t06", "kind": "team", "order": 6, "group": "Decide by Tue 20 Oct", "ask": "How we describe where our administrators are based.", "who": "Tom, Brock", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t07", "kind": "team", "order": 7, "group": "Decide by Tue 20 Oct", "ask": "How the customer's data reaches us. Recommended: their own secure file transfer.", "who": "Francisco, Brock", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t08", "kind": "team", "order": 8, "group": "Needed from the team", "ask": "Names of the five banks Rate Radar tracks weekly for the pitch.", "who": "Brock", "due": "Today", "ref": "a132", "done": false}, {"id": "t09", "kind": "team", "order": 9, "group": "Needed from the team", "ask": "The customer's security or vendor-risk contact, and their questionnaire if they have one.", "who": "Brock", "due": "This week", "ref": "a133", "done": false}, {"id": "t10", "kind": "team", "order": 10, "group": "Needed from the team", "ask": "Who controls the verlocity.ai DNS (GoDaddy) and the Microsoft 365 tenant, so the email service can be verified and login invitations can go out.", "who": "Everyone", "due": "This week", "ref": "a89", "done": false}, {"id": "t11", "kind": "team", "order": 11, "group": "Confirm", "ask": "Sign in to the Verlocity tools with your personal login. The shared access code stays on for now.", "who": "Everyone", "due": "Today", "ref": "a38", "done": false}, {"id": "t12", "kind": "team", "order": 12, "group": "Confirm", "ask": "Review the one-screen security pre-read before it goes out on Thu 22 Oct.", "who": "Tom, Brock", "due": "Thu 22 Oct", "ref": "a131", "done": false}, {"id": "t13", "kind": "team", "order": 13, "group": "Confirm", "ask": "Confirm you are the backup incident owner (Francisco is the owner).", "who": "Chuck", "due": "Today", "ref": "a129", "done": false}, {"id": "every", "kind": "every", "order": 0, "title": "Every week", "items": ["Security check on the production database, and again after any change to it or any dataset load (a34).", "Open actions reconciled: owners confirmed, finished items closed, anything stale called out.", "Rate Radar rates refreshed for the pitch banks, from the week the weekly run goes live (a132)."]}, {"id": "w1", "kind": "week", "order": 1, "state": "now", "label": "This week", "dates": "19–25 Oct", "theme": "Decide, document, freeze", "items": ["Mon: owners and open decisions agreed with the team.", "Tue: decisions recorded; client-data environment and data route settled (a133).", "Wed: security policy outline drafted with our outside advisor (a133).", "Thu: one-screen security status goes to the customer as the pre-read; production freeze starts, security fixes only (a131).", "Fri to Sun: every claim in the pre-read re-checked against the live systems.", "Rate Radar: the five pitch banks chosen (a132)."]}, {"id": "w2", "kind": "week", "order": 2, "state": "next", "label": "Next week", "dates": "26 Oct–1 Nov", "theme": "Prove it, then resume", "items": ["Mon: final verification run on production.", "Tue: customer security review.", "After the review: Rate Radar fixes and the weekly run go live (a40, a132).", "After the review: development moves to company-owned accounts (a130).", "Security fixes found in the review are the only priority."]}, {"id": "w3", "kind": "week", "order": 3, "state": "later", "label": "November", "dates": "2–27 Nov", "theme": "The checklist before any customer data", "items": ["Data route tested with synthetic data only (target 6 Nov).", "Second sign-in step on the Hub (proposed 13 Nov, to confirm).", "Client-data environment connected through a limited database role, with a two-bank separation test; access logging in place (target 20 Nov).", "Penetration test booked; security policy pack finished."]}, {"id": "w4", "kind": "week", "order": 4, "state": "later", "label": "December onward", "dates": "Dec +", "theme": "Customer data, then certification", "items": ["Customer data loads only when every item on the November checklist is met.", "Penetration test run and its findings fixed.", "SOC 2 engagement starts (a53).", "Growth Plan backtests and the credit union database continue (a106, a118 to a123)."]}];
+  const noticeStatic = () => NOTICE_STATIC.map(r => ({ id: r.id, data: () => r }));
+
   let db;
   try { db = await claude.use('db'); } catch(e) { db = null; }
   if (!db) {
     const msg = '<div class="actions-empty">Open-action tracking isn\'t available in this view. <a href="https://claude.ai/code/artifact/f2513088-1af1-43f5-a384-f59f2e32f79e" target="_blank" rel="noopener" style="color:var(--accent-ink);font-weight:600;">Open the live tracker →</a></div>';
     listEl.innerHTML = msg; doneEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg;
+    renderNotice(noticeStatic());
     return;
   }
   const col = db.collection('actions');
@@ -1194,6 +1286,11 @@
     else { doneEl.innerHTML = done.map(doneRowHtml).join(''); wireList(doneEl); }
   }
 
+  nCol = db.collection('notice');
+  nCol.onSnapshot(
+    (snap) => renderNotice(snap.docs.length ? snap.docs : noticeStatic()),
+    () => renderNotice(noticeStatic())
+  );
   col.onSnapshot(
     (snap) => render(snap.docs),
     () => {

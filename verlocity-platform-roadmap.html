@@ -640,22 +640,47 @@
       <span class="cap">Overall readiness · average of the four areas below · updated Oct 8</span>
     </div>
   </div>
-  <section class="notice team-today">
+  <section class="readiness">
     <div class="section-head">
-      <span class="tag">For the team &middot; <span id="teamDate">today</span></span>
-      <h2>Open actions to cover with the team</h2>
-      <div class="sub">What we need from each person, grouped by what kind of answer it is. Tick one when it is settled. The reference chip points to the full action further down.</div>
+      <span class="tag">Where things stand</span>
+      <h2>How ready are we, by area</h2>
+      <div class="sub">Each ring scores one part of the business from 0 to 10. The overall number is the simple average of the four. The core engine is the hard part and is furthest along; what is missing is the packaging around it, such as billing, usage tracking and a separate login for every customer. Latest changes: on Oct 5 the core engine dipped from 8 to 7 when we found some unit and wording errors; by Oct 8 those were fixed and it is back at 8. Infrastructure moved from 0 to 3 on Oct 5 because every customer can now have a login that shows only their own data.</div>
     </div>
-    <div class="actions-card"><div class="actions-list" id="teamList"><div class="actions-empty">Loading…</div></div></div>
-  </section>
+    <div class="gauges">
 
-  <section class="notice">
-    <div class="section-head">
-      <span class="tag">Notice board</span>
-      <h2>What we do each week</h2>
-      <div class="sub">High level, week by week: the standing routine first, then this week and what follows.</div>
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="65.3"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">8/10</text>
+        </svg>
+        <div class="gauge-label">Core engine<br>Finds where a bank can win new deposits, and what competitors pay (BMAP + Rate Radar)</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="130.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">6/10</text>
+        </svg>
+        <div class="gauge-label">Product A &middot; Intelligence Subscription<br>Banks log in to see where to grow</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
+        </svg>
+        <div class="gauge-label">Product B &middot; All-in-One Growth Engine (platform)<br>We run the campaign, audience to ads</div>
+      </div>
+
+      <div class="gauge-card">
+        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
+          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
+        </svg>
+        <div class="gauge-label">Infrastructure<br>Logins, billing and usage tracking</div>
+      </div>
+
     </div>
-    <div id="nbBody"><div class="actions-empty">Loading…</div></div>
   </section>
 
   <section>
@@ -698,47 +723,22 @@
     </div>
   </section>
 
-  <section class="readiness">
+  <section class="notice team-today">
     <div class="section-head">
-      <span class="tag">Where things stand</span>
-      <h2>How ready are we, by area</h2>
-      <div class="sub">Each ring scores one part of the business from 0 to 10. The overall number is the simple average of the four. The core engine is the hard part and is furthest along; what is missing is the packaging around it, such as billing, usage tracking and a separate login for every customer. Latest changes: on Oct 5 the core engine dipped from 8 to 7 when we found some unit and wording errors; by Oct 8 those were fixed and it is back at 8. Infrastructure moved from 0 to 3 on Oct 5 because every customer can now have a login that shows only their own data.</div>
+      <span class="tag">For the team &middot; <span id="teamDate">today</span></span>
+      <h2>Open actions to cover with the team</h2>
+      <div class="sub">What we need from each person, grouped by what kind of answer it is. Tick one when it is settled. The reference chip points to the full action further down.</div>
     </div>
-    <div class="gauges">
+    <div class="actions-card"><div class="actions-list" id="teamList"><div class="actions-empty">Loading…</div></div></div>
+  </section>
 
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="65.3"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">8/10</text>
-        </svg>
-        <div class="gauge-label">Core engine<br>Finds where a bank can win new deposits, and what competitors pay (BMAP + Rate Radar)</div>
-      </div>
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="130.7"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">6/10</text>
-        </svg>
-        <div class="gauge-label">Product A &middot; Intelligence Subscription<br>Banks log in to see where to grow</div>
-      </div>
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
-        </svg>
-        <div class="gauge-label">Product B &middot; All-in-One Growth Engine (platform)<br>We run the campaign, audience to ads</div>
-      </div>
-
-      <div class="gauge-card">
-        <svg viewBox="0 0 120 120"><circle class="gauge-ring-bg" cx="60" cy="60" r="52"></circle>
-          <circle class="gauge-ring-fg" cx="60" cy="60" r="52" stroke-dasharray="326.7 326.7" stroke-dashoffset="228.7"></circle>
-          <text x="60" y="66" text-anchor="middle" class="gauge-score">3/10</text>
-        </svg>
-        <div class="gauge-label">Infrastructure<br>Logins, billing and usage tracking</div>
-      </div>
-
+  <section class="notice">
+    <div class="section-head">
+      <span class="tag">Notice board</span>
+      <h2>What we do each week</h2>
+      <div class="sub">High level, week by week: the standing routine first, then this week and what follows.</div>
     </div>
+    <div id="nbBody"><div class="actions-empty">Loading…</div></div>
   </section>
 
   <section>
@@ -1097,7 +1097,7 @@
   }
   // Same content as the 'notice' docs, shown where the live tracker is not available (the hosted page);
   // kept high level on purpose because that page is public. The tracker copy wins when it has docs.
-  const NOTICE_STATIC = [{"id": "teamhead", "kind": "teamhead", "date": "Mon 19 Oct", "order": 0}, {"id": "t01", "kind": "team", "order": 1, "group": "Decide by Tue 20 Oct", "ask": "How fast we tell the customer about a security incident. Proposal: within 24 hours.", "who": "Tom, Brock, Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t02", "kind": "team", "order": 2, "group": "Decide by Tue 20 Oct", "ask": "Give this customer a dedicated client-data environment (recommended) or a shared one with row-level separation.", "who": "Francisco, Tom", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t03", "kind": "team", "order": 3, "group": "Decide by Tue 20 Oct", "ask": "Move the database plan to Team so we can hand over a SOC 2 report. This is a cost decision.", "who": "Francisco, Tom", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t04", "kind": "team", "order": 4, "group": "Decide by Tue 20 Oct", "ask": "Independent penetration test: pick the vendor and book a date.", "who": "Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t05", "kind": "team", "order": 5, "group": "Decide by Tue 20 Oct", "ask": "Written statement on what customer data may go to AI providers: agree the wording.", "who": "Tom, Brock, Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t06", "kind": "team", "order": 6, "group": "Decide by Tue 20 Oct", "ask": "How we describe where our administrators are based.", "who": "Tom, Brock", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t07", "kind": "team", "order": 7, "group": "Decide by Tue 20 Oct", "ask": "How the customer's data reaches us. Recommended: their own secure file transfer.", "who": "Francisco, Brock", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t08", "kind": "team", "order": 8, "group": "Needed from the team", "ask": "Names of the five banks Rate Radar tracks weekly for the pitch.", "who": "Brock", "due": "Today", "ref": "a132", "done": false}, {"id": "t09", "kind": "team", "order": 9, "group": "Needed from the team", "ask": "The customer's security or vendor-risk contact, and their questionnaire if they have one.", "who": "Brock", "due": "This week", "ref": "a133", "done": false}, {"id": "t10", "kind": "team", "order": 10, "group": "Needed from the team", "ask": "Who controls the verlocity.ai DNS (GoDaddy) and the Microsoft 365 tenant, so the email service can be verified and login invitations can go out.", "who": "Everyone", "due": "This week", "ref": "a89", "done": false}, {"id": "t11", "kind": "team", "order": 11, "group": "Confirm", "ask": "Sign in to the Verlocity tools with your personal login. The shared access code stays on for now.", "who": "Everyone", "due": "Today", "ref": "a38", "done": false}, {"id": "t12", "kind": "team", "order": 12, "group": "Confirm", "ask": "Review the one-screen security pre-read before it goes out on Thu 22 Oct.", "who": "Tom, Brock", "due": "Thu 22 Oct", "ref": "a131", "done": false}, {"id": "t13", "kind": "team", "order": 13, "group": "Confirm", "ask": "Confirm you are the backup incident owner (Francisco is the owner).", "who": "Chuck", "due": "Today", "ref": "a129", "done": false}, {"id": "every", "kind": "every", "order": 0, "title": "Every week", "items": ["Security check on the production database, and again after any change to it or any dataset load (a34).", "Open actions reconciled: owners confirmed, finished items closed, anything stale called out.", "Rate Radar rates refreshed for the pitch banks, from the week the weekly run goes live (a132)."]}, {"id": "w1", "kind": "week", "order": 1, "state": "now", "label": "This week", "dates": "19–25 Oct", "theme": "Decide, document, freeze", "items": ["Mon: owners and open decisions agreed with the team.", "Tue: decisions recorded; client-data environment and data route settled (a133).", "Wed: security policy outline drafted with our outside advisor (a133).", "Thu: one-screen security status goes to the customer as the pre-read; production freeze starts, security fixes only (a131).", "Fri to Sun: every claim in the pre-read re-checked against the live systems.", "Rate Radar: the five pitch banks chosen (a132)."]}, {"id": "w2", "kind": "week", "order": 2, "state": "next", "label": "Next week", "dates": "26 Oct–1 Nov", "theme": "Prove it, then resume", "items": ["Mon: final verification run on production.", "Tue: customer security review.", "After the review: Rate Radar fixes and the weekly run go live (a40, a132).", "After the review: development moves to company-owned accounts (a130).", "Security fixes found in the review are the only priority."]}, {"id": "w3", "kind": "week", "order": 3, "state": "later", "label": "November", "dates": "2–27 Nov", "theme": "The checklist before any customer data", "items": ["Data route tested with synthetic data only (target 6 Nov).", "Second sign-in step on the Hub (proposed 13 Nov, to confirm).", "Client-data environment connected through a limited database role, with a two-bank separation test; access logging in place (target 20 Nov).", "Penetration test booked; security policy pack finished."]}, {"id": "w4", "kind": "week", "order": 4, "state": "later", "label": "December onward", "dates": "Dec +", "theme": "Customer data, then certification", "items": ["Customer data loads only when every item on the November checklist is met.", "Penetration test run and its findings fixed.", "SOC 2 engagement starts (a53).", "Growth Plan backtests and the credit union database continue (a106, a118 to a123)."]}];
+  const NOTICE_STATIC = [{"id": "teamhead", "kind": "teamhead", "date": "Mon 19 Oct", "order": 0}, {"id": "t01", "kind": "team", "order": 1, "group": "Decisions waiting on you", "ask": "Analytics 360 (household data): agree terms or pass. A compliance check on the data comes first.", "who": "Tom", "due": "", "ref": "a4", "done": false}, {"id": "t02", "kind": "team", "order": 2, "group": "Decisions waiting on you", "ask": "Omnibranch: build the branch microsite generator ourselves, or buy one.", "who": "Brock", "due": "", "ref": "a5", "done": false}, {"id": "t03", "kind": "team", "order": 3, "group": "Decisions waiting on you", "ask": "Kohl Analytics profitability calculator: hold the scoping call.", "who": "Steve", "due": "", "ref": "a6", "done": false}, {"id": "t04", "kind": "team", "order": 4, "group": "Decisions waiting on you", "ask": "Pricing and packaging: lock the tiers to what is built and write the one-pager for the first prospect.", "who": "Tom, Brock", "due": "", "ref": "a39", "done": false}, {"id": "t05", "kind": "team", "order": 5, "group": "Decisions waiting on you", "ask": "Growth Lab research sandbox: keep it parked or drop it.", "who": "Tom, Brock", "due": "", "ref": "a12", "done": false}, {"id": "t06", "kind": "team", "order": 6, "group": "For the 27 Oct customer review", "ask": "Incident promise: how fast we tell a customer if something goes wrong with their data. Proposal: within 24 hours.", "who": "Tom, Brock, Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t07", "kind": "team", "order": 7, "group": "For the 27 Oct customer review", "ask": "Where the customer's data will live: its own separate database (recommended) or a shared one.", "who": "Francisco, Tom", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t08", "kind": "team", "order": 8, "group": "For the 27 Oct customer review", "ask": "Budget for the security report banks ask for (SOC 2). It needs a higher database plan.", "who": "Francisco, Tom", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t09", "kind": "team", "order": 9, "group": "For the 27 Oct customer review", "ask": "Choose who runs the independent security test, and when.", "who": "Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t10", "kind": "team", "order": 10, "group": "For the 27 Oct customer review", "ask": "Agree one plain sentence on what customer data does and does not go to AI tools.", "who": "Tom, Brock, Francisco", "due": "Tue 20 Oct", "ref": "a133", "done": false}, {"id": "t11", "kind": "team", "order": 11, "group": "For the 27 Oct customer review", "ask": "Get the customer's security contact and their questionnaire, if they have one.", "who": "Brock", "due": "This week", "ref": "a133", "done": false}, {"id": "t12", "kind": "team", "order": 12, "group": "For the 27 Oct customer review", "ask": "Read the one-page security status before it goes out.", "who": "Tom, Brock", "due": "Thu 22 Oct", "ref": "a131", "done": false}, {"id": "t13", "kind": "team", "order": 13, "group": "Needed from everyone", "ask": "Five banks to track weekly in Rate Radar for the pitch.", "who": "Brock", "due": "Today", "ref": "a132", "done": false}, {"id": "t14", "kind": "team", "order": 14, "group": "Needed from everyone", "ask": "Use your personal login for the Verlocity tools. The shared access code stays on for now.", "who": "Everyone", "due": "Today", "ref": "a38", "done": false}, {"id": "t15", "kind": "team", "order": 15, "group": "Needed from everyone", "ask": "Who holds the admin login for verlocity.ai email and web settings? One change is needed so login invitations reach customers.", "who": "Everyone", "due": "This week", "ref": "a89", "done": false}, {"id": "t16", "kind": "team", "order": 16, "group": "Needed from everyone", "ask": "Confirm you are the backup if there is a security incident (Francisco is the owner).", "who": "Chuck", "due": "Today", "ref": "a129", "done": false}, {"id": "every", "kind": "every", "order": 0, "title": "Every week", "items": ["Monday: priorities and owners confirmed, finished items closed, stale ones called out.", "Production database security check, and again after any change or data load (a34).", "Rate Radar competitor rates refreshed for the pitch banks, from the week the weekly run is live (a132)."]}, {"id": "w1", "kind": "week", "order": 1, "state": "now", "label": "This week", "dates": "19–25 Oct", "theme": "Get ready for the customer security review", "items": ["Security: decisions Tue, policy outline Wed, written status to the customer Thu. After that only security fixes go live (a133, a131).", "Product: Growth Plan balance-sheet view and suggested goal per bank, ready to ship after the review (a105).", "Rate Radar: choose the five pitch banks. Fixes and the weekly run wait for the review (a132).", "Credit unions: sign off the website source so loading can start (a118).", "Sales: pricing one-pager and the Omnibranch build-or-buy call (a39, a5).", "Platform: personal logins for everyone; email domain set-up so invitations can go out (a38, a89)."]}, {"id": "w2", "kind": "week", "order": 2, "state": "next", "label": "Next week", "dates": "26 Oct–1 Nov", "theme": "Review, then resume", "items": ["Mon: final check on production. Tue: the customer security review.", "After the review: Rate Radar fixes and the weekly run go live (a40, a132).", "After the review: the Growth Plan balance-sheet view ships (a105).", "After the review: development moves to company-owned accounts (a130)."]}, {"id": "w3", "kind": "week", "order": 3, "state": "later", "label": "November", "dates": "2–27 Nov", "theme": "Open the door to customer data, safely", "items": ["Data route tested with synthetic data only (target 6 Nov).", "Second sign-in step on the Hub (proposed 13 Nov, to confirm).", "Client-data environment connected through a limited database role, with a two-bank separation test and access logging (target 20 Nov).", "Penetration test booked; security policy pack finished.", "Credit union database: load, validate, connect to Rate Radar (a119 to a123)."]}, {"id": "w4", "kind": "week", "order": 4, "state": "later", "label": "December onward", "dates": "Dec +", "theme": "Customer data, then certification", "items": ["Customer data loads only when every item on the November checklist is met.", "Penetration test run and its findings fixed.", "SOC 2 engagement starts (a53).", "Growth Plan backtests (a106, a107)."]}];
   const noticeStatic = () => NOTICE_STATIC.map(r => ({ id: r.id, data: () => r }));
 
   let db;

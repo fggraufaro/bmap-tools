@@ -1,6 +1,158 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>
+/* hubSession:begin v1 -- this block is identical in every page that signs in to the Hub; edit all copies together */
+(function () {
+  // One place that knows where the Hub session lives. An admin session is kept in localStorage so every
+  // Verlocity tool (same origin) opens already signed in, in any tab or window, until the token expires,
+  // MAX_SHARED_MS have passed since sign-in, or the user signs out. A bank_user session stays in
+  // sessionStorage (this tab only), as before.
+  var KEYS = ['hub_token', 'hub_role', 'hub_inst_key', 'hub_email', 'hub_saved_at'];
+  var TOKEN = 'hub_token';
+  var SAVED = 'hub_saved_at';   // when the shared copy was written; set by save() ONLY, never refreshed
+  var SKEW_MS = 5000;
+  var WATCH_MS = 30000;
+  var MAX_SHARED_MS = 4 * 60 * 60 * 1000;   // the shared copy is honoured for at most 4 h (or the token's own expiry, if sooner)
+
+  function pick(name) {
+    // Read-only probe: blocked storage throws here. (A write probe would fire a storage event in every other tab.)
+    try {
+      var s = window[name];
+      s.getItem(TOKEN);
+      return s;
+    } catch (e) { return null; }
+  }
+  var LS = pick('localStorage');
+  var SS = pick('sessionStorage');
+  var hadToken = false;
+
+  // The token is base64url("subject:role:inst_key:exp:signature"). The browser can read role and expiry from it
+  // (they are not secret) but cannot check the signature; the server does that on every request.
+  function decode(token) {
+    try {
+      if (typeof token !== 'string' || !token) return null;
+      var b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      var parts = atob(b64).split(':');
+      if (parts.length < 5) return null;
+      var exp = Number(parts[parts.length - 2]);
+      if (!isFinite(exp) || exp <= 0) return null;
+      if (!/^[0-9a-f]{64}$/.test(parts[parts.length - 1])) return null;
+      return { subject: parts[0], role: parts[1], exp: exp };
+    } catch (e) { return null; }
+  }
+
+  function read(store, key) {
+    try { return store ? store.getItem(key) : null; } catch (e) { return null; }
+  }
+  function wipe(store) {
+    if (!store) return;
+    KEYS.forEach(function (k) { try { store.removeItem(k); } catch (e) {} });
+  }
+  function holder() {
+    if (read(SS, TOKEN) !== null) return SS;
+    if (read(LS, TOKEN) !== null) return LS;
+    return null;
+  }
+
+  // Forget this tab's session: only the store that holds it, so a bank_user tab that gets a 401 can never wipe
+  // an admin session shared with other tabs. With no session anywhere, tidy both.
+  function clear() {
+    var from = holder();
+    if (from) wipe(from); else { wipe(SS); wipe(LS); }
+    hadToken = false;
+    unmount();
+  }
+
+  // A shared (localStorage) copy with a missing, unreadable or future timestamp is not trusted.
+  function sharedTooOld(now) {
+    var at = Number(read(LS, SAVED));
+    if (!isFinite(at) || at <= 0 || at > now + SKEW_MS) return true;
+    return at + MAX_SHARED_MS <= now + SKEW_MS;
+  }
+
+  function getToken() {
+    var from = holder();
+    if (!from) return null;
+    var token = read(from, TOKEN);
+    var info = decode(token);
+    var now = Date.now();
+    if (!info || info.exp * 1000 <= now + SKEW_MS || (from === LS && sharedTooOld(now))) { clear(); return null; }
+    return token;
+  }
+
+  function get(key) {
+    if (key === TOKEN) return getToken();
+    var from = getToken() ? holder() : null;
+    return from ? read(from, key) : null;
+  }
+
+  // Store a successful sign-in (the /auth/login response). Persist only when the signed token itself says admin.
+  function save(data) {
+    var token = data && data.token;
+    var info = decode(token);
+    var persist = !!(info && info.role === 'admin' && LS);
+    var target = persist ? LS : SS;
+    // Replace the session we are writing to; also drop this tab's own earlier copy. Never touch the shared
+    // admin session when this tab is saving a tab-only (bank_user) one.
+    var previous = holder();
+    wipe(target);
+    if (previous === SS && target !== SS) wipe(SS);
+    var values = { hub_token: token, hub_role: data && data.role, hub_inst_key: data && data.inst_key, hub_email: data && data.email };
+    // The timestamp goes in FIRST so no other tab can ever see a shared token without it.
+    var order = ['hub_token', 'hub_role', 'hub_inst_key', 'hub_email'];
+    try {
+      if (persist) target.setItem(SAVED, String(Date.now()));
+      order.forEach(function (k) { if (values[k]) target.setItem(k, values[k]); });
+    } catch (e) {
+      wipe(LS);
+      if (SS) order.forEach(function (k) { try { if (values[k]) SS.setItem(k, values[k]); } catch (e2) {} });
+    }
+    hadToken = !!holder();
+    mount();
+  }
+
+  function signOut() { clear(); location.reload(); }
+
+  function unmount() {
+    try {
+      var el = document.getElementById('hubSignOut');
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    } catch (e) {}
+  }
+  function mount() {
+    try {
+      if (!document.body || document.getElementById('hubSignOut') || !holder()) return;
+      var b = document.createElement('button');
+      b.id = 'hubSignOut';
+      b.type = 'button';
+      b.textContent = 'Sign out';
+      b.setAttribute('style', 'position:fixed;right:12px;bottom:12px;z-index:2147483000;background:rgba(8,61,95,.88);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:5px 11px;font:600 11px Inter,system-ui,sans-serif;cursor:pointer');
+      b.onclick = signOut;
+      document.body.appendChild(b);
+    } catch (e) {}
+  }
+
+  // Signed in or out in another tab (storage events only reach the OTHER tabs): follow it.
+  window.addEventListener('storage', function (e) {
+    if (LS && e.storageArea && e.storageArea !== LS) return;
+    if (e.key !== null && e.key !== TOKEN) return;
+    var now = !!getToken();
+    if (now !== hadToken) location.reload();
+  });
+  // Drop an expired token even if the tab is just sitting there.
+  function check() { if (hadToken && !getToken()) location.reload(); }
+  setInterval(check, WATCH_MS);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+
+  hadToken = !!getToken();
+  document.addEventListener('DOMContentLoaded', mount);
+
+  window.hubSession = { getToken: getToken, get: get, save: save, clear: clear, signOut: signOut, decode: decode };
+})();
+/* hubSession:end */
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verlocity Growth Plan</title>
@@ -615,9 +767,9 @@ const money = n => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : (n >= 1e6 ? '$'
 
 async function api(table, params) {
   try {
-    const token = sessionStorage.getItem('hub_token');
+    const token = hubSession.getToken();
     const r = await fetch(`${HUB_API}/api/${table}?${params}`, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (r.status === 401) { sessionStorage.removeItem('hub_token'); location.reload(); return []; }
+    if (r.status === 401) { hubSession.clear(); location.reload(); return []; }
     if (!r.ok) { console.error(table, r.status); return []; }
     return r.json();
   } catch (e) { console.error(e); return []; }
@@ -633,8 +785,7 @@ async function login() {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) { err.textContent = data.error || 'Login failed, try again'; err.classList.remove('dn'); g('pw').value = ''; btn.disabled = false; return; }
     if (data.role && data.role !== 'admin') { err.textContent = 'This draft is for internal admin accounts only'; err.classList.remove('dn'); g('pw').value = ''; btn.disabled = false; return; }
-    sessionStorage.setItem('hub_token', data.token);
-    if (data.role) sessionStorage.setItem('hub_role', data.role);
+    hubSession.save(data);
     start();
   } catch (e) { err.textContent = 'Sign-in service unavailable, try again'; err.classList.remove('dn'); btn.disabled = false; }
 }
@@ -1118,7 +1269,7 @@ g('changeBank').addEventListener('click', () => {
 g('loginBtn').addEventListener('click', login);
 g('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 g('si').addEventListener('input', e => { clearTimeout(searchTimer); const q = e.target.value; searchTimer = setTimeout(() => search(q), 250); });
-{ const role = sessionStorage.getItem('hub_role'); if (sessionStorage.getItem('hub_token') && (!role || role === 'admin')) start(); }
+{ const role = hubSession.get('hub_role'); if (hubSession.getToken() && (!role || role === 'admin')) start(); }
 </script>
 </body>
 </html>

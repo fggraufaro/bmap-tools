@@ -422,12 +422,13 @@
   .flow-text{color:var(--ink-soft);}
 
   /* ---------- now next later ---------- */
-  .nnl{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .nnl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}
   .nnl-card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:20px;box-shadow:var(--shadow);}
   .nnl-card .tag{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.07em;font-weight:600;padding:3px 9px;border-radius:5px;display:inline-block;margin-bottom:12px;}
   .nnl-card:nth-child(1) .tag{background:var(--accent-soft);color:var(--accent-ink);}
   .nnl-card:nth-child(2) .tag{background:var(--gold-soft);color:var(--gold-ink);}
-  .nnl-card:nth-child(3) .tag{background:var(--line);color:var(--ink-soft);}
+  .nnl-card:nth-child(3) .tag{background:var(--blue-soft);color:var(--blue-ink);}
+  .nnl-card:nth-child(4) .tag{background:var(--line);color:var(--ink-soft);}
   .nnl-card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--ink);}
 
   footer{border-top:1px solid var(--line);padding-top:18px;color:var(--ink-faint);font-size:12.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
@@ -687,36 +688,46 @@
     <div class="section-head">
       <span class="tag">What happens when</span>
       <h2>Now, next and later</h2>
-      <div class="sub">Updated Mon 19 Oct.</div>
+      <div class="sub">Updated Sun 25 Oct, for the Mon 26 Oct meeting. Top 1: agree the Snapshot and Deep Dive structure and metrics. Then two goals: a first run of the new version in 30 days, and first-party bank data in 90 days so Marc&rsquo;s Branch Portfolio Matrix and the custom dashboards can run.</div>
     </div>
     <div class="nnl">
       <div class="nnl-card">
-        <span class="tag">Now &middot; this week</span>
+        <span class="tag">Now &middot; week of 26 Oct</span>
         <ul>
-          <li>By Tue 20: Tom, Brock and Francisco agree the answers our first bank customer will ask about (how fast we report an incident, a separate database, independent security test, AI use). Thu 22: the written security summary goes to the customer.</li>
-          <li>From Thu 22 until the review on Tue 27: no changes to the live tools except security fixes, so what the customer reads is exactly what they see.</li>
-          <li>Everyone signs in with a personal login today. The shared access code is switched off on Tue 20.</li>
-          <li>Choose the five banks Rate Radar tracks weekly for the pitch.</li>
-          <li>Finish the email domain set-up so login invitations can reach real users.</li>
+          <li><strong>Mon 26:</strong> agree the Snapshot and Deep Dive structure (sections, order, the question each answers) and the metrics behind it, with Marc&rsquo;s revised mockups as the starting list.</li>
+          <li>Walk through Chuck&rsquo;s UX/UI suggestions in Figma and pick what goes into the 30-day run.</li>
+          <li><strong>Tue 27:</strong> customer review (development-partner ask; customer data only once the November checklist is met). Mockup number fixes go in before it.</li>
+          <li><strong>Tue 27, 4:30 pm ET:</strong> Client kickoff with our media partner; media planning officially starts after it.</li>
+          <li>Teams meeting, Mickeyla and Francisco: the MediaPredict Excel tools, funnel metrics and three planning scenarios.</li>
+          <li>Live tools stay frozen until after the review, except security fixes.</li>
         </ul>
       </div>
       <div class="nnl-card">
-        <span class="tag">Next &middot; to mid-Nov</span>
+        <span class="tag">30 days &middot; to about 25 Nov</span>
         <ul>
-          <li>Customer security review (target Tue 27 Oct), then resume the work held back until it is done: Rate Radar fixes and the weekly run, and moving development to company-owned accounts.</li>
-          <li>The checklist that must be met before any customer data is loaded: a second sign-in step for the Hub, a dedicated client-data environment, access logging, an independent penetration test, and the written security policies.</li>
-          <li>The customer-data checklist, with target dates: data route tested with synthetic data (6 Nov), second sign-in step on the Hub (13 Nov), client-data environment connected with a two-bank separation test and access logging (20 Nov), penetration test booked and policy pack finished.</li>
-          <li>Finish the Growth Plan screen: balance sheet against peers, and a suggested goal for each bank.</li>
-          <li>Credit union database: load, validate and connect to Rate Radar.</li>
+          <li>First run of the new Snapshot and Deep Dive on a real bank, with the agreed structure and metrics and Chuck&rsquo;s UX changes. Public data only.</li>
+          <li>MediaPredict: three scenarios in every plan, modelled on our media partner’s tiers.</li>
+          <li>Customer-data checklist, as planned: data route tested with synthetic data (6 Nov), second sign-in step on the Hub (13 Nov), client-data environment with a two-bank separation test and access logging (20 Nov), penetration test booked, policy pack finished.</li>
+          <li>Start the pilot bank&rsquo;s vendor review and data-sharing terms early: they set the 90-day timeline.</li>
+          <li>Held-back work resumes after the review: Rate Radar fixes and weekly run, Growth Plan view, company-owned accounts.</li>
+        </ul>
+      </div>
+      <div class="nnl-card">
+        <span class="tag">90 days &middot; to late Jan</span>
+        <ul>
+          <li>Ingest the pilot bank&rsquo;s first-party data: branch-level monthly summaries first, customer-level files once the checklist and the bank&rsquo;s vendor review are done.</li>
+          <li>Run Marc&rsquo;s Branch Portfolio Matrix on that data: branch performance against market attractiveness, each branch in a quadrant with its main focus.</li>
+          <li>Custom dashboards from the revised mockups on the bank&rsquo;s own data: branch goal plan, branch dashboard, weekly sales meeting, scorecard, team results.</li>
+          <li>our media partner runs audience and media planning meanwhile (a client launches in January); its brief becomes the model for the AudienceFinder and MediaPredict section of the Growth Engine.</li>
         </ul>
       </div>
       <div class="nnl-card">
         <span class="tag">Later &middot; 4&ndash;12 months+</span>
         <ul>
-          <li>Bring the elasticity tool into every customer&rsquo;s dashboard: it already compares the cost of winning deposits through a higher rate versus a media plan, using each branch&rsquo;s real competitor rates</li>
+          <li>AudienceFinder and MediaPredict built into the Growth Engine on the our media partner structure: reach and household sizing, conversion range, three budget tiers, closed-loop measurement, day 30 and day 90 reviews.</li>
+          <li>Bring the elasticity tool into every customer&rsquo;s dashboard: it compares the cost of winning deposits through a higher rate versus a media plan, using each branch&rsquo;s real competitor rates</li>
           <li>A guide for every customer: an AI assistant that reads the bank&rsquo;s own data and suggests its next best move</li>
-          <li>First SOC&nbsp;2 report (Type&nbsp;I): banks can safely share their own data with us, which unlocks branch profitability insights</li>
-          <li>Auditors confirm our controls hold up over several months (Type&nbsp;II), and pilot banks become the proof it works</li>
+          <li>First SOC&nbsp;2 report (Type&nbsp;I) so customer data can scale beyond the pilot, then Type&nbsp;II; profitability measures once Finance data is in</li>
           <li>Only then: plan Product B in earnest</li>
         </ul>
       </div>
@@ -750,8 +761,8 @@
       <div class="ledger-row head"><span>Tool</span><span>Status</span><span>What it does today</span><span>Used in</span></div>
       <div class="ledger-row"><span class="tool-name">BMAP</span><span class="pill live">Live</span><span class="desc">Shows a bank exactly where its next deposits are hiding, branch by branch, on a map. A working bank dashboard is already live for demos.</span><span class="segment">Both products</span></div>
       <div class="ledger-row"><span class="tool-name">Rate Radar</span><span class="pill live">Live</span><span class="desc">Keeps an eye on what every competing bank pays on savings and CDs, so a bank can see where it stands on rates. Read from public rate pages, with phone calls to fill the gaps.</span><span class="segment">Both products</span></div>
-      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Turns a campaign goal into the people most worth reaching. Already proven on a real campaign (Trustmark): one short brief became three ready-to-use audiences. Next up: making it run automatically.</span><span class="segment">Product B</span></div>
-      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Turns a deposit goal into a clear plan: how many new accounts, how much to spend, what each account costs. The core math already runs inside the dashboard on real competitor data.</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">AudienceFinder</span><span class="pill building">Building</span><span class="desc">Turns a campaign goal into the people most worth reaching. Already proven on a real campaign (Trustmark): one short brief became three ready-to-use audiences. For now our media partner runs audience planning for clients (our client); its brief is the model for this step.</span><span class="segment">Product B</span></div>
+      <div class="ledger-row"><span class="tool-name">MediaPredict</span><span class="pill building">Building</span><span class="desc">Turns a deposit goal into a clear plan: how many new accounts, how much to spend, what each account costs. The core math already runs inside the dashboard on real competitor data. Next: three scenarios in every plan, and the Excel tools and funnel metrics revised with Mickeyla.</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Omnibranch</span><span class="pill building">Building</span><span class="desc">Gives a branch or a promotion its own campaign website. We're deciding whether to build it ourselves or bring in a proven one.</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Profitability Calc</span><span class="pill blocked">TBD</span><span class="desc">Would show which branches actually make money. It's a tool from Kohl Analytics; next step is scoping how it plugs in.</span><span class="segment">Product B</span></div>
       <div class="ledger-row"><span class="tool-name">Platform (reseller)</span><span class="pill notstarted">Not started</span><span class="desc">Our route to market beyond the East Coast: partners who resell Product B. Not started yet, and it matters sooner than we planned.</span><span class="segment">Product B</span></div>
@@ -762,15 +773,15 @@
     <div class="section-head">
       <span class="tag">Next 3 months</span>
       <h2>Top priorities</h2>
-      <div class="sub">Everything else on the tracker below is real work, but these are the three that decide whether Verlocity generates revenue, and can sign a bank, in the next quarter. Same live checklist — check off, claim an owner — just grouped so the plan doesn't get lost in the backlog.</div>
+      <div class="sub">Everything else on the tracker below is real work, but these decide whether Verlocity can sign and serve a bank in the next quarter. Reordered Sun 25 Oct: the Snapshot and Deep Dive structure is now top 1. Same live checklist: check off, claim an owner.</div>
     </div>
 
     <div class="priority-block">
       <div class="priority-head p1">
         <span class="priority-tag p1">P1</span>
         <div>
-          <h3>Security and trust readiness</h3>
-          <p>Non-negotiable gate before any prospect gets real access, regardless of product quality.</p>
+          <h3>Snapshot and Deep Dive: structure, metrics, first-party data</h3>
+          <p>Agree the structure Mon 26 Oct; first run in 30 days; bank data, Marc&rsquo;s Branch Portfolio Matrix and custom dashboards in 90 days.</p>
         </div>
       </div>
       <div class="actions-card"><div class="actions-list" id="p1List"><div class="actions-empty">Loading…</div></div></div>
@@ -780,8 +791,8 @@
       <div class="priority-head p2">
         <span class="priority-tag p2">P2</span>
         <div>
-          <h3>Product development</h3>
-          <p>Building the Growth Engine, from Branch Deep Dive through MediaPredict, and the predictive scoring behind it: new signals go in only where they prove real lift.</p>
+          <h3>Security and trust readiness</h3>
+          <p>Non-negotiable gate before any prospect gets real access, and before any bank data loads for the 90-day goal.</p>
         </div>
       </div>
       <div class="actions-card"><div class="actions-list" id="p2List"><div class="actions-empty">Loading…</div></div></div>
@@ -791,11 +802,22 @@
       <div class="priority-head p3">
         <span class="priority-tag p3">P3</span>
         <div>
-          <h3>SOC&nbsp;2 compliance program</h3>
-          <p>Off GitHub Pages, real environments, a real audit engagement: the gate on any bank sending us their own data.</p>
+          <h3>Growth Engine: audiences, media and scoring</h3>
+          <p>AudienceFinder and MediaPredict on the our media partner model, three-scenario planning, and the predictive scoring behind it: new signals go in only where they prove real lift.</p>
         </div>
       </div>
       <div class="actions-card"><div class="actions-list" id="p3List"><div class="actions-empty">Loading…</div></div></div>
+    </div>
+
+    <div class="priority-block">
+      <div class="priority-head p4">
+        <span class="priority-tag p4">P4</span>
+        <div>
+          <h3>SOC&nbsp;2 compliance program</h3>
+          <p>Off GitHub Pages, real environments, a real audit engagement: the gate on bank data at scale.</p>
+        </div>
+      </div>
+      <div class="actions-card"><div class="actions-list" id="p4List"><div class="actions-empty">Loading…</div></div></div>
     </div>
   </section>
 
@@ -904,8 +926,8 @@
 
         <span class="track-label">First-party data</span>
         <div class="bar-track">
-          <div class="bar-fill" style="left:0%;width:33.3%;background:var(--red-soft);border:1px solid var(--red);"><span class="bl" style="color:var(--red-ink);">Locked</span></div>
-          <div class="bar-fill" style="left:33.3%;width:66.7%;background:var(--accent-soft);border:1px solid var(--accent);"><span class="bl" style="color:var(--accent-ink);">Unlocked — Phase 2 profitability data</span></div>
+          <div class="bar-fill" style="left:0%;width:33.3%;background:var(--red-soft);border:1px solid var(--red);"><span class="bl" style="color:var(--red-ink);">Checklist and vendor review &rarr; pilot ingest</span></div>
+          <div class="bar-fill" style="left:33.3%;width:66.7%;background:var(--accent-soft);border:1px solid var(--accent);"><span class="bl" style="color:var(--accent-ink);">Pilot data: Portfolio Matrix, custom dashboards &rarr; scale after Type I</span></div>
         </div>
 
         <div class="gate-line" style="left:calc(150px + (100% - 150px) * 0.333);"><span class="gate-label">Type I ready</span></div>
@@ -983,7 +1005,7 @@
       <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">What competitors pay (Rate Radar)</span></div><span class="flow-endpoint">Bank</span></div>
       <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Who to market to (AudienceFinder audiences)</span></div><span class="flow-endpoint">Bank</span></div>
       <div class="flow-row"><span class="flow-endpoint">Verlocity</span><div class="flow-mid"><span class="flow-arrow out">&#8594;</span><span class="flow-text">Campaign web pages (Omnibranch)</span></div><span class="flow-endpoint">Bank</span></div>
-      <div class="flow-row"><span class="flow-endpoint">Bank</span><div class="flow-mid"><span class="flow-arrow in">&#8592;</span><span class="flow-text">Branch financial data, to show profitability (phase&nbsp;2)</span><span class="status-chip gated" style="margin-left:4px;">Waits for the SOC&nbsp;2 report</span></div><span class="flow-endpoint">Verlocity</span></div>
+      <div class="flow-row"><span class="flow-endpoint">Bank</span><div class="flow-mid"><span class="flow-arrow in">&#8592;</span><span class="flow-text">Pilot bank&rsquo;s branch and customer files, for the Branch Portfolio Matrix and custom dashboards (90-day goal)</span><span class="status-chip gated" style="margin-left:4px;">After the customer-data checklist; scale after SOC&nbsp;2</span></div><span class="flow-endpoint">Verlocity</span></div>
     </div>
   </section>
 
@@ -1032,6 +1054,7 @@
   const p1El = document.getElementById('p1List');
   const p2El = document.getElementById('p2List');
   const p3El = document.getElementById('p3List');
+  const p4El = document.getElementById('p4List');
   const teamEl = document.getElementById('teamList');
   const nbEl = document.getElementById('nbBody');
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1049,9 +1072,13 @@
   // open work, a77 is the elasticity tool now correctly marked shipped.
   // Reordered 2026-10-08: P1 security and trust, P2 product development,
   // P3 SOC 2 (was P4). Security items moved out of the old Growth Engine block.
-  const P1_IDS = ['a33','a34','a35','a36','a38','a89','a41','a78','a95','a96'];
-  const P2_IDS = ['a37','a77','a91','a47','a43','a26','a87','a84','a25','a27','a28','a22','a40','a63','a67','a68','a69','a70','a71'];
-  const P3_IDS = ['a51','a52','a53','a54','a74','a75','a76','a79','a80','a81'];
+  // Reordered 2026-10-25: P1 Snapshot and Deep Dive (new a135-a142, plus a37 and a105),
+  // P2 security and trust (old P1 plus the the customer data gates), P3 Growth Engine
+  // (old P2 plus the MediaPredict / our media partner items a143-a146), P4 SOC 2 (old P3).
+  const P1_IDS = ['a135','a136','a142','a138','a137','a139','a140','a141','a37','a105'];
+  const P2_IDS = ['a33','a34','a35','a36','a38','a89','a41','a78','a95','a96','a124','a133'];
+  const P3_IDS = ['a143','a146','a144','a145','a11','a77','a91','a47','a43','a26','a87','a84','a25','a27','a28','a22','a40','a63','a67','a68','a69','a70','a71'];
+  const P4_IDS = ['a51','a52','a53','a54','a74','a75','a76','a79','a80','a81'];
 
   // Notice board + team agenda: kinds teamhead, team, every, week (docs in the 'notice' collection).
   let nCol = null;
@@ -1097,14 +1124,14 @@
   }
   // Same content as the 'notice' docs, shown where the live tracker is not available (the hosted page);
   // kept high level on purpose because that page is public. The tracker copy wins when it has docs.
-  const NOTICE_STATIC = [{"ask": "Use your personal login for every Verlocity tool. The shared access code goes off on Tue 20.", "done": false, "due": "Mon 19", "group": "Today · Mon 19", "kind": "team", "order": 1, "ref": "a38", "who": "Everyone", "id": "t14"}, {"ask": "Confirm you are the backup if there is a security incident (Francisco is the owner).", "done": false, "due": "Mon 19", "group": "Today · Mon 19", "kind": "team", "order": 2, "ref": "a129", "who": "Chuck", "id": "t16"}, {"ask": "Five banks to track weekly in Rate Radar for the pitch.", "done": false, "due": "Mon 19", "group": "Today · Mon 19", "kind": "team", "order": 3, "ref": "a132", "who": "Brock", "id": "t13"}, {"ask": "Get the customer's security contact and their questionnaire, if they have one.", "done": false, "due": "Mon 19", "group": "Today · Mon 19", "kind": "team", "order": 4, "ref": "a133", "who": "Brock", "id": "t11"}, {"ask": "Name the one person who holds the verlocity.ai email and web settings login, so the email domain fix is done today and login invitations reach customers.", "done": false, "due": "Mon 19", "group": "Today · Mon 19", "kind": "team", "order": 5, "ref": "a89", "who": "Francisco to name", "id": "t15"}, {"ask": "One-page note on past security issues and their fixes, for the pre-read.", "done": false, "due": "Mon 19", "group": "Today · Mon 19", "kind": "team", "order": 6, "ref": "a131", "who": "Francisco", "id": "t17"}, {"ask": "Incident promise: how fast we tell a customer if something goes wrong with their data. Proposal: within 24 hours.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 10, "ref": "a133", "who": "Tom, Brock, Francisco", "id": "t06"}, {"ask": "Where the customer's data will live: its own separate database (recommended) or a shared one.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 11, "ref": "a133", "who": "Francisco, Tom", "id": "t07"}, {"ask": "Budget for the security report banks ask for (SOC 2). It needs a higher database plan.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 12, "ref": "a133", "who": "Francisco, Tom", "id": "t08"}, {"ask": "Choose who runs the independent security test, and when.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 13, "ref": "a133", "who": "Francisco", "id": "t09"}, {"ask": "Agree one plain sentence on AI: no customer data goes to AI services.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 14, "ref": "a133", "who": "Tom, Brock, Francisco", "id": "t10"}, {"ask": "How the customer sends us data. Proposal: through their own secure file transfer, so we don't build an upload route for the pilot.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 15, "ref": "a133", "who": "Brock, Francisco", "id": "t18"}, {"ask": "Shared access code switched off (server refuses it), then the two-bank separation test run on production with saved evidence.", "done": false, "due": "Tue 20 Oct", "group": "Decisions for the review · Tue 20", "kind": "team", "order": 17, "ref": "a38", "who": "Francisco", "id": "t20"}, {"ask": "Read the pre-read draft before it goes out Thu 22.", "done": false, "due": "Wed 21 Oct", "group": "Review prep", "kind": "team", "order": 20, "ref": "a131", "who": "Tom, Brock, Pete", "id": "t12"}, {"ask": "Development-partner terms: what the partner discount buys, what the customer commits to, and how terms tie to the data checklist.", "done": false, "due": "Thu 22 Oct", "group": "Review prep", "kind": "team", "order": 21, "ref": "a133", "who": "Tom, Brock", "id": "t21"}, {"ask": "Meeting brief: likely questions, short answers, and which ones Francisco takes.", "done": false, "due": "Mon 26 Oct", "group": "Review prep", "kind": "team", "order": 22, "ref": "a133", "who": "Francisco", "id": "t22"}, {"ask": "Analytics 360 (household data): agree terms or pass. A compliance check on the data comes first.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 30, "ref": "a4", "who": "Tom", "id": "t01"}, {"ask": "Omnibranch: build the branch microsite generator ourselves, or buy one.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 31, "ref": "a5", "who": "Brock", "id": "t02"}, {"ask": "Kohl Analytics profitability calculator: hold the scoping call.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 32, "ref": "a6", "who": "Steve", "id": "t03"}, {"ask": "Pricing and packaging: lock the tiers to what is built and write the one-pager for the first prospect.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 33, "ref": "a39", "who": "Tom, Brock", "id": "t04"}, {"ask": "Growth Lab research sandbox: keep it parked or drop it.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 34, "ref": "a12", "who": "Tom, Brock", "id": "t05"}, {"date": "Mon 19 Oct", "kind": "teamhead", "order": 0, "id": "teamhead"}, {"dates": "12–18 Oct", "items": ["Separate US-based environment for customer data built and tested; no customer data in it yet.", "Live database access tightened, with a saved rollback.", "19 quarters of bank financial filings loaded and reconciled.", "Two-step sign-in on every admin console; incident owner and backup named.", "AI access tightened on every tool, with a monthly spend cap.", "Hub release: bank users see only their own bank; checked end to end with the customer's login.", "Pre-read draft written; Rate Radar fixes built and waiting for after the review."], "kind": "week", "label": "Done last week", "order": 1, "state": "now", "theme": "Security groundwork for the first bank customer", "id": "w0"}, {"dates": "19–25 Oct", "items": ["Mon: personal logins for everyone, email domain fixed, note on past security issues, five Rate Radar banks chosen.", "Tue: review decisions settled; shared access code off; two-bank separation test run on production.", "Wed: data checklist with dates and owners, security policy outline, pre-read reviewed by Tom, Brock and Pete.", "Thu: pre-read sent. From then on only security fixes go to production.", "Fri–Sun: customer replies, full re-check of every claim in the pre-read.", "Product work (Growth Plan view, credit unions, pricing one-pager) continues off production only."], "kind": "week", "label": "This week · plan", "order": 2, "state": "next", "theme": "Get the customer security review right", "id": "w1"}, {"dates": "26 Oct–1 Nov", "items": ["Mon: final check on production, Rate Radar demo rehearsal (from test data, not live), brief to Tom and Brock.", "Tue: the customer security review. Our ask: approval to proceed as a development partner, with customer data loading only once the November checklist is met.", "After the review: Rate Radar fixes and the weekly run go live (a40, a132); the Growth Plan view ships (a105); development moves to company-owned accounts (a130).", "Parked decisions come back on the agenda (Analytics 360, Omnibranch, Kohl, Growth Lab, pricing tiers)."], "kind": "week", "label": "Next week · plan", "order": 3, "state": "later", "theme": "Review, then resume", "id": "w2"}];
+  const NOTICE_STATIC = [{"ask": "Analytics 360 (household data): agree terms or pass. A compliance check on the data comes first.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 30, "ref": "a4", "who": "Tom", "id": "t01"}, {"ask": "Omnibranch: build the branch microsite generator ourselves, or buy one.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 31, "ref": "a5", "who": "Brock", "id": "t02"}, {"ask": "Kohl Analytics profitability calculator: hold the scoping call.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 32, "ref": "a6", "who": "Steve", "id": "t03"}, {"ask": "Pricing and packaging: lock the tiers to what is built and write the one-pager for the first prospect.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 33, "ref": "a39", "who": "Tom, Brock", "id": "t04"}, {"ask": "Growth Lab research sandbox: keep it parked or drop it.", "done": false, "due": "From 3 Nov", "group": "Parked until after 27 Oct", "kind": "team", "order": 34, "ref": "a12", "who": "Tom, Brock", "id": "t05"}, {"ask": "Incident promise: how fast we tell a customer if something goes wrong with their data. Proposal: within 24 hours.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 50, "ref": "a133", "who": "Tom, Brock, Francisco", "id": "t06"}, {"ask": "Where the customer's data will live: its own separate database (recommended) or a shared one.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 51, "ref": "a133", "who": "Francisco, Tom", "id": "t07"}, {"ask": "Budget for the security report banks ask for (SOC 2). It needs a higher database plan.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 52, "ref": "a133", "who": "Francisco, Tom", "id": "t08"}, {"ask": "Choose who runs the independent security test, and when.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 53, "ref": "a133", "who": "Francisco", "id": "t09"}, {"ask": "Agree one plain sentence on AI: no customer data goes to AI services.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 54, "ref": "a133", "who": "Tom, Brock, Francisco", "id": "t10"}, {"ask": "Get the customer's security contact and their questionnaire, if they have one.", "done": false, "due": "Mon 19", "group": "From last week · confirm status", "kind": "team", "order": 44, "ref": "a133", "who": "Brock", "id": "t11"}, {"ask": "Read the pre-read draft before it goes out Thu 22.", "done": false, "due": "Wed 21 Oct", "group": "From last week · confirm status", "kind": "team", "order": 60, "ref": "a131", "who": "Tom, Brock, Pete", "id": "t12"}, {"ask": "Five banks to track weekly in Rate Radar for the pitch.", "done": false, "due": "Mon 19", "group": "From last week · confirm status", "kind": "team", "order": 43, "ref": "a132", "who": "Brock", "id": "t13"}, {"ask": "Use your personal login for every Verlocity tool.", "done": false, "due": "Mon 19", "group": "From last week · confirm status", "kind": "team", "order": 41, "ref": "a38", "who": "Everyone", "id": "t14"}, {"ask": "Add the four email DNS records for verlocity.ai (values sent by Francisco), so login emails reach customers' inboxes.", "done": false, "due": "Mon 19", "group": "From last week · confirm status", "kind": "team", "order": 45, "ref": "a89", "who": "Giselle", "id": "t15"}, {"ask": "Confirm you are the backup if there is a security incident (Francisco is the owner).", "done": false, "due": "Mon 19", "group": "From last week · confirm status", "kind": "team", "order": 42, "ref": "a129", "who": "Chuck", "id": "t16"}, {"ask": "One-page note on past security issues and their fixes, for the pre-read.", "done": false, "due": "Mon 19", "group": "From last week · confirm status", "kind": "team", "order": 46, "ref": "a131", "who": "Francisco", "id": "t17"}, {"ask": "How the customer sends us data. Proposal: through their own secure file transfer, so we don't build an upload route for the pilot.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 55, "ref": "a133", "who": "Brock, Francisco", "id": "t18"}, {"ask": "Shared access code decision, then the two-bank separation test run on production with saved evidence.", "done": false, "due": "Tue 20 Oct", "group": "From last week · confirm status", "kind": "team", "order": 57, "ref": "a38", "who": "Francisco", "id": "t20"}, {"ask": "Development-partner terms: what the partner discount buys, what the customer commits to, and how terms tie to the data checklist.", "done": false, "due": "Thu 22 Oct", "group": "From last week · confirm status", "kind": "team", "order": 61, "ref": "a133", "who": "Tom, Brock", "id": "t21"}, {"ask": "Meeting brief: likely questions, short answers, and which ones Francisco takes.", "done": false, "due": "Mon 26 Oct", "group": "From last week · confirm status", "kind": "team", "order": 62, "ref": "a133", "who": "Francisco", "id": "t22"}, {"date": "Mon 26 Oct", "id": "teamhead", "ask": ""}, {"label": "Last week · plan, confirm status", "dates": "19–25 Oct", "state": "now", "order": 1, "theme": "Get the customer security review right", "items": ["Mon: personal logins for everyone, email domain fixed, note on past security issues, five Rate Radar banks chosen.", "Tue: review decisions settled; access-code change; two-bank separation test run on production.", "Wed: data checklist with dates and owners, security policy outline, pre-read reviewed by Tom, Brock and Pete.", "Thu: pre-read sent. From then on only security fixes go to production.", "Fri–Sun: customer replies, full re-check of every claim in the pre-read.", "Product work (Growth Plan view, credit unions, pricing one-pager) continues off production only."], "kind": "week", "id": "w0", "ask": ""}, {"label": "This week · plan", "dates": "26 Oct–1 Nov", "state": "next", "order": 2, "theme": "Agree the structure, then the reviews", "items": ["Mon: agree the Snapshot and Deep Dive structure and metrics; walk through Chuck's Figma; confirm the 30-day and 90-day goals.", "Mon: final check on production and the brief to Tom and Brock for the customer review.", "Tue: customer review. Ask: approval to proceed as a development partner, with customer data only once the November checklist is met.", "Tue 4:30 pm ET: Client kickoff with our media partner; media planning starts from there.", "Teams meeting with Mickeyla on the MediaPredict Excel tools, funnel metrics and three scenarios.", "After the review: the held-back work resumes (Rate Radar fixes and weekly run, Growth Plan view, company-owned accounts)."], "kind": "week", "id": "w1", "ask": ""}, {"label": "Next week · plan", "dates": "2–8 Nov", "state": "later", "order": 3, "theme": "Start the 30-day build", "items": ["Build the new Snapshot and Deep Dive structure off production, with the agreed metrics.", "Apply the first batch of Chuck's UX changes.", "The client sends access, data and decisions by Tue 3 Nov.", "Start the pilot bank's vendor review and data-sharing terms for the 90-day data goal.", "Customer-data checklist: data route tested with synthetic data (6 Nov)."], "kind": "week", "id": "w2", "ask": ""}, {"kind": "team", "group": "Monday meeting · 26 Oct", "order": 1, "ask": "Agree the Snapshot and Deep Dive structure: sections, order, and the question each answers.", "who": "Francisco, Marc, Tom, Brock", "due": "Mon 26", "ref": "a135", "done": false, "id": "t23"}, {"kind": "team", "group": "Monday meeting · 26 Oct", "order": 2, "ask": "Agree the metrics and their definitions: funded and active relationships, campaign results, new versus moved money.", "who": "Marc, Francisco", "due": "Mon 26", "ref": "a136", "done": false, "id": "t24"}, {"kind": "team", "group": "Monday meeting · 26 Oct", "order": 3, "ask": "Confirm the two goals: first run of the new version in 30 days (about 25 Nov); first-party data and the Branch Portfolio Matrix in 90 days (late Jan).", "who": "Everyone", "due": "Mon 26", "ref": "a137", "done": false, "id": "t25"}, {"kind": "team", "group": "Monday meeting · 26 Oct", "order": 4, "ask": "Walk through Chuck's Figma and pick what goes into the 30-day run.", "who": "Chuck, Francisco", "due": "Mon 26", "ref": "a138", "done": false, "id": "t26"}, {"kind": "team", "group": "Monday meeting · 26 Oct", "order": 5, "ask": "Which mockup views go to the customer on Tue 27, and the number fixes before then.", "who": "Marc, Tom, Brock", "due": "Mon 26", "ref": "a142", "done": false, "id": "t27"}, {"kind": "team", "group": "Monday meeting · 26 Oct", "order": 6, "ask": "Book the Teams meeting on the MediaPredict Excel tools, funnel metrics and three scenarios.", "who": "Mickeyla, Francisco", "due": "Before planning starts", "ref": "a143", "done": false, "id": "t28"}];
   const noticeStatic = () => NOTICE_STATIC.map(r => ({ id: r.id, data: () => r }));
 
   let db;
   try { db = await claude.use('db'); } catch(e) { db = null; }
   if (!db) {
     const msg = '<div class="actions-empty">Open-action tracking isn\'t available in this view. <a href="https://claude.ai/code/artifact/f2513088-1af1-43f5-a384-f59f2e32f79e" target="_blank" rel="noopener" style="color:var(--accent-ink);font-weight:600;">Open the live tracker →</a></div>';
-    listEl.innerHTML = msg; doneEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg;
+    listEl.innerHTML = msg; doneEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg; p4El.innerHTML = msg;
     renderNotice(noticeStatic());
     return;
   }
@@ -1275,8 +1302,9 @@
     renderInto(p1El, P1_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
     renderInto(p2El, P2_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
     renderInto(p3El, P3_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
+    renderInto(p4El, P4_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
 
-    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...all.filter(it => (it.phase !== undefined && it.phase !== null && String(it.phase) !== '') || (it.cuPhase !== undefined && it.cuPhase !== null && String(it.cuPhase) !== '')).map(it => it.id)]);
+    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...P4_IDS, ...all.filter(it => (it.phase !== undefined && it.phase !== null && String(it.phase) !== '') || (it.cuPhase !== undefined && it.cuPhase !== null && String(it.cuPhase) !== '')).map(it => it.id)]);
     const rest = all.filter(it => !it.done && !shown.has(it.id)).sort((a,b) => (a.order||0) - (b.order||0));
     renderInto(listEl, rest, 'No other open actions.');
 
@@ -1295,7 +1323,7 @@
     (snap) => render(snap.docs),
     () => {
       const msg = '<div class="actions-empty">Couldn\'t load actions right now.</div>';
-      listEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg;
+      listEl.innerHTML = msg; p1El.innerHTML = msg; p2El.innerHTML = msg; p3El.innerHTML = msg; p4El.innerHTML = msg;
       const bl = document.getElementById('boardLanes'); if (bl) bl.innerHTML = msg;
     }
   );

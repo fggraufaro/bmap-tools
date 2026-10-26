@@ -839,6 +839,15 @@
     <div id="cuBoardLanes"><div class="actions-empty">Loading…</div></div>
   </section>
 
+  <section class="board">
+    <div class="section-head">
+      <span class="tag">Target Identification model</span>
+      <h2>Build board, by phase</h2>
+      <div class="sub">Marc&rsquo;s prospect-screening model: separate Need, Opportunity, Capacity and Fit results for each bank, replacing the single score in the Hub Prospecting tab. Ten phases. Nothing reaches the Hub until the validation phase passes review with Marc.</div>
+    </div>
+    <div id="tiBoardLanes"><div class="actions-empty">Loading…</div></div>
+  </section>
+
   <section class="open-actions">
     <div class="section-head">
       <span class="tag">Track it, don't just log it</span>
@@ -1266,6 +1275,41 @@
     });
   }
 
+  const TI_PHASES = [
+    { n: '0', name: 'Spec lock and decisions', sub: 'Decisions written into spec v0.8; open questions owned.' },
+    { n: '1', name: 'UBPR bank-value pages', sub: 'Core deposits, short-term funding and coverage values, loaded as published.' },
+    { n: '2', name: 'RC-O and typed staging layer', sub: 'RC-O added; typed views over the text-stored Call Report columns.' },
+    { n: '3', name: 'Universe and Fit gate', sub: 'Scored list, manual-review lists and the named exemption list.' },
+    { n: '4', name: 'Peer groups and percentile engine', sub: 'The 99 nearest banks by assets, built by Verlocity, no UBPR peer data.' },
+    { n: '5', name: 'Need metrics and themes A to D', sub: 'Metric scores, adverse trends, overrides, the reclassification flag.' },
+    { n: '6', name: 'SOD layer: Need E and Opportunity', sub: 'Official and adjusted shares, county growth, branch dispersion, expansion.' },
+    { n: '7', name: 'Capacity, lists, ranking and reason codes', sub: 'The five lists, top 50 each, and the quarterly refresh procedure.' },
+    { n: '8', name: 'Validation with Marc', sub: 'Known banks and the old list compared before any outreach.' },
+    { n: '9', name: 'Prospecting tab', sub: 'Five lists and the Prospect Snapshot in the Hub, admin only.' }
+  ];
+  function renderTiBoard(all){
+    const el = document.getElementById('tiBoardLanes');
+    if (!el) return;
+    const items = all.filter(it => it.tiPhase !== undefined && it.tiPhase !== null && String(it.tiPhase) !== '');
+    if (!items.length){ el.innerHTML = '<div class="actions-empty">No cards yet.</div>'; return; }
+    el.innerHTML = TI_PHASES.map(ph => {
+      const inPhase = items.filter(it => String(it.tiPhase) === ph.n).sort((a,b) => (a.order||0) - (b.order||0));
+      if (!inPhase.length) return '';
+      const cols = STATUSES.map(st => {
+        const cards = inPhase.filter(it => statusOf(it) === st);
+        return `<div class="board-col"><h4>${st} (${cards.length})</h4>${cards.map(boardCard).join('')}</div>`;
+      }).join('');
+      return `<div class="board-lane"><h3>Phase ${ph.n} &middot; ${ph.name}</h3><p class="lane-sub">${ph.sub}</p><div class="board-cols">${cols}</div></div>`;
+    }).join('');
+    el.querySelectorAll('.board-status').forEach(sel => {
+      sel.addEventListener('change', async (e) => {
+        const id = e.target.dataset.id, val = e.target.value;
+        try { await col.doc(id).update({ status: val, done: val === 'Done' }); }
+        catch (err) { e.target.value = statusOf(byIdAll[id] || {}); }
+      });
+    });
+  }
+
   function renderBoard(all){
     const el = document.getElementById('boardLanes');
     if (!el) return;
@@ -1297,6 +1341,7 @@
     byIdAll = byId;
     renderBoard(all);
     renderCuBoard(all);
+    renderTiBoard(all);
     const openOnly = id => { const it = byId[id]; return it && !it.done ? it : null; };
 
     renderInto(p1El, P1_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
@@ -1304,7 +1349,7 @@
     renderInto(p3El, P3_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
     renderInto(p4El, P4_IDS.map(openOnly).filter(Boolean), 'Nothing open here.');
 
-    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...P4_IDS, ...all.filter(it => (it.phase !== undefined && it.phase !== null && String(it.phase) !== '') || (it.cuPhase !== undefined && it.cuPhase !== null && String(it.cuPhase) !== '')).map(it => it.id)]);
+    const shown = new Set([...P1_IDS, ...P2_IDS, ...P3_IDS, ...P4_IDS, ...all.filter(it => (it.phase !== undefined && it.phase !== null && String(it.phase) !== '') || (it.cuPhase !== undefined && it.cuPhase !== null && String(it.cuPhase) !== '') || (it.tiPhase !== undefined && it.tiPhase !== null && String(it.tiPhase) !== '')).map(it => it.id)]);
     const rest = all.filter(it => !it.done && !shown.has(it.id)).sort((a,b) => (a.order||0) - (b.order||0));
     renderInto(listEl, rest, 'No other open actions.');
 

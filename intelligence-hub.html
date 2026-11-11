@@ -752,6 +752,7 @@ body.role-bank-user .admin-batch-only{display:none !important}
         <div style="display:flex;align-items:center;gap:8px">
           <select class="metro-sel" id="stateSelect"><option value="">All states</option></select>
           <select class="metro-sel" id="metroSelect"><option value="">All markets</option></select>
+          <select class="metro-sel" id="citySelect"><option value="">All cities</option></select>
           <span style="font-size:10px;color:var(--muted)" id="matrixMore"></span>
         </div>
       </div>
@@ -1802,18 +1803,19 @@ async function loadBank(ik){
       const zones={};
       brs.forEach(b=>{zones[b.opportunity_zone]=(zones[b.opportunity_zone]||0)+1});
       const zoneLine=Object.entries(zones).sort((a,b)=>b[1]-a[1]).map(([z,c])=>`${c} ${z}`).join(' · ')||'no branches in view';
-      const scoped = mSel.value && brs.length<allBr.length;
+      const scopeName = cSel.value || mSel.value;
+      const scoped = scopeName && brs.length<allBr.length;
       const networkHasAcq = allBr.some(b=>TOP_PRIORITY_PLAYS.has(b.campaign)||NEXT_PLAYS.has(b.campaign)||OPPORTUNITY_PLAYS.has(b.campaign));
       const deepDiveLink = `<a href="#" onclick="selWf(1);return false;" style="color:var(--blue);font-weight:600">Run a Branch Deep Dive →</a>`;
 
       if(scoped && networkHasAcq){
         h+=`<div style="padding:12px 14px;background:#fafaf8;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);line-height:1.65">
-          <b>Why it's empty:</b> no Top Priority, Next, or Opportunity branches in ${mSel.value}. Branch mix here: ${zoneLine}.<br>
-          <b>Next step:</b> <a href="#" onclick="mSel.value='';mSel.dispatchEvent(new Event('change'));return false;" style="color:var(--blue);font-weight:600">view network-wide opportunities →</a> or ${deepDiveLink.toLowerCase()}
+          <b>Why it's empty:</b> no Top Priority, Next, or Opportunity branches in ${scopeName}. Branch mix here: ${zoneLine}.<br>
+          <b>Next step:</b> <a href="#" onclick="document.getElementById('citySelect').value='';var m=document.getElementById('metroSelect');m.value='';m.dispatchEvent(new Event('change'));return false;" style="color:var(--blue);font-weight:600">view network-wide opportunities →</a> or ${deepDiveLink.toLowerCase()}
         </div>`;
       } else {
         h+=`<div style="padding:12px 14px;background:#fafaf8;border:1px solid var(--border);border-radius:8px;font-size:11.5px;color:var(--text);line-height:1.65">
-          <b>Why it's empty:</b> no branches${mSel.value?` in ${mSel.value}`:''} currently show a Top Priority, Next, or Opportunity signal. Branch mix: ${zoneLine}. This portfolio is weighted toward retention and defense right now, not expansion.<br>
+          <b>Why it's empty:</b> no branches${scopeName?` in ${scopeName}`:''} currently show a Top Priority, Next, or Opportunity signal. Branch mix: ${zoneLine}. This portfolio is weighted toward retention and defense right now, not expansion.<br>
           <b>Next step:</b> ${deepDiveLink} on individual branches to confirm before ruling out an opportunity.
         </div>`;
       }
@@ -1823,7 +1825,7 @@ async function loadBank(ik){
   };
 
   // Populate state + metro dropdowns (cascading) and render
-  const sSel=g('stateSelect'), mSel=g('metroSelect');
+  const sSel=g('stateSelect'), mSel=g('metroSelect'), cSel=g('citySelect');
   const populateMetroOptions = (stateFilter) => {
     const pool = stateFilter ? allBr.filter(b=>b.stalpbr===stateFilter) : allBr;
     const metros=[...new Set(pool.map(b=>b.metro).filter(Boolean))].sort();
@@ -1831,11 +1833,20 @@ async function loadBank(ik){
     mSel.innerHTML='<option value="">All markets</option>'+metros.map(m=>`<option value="${m}">${m}</option>`).join('');
     mSel.value=keep;
   };
+  // City list follows the state and market chosen ("City, ST" keeps same-named towns in two states apart).
+  const populateCityOptions = (stateFilter, metroFilter) => {
+    const pool = allBr.filter(b=>(!stateFilter||b.stalpbr===stateFilter)&&(!metroFilter||b.metro===metroFilter));
+    const cities=[...new Set(pool.filter(b=>b.citybr).map(b=>`${b.citybr}, ${b.stalpbr}`))].sort();
+    const keep = cities.includes(cSel.value) ? cSel.value : '';
+    cSel.innerHTML='<option value="">All cities</option>'+cities.map(c=>`<option value="${c}">${c}</option>`).join('');
+    cSel.value=keep;
+  };
   if(sSel.dataset.bank!==ik){
     const states=[...new Set(allBr.map(b=>b.stalpbr).filter(Boolean))].sort();
     sSel.innerHTML='<option value="">All states</option>'+states.map(s=>`<option value="${s}">${s}</option>`).join('');
-    sSel.dataset.bank=ik;sSel.value='';mSel.value='';
+    sSel.dataset.bank=ik;sSel.value='';mSel.value='';cSel.value='';
     populateMetroOptions('');
+    populateCityOptions('','');
   }
 
   const PLAY_WEIGHT = {
@@ -1960,20 +1971,22 @@ async function loadBank(ik){
 
   const applyFilters = () => {
     clearBrDetail();
-    const stateV=sSel.value, metroV=mSel.value;
+    const stateV=sSel.value, metroV=mSel.value, cityV=cSel.value;
     const brs = allBr.filter(b=>
       (!stateV || b.stalpbr===stateV) &&
-      (!metroV || b.metro===metroV)
+      (!metroV || b.metro===metroV) &&
+      (!cityV || `${b.citybr}, ${b.stalpbr}`===cityV)
     );
-    const scopeLabel = [stateV,metroV].filter(Boolean).join(' · ');
+    const scopeLabel = [stateV,metroV,cityV].filter(Boolean).join(' · ');
     renderPriority(brs);
     renderMatrix(brs, scopeLabel);
     renderCities(brs);
     renderTargets(brs);
   };
 
-  sSel.onchange = () => { populateMetroOptions(sSel.value); applyFilters(); };
-  mSel.onchange = applyFilters;
+  sSel.onchange = () => { populateMetroOptions(sSel.value); populateCityOptions(sSel.value, mSel.value); applyFilters(); };
+  mSel.onchange = () => { populateCityOptions(sSel.value, mSel.value); applyFilters(); };
+  cSel.onchange = applyFilters;
 
   applyFilters();
 

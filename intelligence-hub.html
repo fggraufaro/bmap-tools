@@ -751,7 +751,7 @@ body.role-bank-user .admin-batch-only{display:none !important}
         <div class="sec-t">Branch matrix</div>
         <div style="display:flex;align-items:center;gap:8px">
           <select class="metro-sel" id="stateSelect"><option value="">All states</option></select>
-          <select class="metro-sel" id="metroSelect"><option value="">All markets</option></select>
+          <select class="metro-sel" id="metroSelect"><option value="">All metro areas</option></select>
           <select class="metro-sel" id="citySelect"><option value="">All cities</option></select>
           <span style="font-size:10px;color:var(--muted)" id="matrixMore"></span>
         </div>
@@ -1830,7 +1830,7 @@ async function loadBank(ik){
     const pool = stateFilter ? allBr.filter(b=>b.stalpbr===stateFilter) : allBr;
     const metros=[...new Set(pool.map(b=>b.metro).filter(Boolean))].sort();
     const keep = metros.includes(mSel.value) ? mSel.value : '';
-    mSel.innerHTML='<option value="">All markets</option>'+metros.map(m=>`<option value="${m}">${m}</option>`).join('');
+    mSel.innerHTML='<option value="">All metro areas</option>'+metros.map(m=>`<option value="${m}">${m}</option>`).join('');
     mSel.value=keep;
   };
   // City list follows the state and market chosen ("City, ST" keeps same-named towns in two states apart).

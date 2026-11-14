@@ -143,6 +143,10 @@ except ImportError:
 
 app = Flask(__name__)
 
+# Every route needs the access key (RATE_RADAR_ACCESS_KEY); see access_guard.py. Fails closed on Railway.
+import access_guard
+access_guard.install(app)
+
 # ── Call Report folder (next to this script) ──────────────────────────────────
 from call_reports import (
     load_call_reports, CALL_REPORTS_DIR,

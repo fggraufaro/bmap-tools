@@ -7,6 +7,7 @@
 # shared.py, not owned here) purely for progress logging.
 
 import csv
+import re
 import hashlib
 import json
 from datetime import datetime
@@ -25,7 +26,7 @@ from shared import (
     EXPORTS, FIELDS, SB_NUMERIC_FIELDS,
 )
 from extraction import extract_domain, _parse_term_months
-from rate_integrity import resolve, legacy_entry, SEARCH, LAST_KNOWN_GOOD
+from rate_integrity import resolve, legacy_entry, SEARCH, LAST_KNOWN_GOOD, is_stale, meta_note, scope_flags, home_state_of, state_abbr
 
 
 def build_supabase_rows(results, run_id, run_date):
@@ -139,7 +140,13 @@ async def push_to_supabase(results, run_id, run_date):
 # write or the live dashboard, which still reads exclusively from
 # vw_rate_radar_latest.
 
-def build_rate_observations(results, run_id, extra_cols=False):
+def method_is_page_read(entry):
+    """True for a value read from a bank page (site / ai_vision / aggregator): the only kinds a
+    page's as-of date speaks for."""
+    return bool(entry) and entry.get("method") in ("site", "ai_vision", "aggregator")
+
+
+def build_rate_observations(results, run_id, extra_cols=False, today=None):
     """Explode wide result dicts into tidy public.rate_observations rows.
 
     Where a value came from, and how far it can be trusted, is decided by
@@ -168,6 +175,13 @@ def build_rate_observations(results, run_id, extra_cols=False):
     """
     now_iso = datetime.now().isoformat()
     rows = []
+    # the state most pages of this run state (when they state one): a page naming another is flagged
+    from collections import Counter
+    _states = Counter()
+    for r in results:
+        for _st in {state_abbr((m or {}).get("scope")) for m in (r.get("rate_meta") or {}).values()} - {None}:
+            _states[_st] += 1
+    run_majority = _states.most_common(1)[0][0] if len(_states) > 1 else None
     for r in results:
         bank_name = r.get("bank_name")
         if not bank_name:
@@ -178,6 +192,7 @@ def build_rate_observations(results, run_id, extra_cols=False):
         rate_tags  = r.get("rate_tags") or {}   # Phase 5: {"savings": ["promo"], ...} from tag_rate_context()
         prov       = r.get("provenance") or {}
         tier_notes = r.get("tier_notes") or {}
+        rate_meta  = r.get("rate_meta") or {}   # {product: what its page said about its scope and as-of date}
         identity   = r.get("identity")          # "ok" | "mismatch" | "unknown" | None (not checked)
         not_pub    = set(r.get("not_published") or [])
         bank_url   = r.get("bank_url")
@@ -212,7 +227,11 @@ def build_rate_observations(results, run_id, extra_cols=False):
             except (ValueError, TypeError):
                 continue
             entry = prov.get(product_type) or legacy_entry(product_type, specific_url, note)
-            method, conf, url, flags = resolve(entry, bank_url=bank_url, identity=identity, edited=edited)
+            meta = rate_meta.get(product_type)
+            method, conf, url, flags = resolve(entry, bank_url=bank_url, identity=identity, edited=edited,
+                                               stale=bool(is_stale(meta, today)) and method_is_page_read(entry))
+            if r.get("breaker_skipped") and not edited:
+                flags = list(flags) + ["circuit_breaker_search_only"]
             if edited:
                 url = specific_url or source_url
             # the bank says it does not publish this product's rate: only a value read from
@@ -233,7 +252,7 @@ def build_rate_observations(results, run_id, extra_cols=False):
                 "source_url":        str(url) if url else None,
                 "extraction_method": method,
                 "confidence":        conf,
-                "is_conditional":    "conditional" in tags,
+                "is_conditional":    "conditional" in tags or "tiered" in tags,
                 "is_promo":          "promo" in tags,
                 "observed_at":       now_iso,
                 "manually_verified": edited,
@@ -242,12 +261,21 @@ def build_rate_observations(results, run_id, extra_cols=False):
             }
             if extra_cols:
                 row["review_flags"] = list(flags) + (["tiered"] if "tiered" in tags else [])
-                row["tier_note"]    = tier_notes.get(product_type) if product_type != "cd" else None
+                _note = " | ".join(x for x in ((tier_notes.get(product_type) if product_type != "cd" else None), meta_note(meta)) if x)
+                row["tier_note"]    = _note or None
+                for _f in scope_flags(meta, home_state_of(r), run_majority):
+                    row["review_flags"].append(_f)
+                # first-class market fields: the ZIP the page was read for and the state it states
+                _z = str((meta or {}).get("zip") or r.get("market_zip_used") or "")
+                row["market_zip"] = _z if re.fullmatch(r"\d{5}", _z) else None
+                row["scope_state"] = state_abbr((meta or {}).get("scope"))
+                if meta and meta.get("as_of_raw") and not meta.get("as_of"):
+                    row["review_flags"].append("as_of_unparsed")
             rows.append(row)
     return rows
 
 
-_RATE_OBS_EXTRA = "review_flags,tier_note"
+_RATE_OBS_EXTRA = "review_flags,tier_note,market_zip,scope_state"
 
 
 async def _rate_obs_has_extra_columns():
@@ -575,12 +603,12 @@ async def update_bank_registry(bank, result):
                                ("cd",       result.get("source_url_cd"))]:
         if result.get(f"{product}_apy") is None:
             continue
-        prov = _provenance(specific, general_url, note, product)
-        if prov in ("site", "ai_vision"):
-            # AI-vision hits often only populate the general source_url, not
-            # the per-product specific one — fall back to it, same as
-            # build_rate_observations does for the stored source_url.
-            cleaned = _clean_url(specific) or _clean_url(general_url)
+        # the provenance recorded at assignment; an old result without one falls back to the
+        # conservative classification from the product's OWN source (rate_integrity.legacy_entry)
+        entry = (result.get("provenance") or {}).get(product) or legacy_entry(product, specific, note)
+        if entry and entry.get("method") in ("site", "ai_vision"):
+            # a page this value was read from; an AI-vision hit may only carry the general source_url
+            cleaned = _clean_url(entry.get("url")) or _clean_url(specific) or _clean_url(general_url)
             if cleaned:
                 verified_url = cleaned
                 break

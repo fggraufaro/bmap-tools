@@ -23,6 +23,8 @@ class ApplyTests(unittest.TestCase):
     def test_adds_the_two_columns_additively(self):
         self.assertIn("add column review_flags text[] not null default '{}'", APPLY)
         self.assertIn("add column tier_note text;", APPLY)
+        self.assertIn("add column market_zip text check (market_zip ~ '^[0-9]{5}$');", APPLY)
+        self.assertIn("add column scope_state text check (scope_state ~ '^[A-Z]{2}$');", APPLY)
 
     def test_never_alters_or_drops_existing_columns_or_rows(self):
         for bad in ("alter column", "drop column", "drop table", "delete from", "update public.rate_observations", "truncate", "set not null", "drop not null", "drop constraint"):
@@ -54,7 +56,7 @@ class ApplyTests(unittest.TestCase):
         self.assertIn("rr01: public.rate_observations does not have the 18 columns", APPLY)
 
     def test_post_checks(self):
-        self.assertIn("20 columns after the change", APPLY)
+        self.assertIn("22 columns after the change", APPLY)
         self.assertIn("row security is not on", APPLY)
         self.assertIn("anon or authenticated can read", APPLY)
 
@@ -64,7 +66,9 @@ class RollbackTests(unittest.TestCase):
         self.assertIn("drop table if exists public.rate_not_published;", ROLLBACK)
         self.assertIn("drop column if exists review_flags;", ROLLBACK)
         self.assertIn("drop column if exists tier_note;", ROLLBACK)
-        self.assertEqual(len(re.findall(r"\bdrop\b", ROLLBACK.lower())), 3)
+        self.assertIn("drop column if exists market_zip;", ROLLBACK)
+        self.assertIn("drop column if exists scope_state;", ROLLBACK)
+        self.assertEqual(len(re.findall(r"\bdrop\b", ROLLBACK.lower())), 5)
 
     def test_refuses_when_there_is_nothing_to_roll_back_and_checks_the_result(self):
         self.assertIn("nothing to roll back", ROLLBACK)

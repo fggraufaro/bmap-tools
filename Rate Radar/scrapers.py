@@ -41,7 +41,7 @@ from extraction import (
 )
 from rate_integrity import (
     SITE, AI_VISION, AGGREGATOR, SEARCH, LAST_KNOWN_GOOD, tier_rule,
-    make_source, verify_ai_values, check_identity, find_not_published, is_blocked_source,
+    make_source, verify_ai_values, check_identity, find_not_published, is_blocked_source, is_rates_page_link, find_rate_page_meta,
 )
 from shared import (
     crawl_state, RATE_PATHS, BANK_EXTRA_URLS,
@@ -374,6 +374,86 @@ async def harvest_hidden_text(page):
         return ""
 
 
+_ROBOTS_CACHE = {}   # {origin: RobotFileParser | True (no robots.txt) | None (unreadable)}
+
+
+async def _load_robots(origin, http_session=None):
+    """Fetch and parse origin/robots.txt. A 4xx answer means no restrictions (True); a server
+    error, a timeout or any failure means it could not be read (None: do not follow links)."""
+    from urllib.robotparser import RobotFileParser
+    url = origin + "/robots.txt"
+    status, body = None, ""
+    try:
+        if http_session is not None and AIOHTTP_OK:
+            async with http_session.get(url, timeout=aiohttp.ClientTimeout(total=6), allow_redirects=True) as resp:
+                status = resp.status
+                if status == 200:
+                    body = await resp.text(errors="replace")
+        else:
+            import urllib.request
+
+            def _fetch():
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                try:
+                    with urllib.request.urlopen(req, timeout=6) as r:
+                        return r.status, r.read().decode("utf-8", "replace")
+                except urllib.error.HTTPError as e:
+                    return e.code, ""
+            status, body = await asyncio.to_thread(_fetch)
+    except Exception:
+        return None
+    if status == 200:
+        rp = RobotFileParser()
+        rp.parse(body.splitlines())
+        return rp
+    if status is not None and 400 <= status < 500:
+        return True
+    return None
+
+
+async def robots_allows(url, http_session=None):
+    """True when the bank's robots.txt allows fetching this URL. Used before FOLLOWING a link
+    found on a page (robots.txt is never bypassed: a disallowed link is not opened, and an
+    unreadable robots.txt means the link is not opened either). Cached per origin."""
+    m = re.match(r"(https?://[^/]+)", url or "")
+    if not m:
+        return False
+    origin = m.group(1)
+    if origin not in _ROBOTS_CACHE:
+        _ROBOTS_CACHE[origin] = await _load_robots(origin, http_session)
+    rp = _ROBOTS_CACHE[origin]
+    if rp is None:
+        return False
+    if rp is True:
+        return True
+    return rp.can_fetch("*", url)
+
+
+async def collect_rates_page_links(links, domain_str, limit=3, max_links=400):
+    """Same-domain links that POINT AT A RATES PAGE ('see rates', '/interest-rates'), from the
+    <a> elements of the page already read. Domain-locked: only absolute or root-relative links
+    on the bank's own domain. Returns deduped absolute URLs in page order."""
+    out = []
+    for link in links[:max_links]:
+        try:
+            href = await link.get_attribute("href") or ""
+            txt = (await link.inner_text()).strip()
+        except Exception:
+            continue
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            continue
+        if not is_rates_page_link(href, txt):
+            continue
+        full = href if href.startswith("http") else domain_str + href if href.startswith("/") else None
+        if full and full.startswith(domain_str):
+            full = full.split("#")[0]
+            if full not in out:
+                out.append(full)
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def collect_rate_detail_links(page, domain_str, limit=4):
     """
     Fix 1: from the current page, gather same-domain links whose href or
@@ -555,6 +635,19 @@ ZIP_SUBMIT_TEXT_PAT = re.compile(
     r'\b(go|submit|search|view|update|apply|continue|see|find|get|show)\b', re.I)
 
 # JSON_RATE_KEY_PAT / JSON_PRODUCT_HINTS moved to extraction.py (JSON_RATE_KEY_PAT imported above for make_json_sniffer)
+
+
+def market_zip(bank):
+    """A MARKET ZIP set for the read, or None. Some bank pages pick the rates by the visitor's location
+    (the same URL showed South Carolina and Texas rates on the same day; CD rates differed by market),
+    so which rates the collector sees depends on where it appears from. When the caller names the
+    market to read (the row's `market_zip`, else the run-wide RATE_RADAR_MARKET_ZIP), every bank with a
+    ZIP prompt is read for THAT market; otherwise nothing changes. Only a 5-digit ZIP is accepted."""
+    for v in (bank.get("market_zip"), os.environ.get("RATE_RADAR_MARKET_ZIP")):
+        m = re.fullmatch(r"\s*(\d{5})(?:-\d{4})?\s*", str(v or ""))
+        if m:
+            return m.group(1)
+    return None
 
 
 def get_bank_zip(bank):
@@ -1196,6 +1289,7 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     tier_notes    = {}        # {product: "tiered: 0.05% up to $10,000 (...); other tiers: ..."}
     not_published = set()     # product types a page says to inquire/call for, or "all"
     np_evidence   = {}        # {product or "all": {"text": the sentence, "url": the page}}
+    rate_meta     = {}        # {product: {scope, scope_raw, as_of, as_of_raw, as_of_order}} of the page the value came from
     identity_seen = set()     # per-page check_identity() results
     rebrand_hint = bank.get("_rebrand_hint")   # pre-populated from preflight if found
     bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
@@ -1205,10 +1299,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     # gate with — cheaper and more reliable than re-deriving from
     # branch_address/DEFAULT_ZIP every run, which is only a fallback now.
     _health = _bank_health(bank) or {}
-    bank_zip = _health.get("zip_gate_zip") or get_bank_zip(bank)
+    bank_zip = market_zip(bank) or _health.get("zip_gate_zip") or get_bank_zip(bank)
     zip_gate = {"fills": 0, "used_on": None, "recovered": False}
 
-    async def visit(url, priority=False):
+    async def visit(url, priority=False, from_link=False):
         nonlocal found_on, rebrand_hint
         if url in visited: return
         # Early exit — all 4 tracked rates already found (checking/savings/cd/MM)
@@ -1218,6 +1312,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         # (priority pages — "View Rates"/"See Details" links found on a page
         #  that already showed a min balance — get 2 bonus slots)
         if len(visited) >= (PAGE_BUDGET_PER_BANK + PAGE_BUDGET_PRIORITY_BONUS if priority else PAGE_BUDGET_PER_BANK):
+            return
+        if from_link and not await robots_allows(url, http_session):
+            visited.add(url)
+            crawl_state["log"].append(f"    [robots] not following {url} (robots.txt disallows it or could not be read)")
             return
         visited.add(url)
         try:
@@ -1315,11 +1413,12 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             _judge = _full or text
             if len(_judge) >= 200:
                 identity_seen.add(check_identity(bank["bank_name"], base, _title, _site, _judge))
+            _meta = find_rate_page_meta(_judge)   # scope ("for the state of ...") and as-of date the page states
+            _np_found = {}
             for _np, _ev in find_not_published(_judge).items():
                 # "inquire for rates" with no product named is only trusted on a rate-keyword page
                 if _np != "all" or is_rate_url:
-                    not_published.add(_np)
-                    np_evidence.setdefault(_np, {"text": _ev, "url": url})
+                    _np_found[_np] = _ev
 
             # Rebrand detection on page text
             if not rebrand_hint:
@@ -1458,6 +1557,10 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                             source_urls[k] = url
                             # read by the DOM extractor from this page's own text: the only source that can be "high"
                             prov[k] = make_source(SITE, url=url, verified=True)
+                            if _meta:
+                                rate_meta[k] = _meta
+                            else:
+                                rate_meta.pop(k, None)
                             _tn = (r.get("tier_notes") or {}).get(k)
                             if _tn:
                                 tier_notes[k] = _tn
@@ -1468,6 +1571,16 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             if any(r.get(k) for k in ["checking", "savings", "cd", "money_market"]):
                 found_on = url
             links = await page.query_selector_all("a[href]")
+            # Rate integrity: a page that says "see rates" and links to the page of rates is NOT a page
+            # that says "inquire for rates". Find same-domain links that point at a rates page; when
+            # one is still unvisited the page sends the reader on, so no "not published" is recorded
+            # from it, and the linked page is followed (robots.txt checked) while a product is missing.
+            rates_page_links = await collect_rates_page_links(links, domain)
+            onward = [u for u in rates_page_links if u not in visited and u != url]
+            if not onward:
+                for _np, _ev in _np_found.items():
+                    not_published.add(_np)
+                    np_evidence.setdefault(_np, {"text": _ev, "url": url})
             rate_links = []
             for link in links[:80]:
                 try:
@@ -1480,9 +1593,13 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                 except: continue
             # Fix 1: detail links jump the queue with priority budget
             for u in pending_detail:
-                await visit(u, priority=True)
+                await visit(u, priority=True, from_link=True)
+            if onward and not all(best[k] is not None for k in core_keys):
+                crawl_state["log"].append(f"    [Rates link] {path_part or '/'}: following {len(onward)} link(s) to a rates page")
+                for u in onward:
+                    await visit(u, priority=True, from_link=True)
             for u in rate_links[:6]:
-                await visit(u)
+                await visit(u, from_link=True)
         except: pass
 
     for url in extra:
@@ -1813,6 +1930,8 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         "tier_notes":                dict(tier_notes),
         "not_published":             sorted(np_final),
         "not_published_evidence":    {p: np_evidence[p] for p in np_final if p in np_evidence},
+        "rate_meta":                 {k: dict(v) for k, v in rate_meta.items()},
+        "market_zip_used":           bank_zip if zip_gate["used_on"] else None,
         "identity":                  identity,
         "source_url_money_market":   source_urls.get("money_market", ""),
         # Enrichment fields from CSV
@@ -2608,6 +2727,19 @@ async def run_crawler(banks):
                         f"  ⊘ Circuit breaker open ({failures} consecutive failures) — "
                         f"{'using preflight data, ' if pre else ''}skipping full browser crawl "
                         f"(will probe again at {next_probe} failures)")
+                    result["breaker_skipped"] = True   # every value here is a search value: flagged for review
+                    # Not "Found": nothing on this row was read from the bank's pages this run.
+                    result["status"] = STATUS_SKIPPED
+                    result["note"] = (f"⊘ SKIPPED by the circuit breaker for {bank['bank_name']} ({extract_domain(bank.get('bank_url') or '')}): "
+                                      f"{failures} consecutive failures of THIS bank's own crawls; values below, if any, are web-search values, not read from the bank's site | "
+                                      + (result.get("note") or "")).strip(" |")
+                    # The breaker counts per bank domain (bank_registry) and used to count only crawls that RAN, so
+                    # a skipped bank stayed at its count and the probe it promised ("will probe again at N") could
+                    # never come. A skip now counts, so the next probe really happens.
+                    try:
+                        await update_bank_registry(bank, result)
+                    except Exception:
+                        pass
                     crawl_state["results"].append(result)
                     completed[0] += 1
                     return

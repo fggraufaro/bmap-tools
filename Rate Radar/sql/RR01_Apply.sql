@@ -3,15 +3,17 @@
 -- so the collector can be deployed before or after this file. Additive only: no existing row, column, constraint, grant, policy or view changes.
 --
 -- WHAT IT DOES (one transaction; if anything fails, nothing is kept):
---   1. public.rate_observations gets two columns:
+--   1. public.rate_observations gets FOUR columns:
 --        review_flags text[] not null default '{}'   why a person should look at the value: tiered, not_in_page_text, identity_mismatch, off_domain, search_only, source_unknown, last_known_good
 --        tier_note    text (nullable)                for a tiered product: the tier reported (by the one tier-rule setting) and the other tiers
---      The default fills the existing rows with an empty array; their values are not touched.
+--        market_zip   text (nullable, CHECK 5 digits)  the ZIP the page was read for (stated by the page, or the market ZIP the run asked for)
+--        scope_state  text (nullable, CHECK 2 capitals) the US state the page states its rates are for (e.g. TX), so rates compare like for like by market
+--      The default fills the existing rows with an empty array; their values are not touched; the new nullable columns are NULL for existing rows.
 --   2. A NEW table public.rate_not_published: the "the bank does not publish this rate" outcome, one row per run, bank and product (product_type may be 'all'), with the evidence
 --      sentence and the page it was on. It is a separate table because public.rate_observations.apy is NOT NULL (a bank that says "inquire for rates" has no number to store) and
 --      because the outcome is per product, not per rate. Row security ON with no policy; service_role only (select, insert, update, delete); nothing for anon or authenticated.
 --
--- PRE-STATE (read-only, 2026-11-17): public.rate_observations has 18 columns, RLS on, no policies, CHECKs on confidence / extraction_method / product_type, a foreign key run_id -> rate_radar_runs(run_id);
+-- PRE-STATE (read-only, 2026-11-17): public.rate_observations has 18 columns, RLS on, no policies, 3 CHECKs on confidence / extraction_method / product_type, a foreign key run_id -> rate_radar_runs(run_id);
 -- public.rate_not_published does not exist. The way back is RR01_Rollback.sql.
 begin;
 
@@ -20,7 +22,7 @@ begin
   if to_regclass('public.rate_observations') is null or to_regclass('public.rate_radar_runs') is null then
     raise exception 'rr01: public.rate_observations or public.rate_radar_runs does not exist: stop and tell Session 3';
   end if;
-  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'rate_observations' and column_name in ('review_flags', 'tier_note')) then
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'rate_observations' and column_name in ('review_flags', 'tier_note', 'market_zip', 'scope_state')) then
     raise exception 'rr01 is already applied (review_flags or tier_note exists): stop and tell Session 3';
   end if;
   if to_regclass('public.rate_not_published') is not null then
@@ -34,7 +36,11 @@ end $$;
 -- 1. the two columns
 alter table public.rate_observations add column review_flags text[] not null default '{}';
 alter table public.rate_observations add column tier_note text;
+alter table public.rate_observations add column market_zip text check (market_zip ~ '^[0-9]{5}$');
+alter table public.rate_observations add column scope_state text check (scope_state ~ '^[A-Z]{2}$');
 comment on column public.rate_observations.review_flags is 'Why a person should look at this value: tiered, not_in_page_text, identity_mismatch, off_domain, search_only, source_unknown, last_known_good (set by Rate Radar).';
+comment on column public.rate_observations.market_zip is 'The ZIP code the rate page was read for: the one the page states ("Showing information for Zip Code ...") or the market ZIP the run asked for (RATE_RADAR_MARKET_ZIP). NULL when neither is known.';
+comment on column public.rate_observations.scope_state is 'The US state (two capitals) the rate page states its rates are for. Rates of different scope_state are different observations, not a conflict. NULL when the page states none.';
 comment on column public.rate_observations.tier_note is 'For a tiered product: the tier reported (by the tier-rule setting: the rate at the opening minimum, or the highest advertised rate) and the other tiers.';
 
 -- 2. the "not published by the bank" outcome
@@ -57,8 +63,8 @@ comment on table public.rate_not_published is 'Rate Radar: products a bank''s ow
 
 do $$
 begin
-  if (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'rate_observations') <> 20 then
-    raise exception 'rr01: public.rate_observations does not have 20 columns after the change: nothing is kept';
+  if (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'rate_observations') <> 22 then
+    raise exception 'rr01: public.rate_observations does not have 22 columns after the change: nothing is kept';
   end if;
   if not (select c.relrowsecurity from pg_class c where c.oid = 'public.rate_not_published'::regclass) then
     raise exception 'rr01: row security is not on for public.rate_not_published: nothing is kept';

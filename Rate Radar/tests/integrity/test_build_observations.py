@@ -47,7 +47,7 @@ def harbor():
         "note": "CD 4.03% (6-month) | checking from search: 1.0 | high_yield_savings from search: 3.56",
         "rate_tags": {"cd": ["promo"], "money_market": ["tiered"], "savings": ["tiered"]},
         "tier_notes": {"money_market": "tiered: 0.05% up to $10,000 (rate that applies at the $2,500 opening minimum); other tiers: 0.62% $10,000 to $25,000",
-                       "savings": "tiered: 0.12% up to $2,499 (rate that applies at the lowest balance tier); other tiers: 0.42% over $2,500"},
+                       "savings": "tiered: 0.12% up to $2,499 (rate that applies at the lowest balance tier); other tiers: 0.42% from $2,500"},
         "identity": "ok", "not_published": [],
         "provenance": {
             "cd": ri.make_source(ri.SITE, url=CD_PAGE, verified=True),
@@ -206,6 +206,15 @@ class BuildObservationTests(unittest.TestCase):
         self.assertIsNone(r["cd"][0]["tier_note"])
         self.assertEqual(r["cd"][0]["review_flags"], [])
 
+    def test_a_tiered_rate_is_marked_conditional_and_a_plain_one_is_not(self):
+        r = rows_by(storage.build_rate_observations([harbor()], "run1"))
+        self.assertTrue(r["money_market"][0]["is_conditional"])
+        self.assertTrue(r["savings"][0]["is_conditional"])
+        self.assertFalse(r["checking"][0]["is_conditional"])
+        h = harbor()
+        h["rate_tags"] = {"checking": ["conditional"]}
+        self.assertTrue(rows_by(storage.build_rate_observations([h], "run1"))["checking"][0]["is_conditional"])
+
     def test_high_yield_duplicate_of_savings_is_still_skipped(self):
         h = harbor()
         h["savings_apy"] = h["high_yield_savings_apy"]
@@ -228,11 +237,20 @@ class TierExtractionTests(unittest.TestCase):
     TIERED = ("Money Market earns up to 0.62% APY. $2,500 minimum to open "
               "$10,000 or less -- 0.05% APY $10,000.01 and over -- 0.62% APY ")
 
-    def test_tier_rule_beats_the_nearest_or_highest_generic_match(self):
-        r = extraction.extract_rates(self.TIERED)
+    def test_tier_rule_beats_the_nearest_generic_match(self):
+        with mock.patch.dict(os.environ, {ri.TIER_RULE_ENV: "entry"}):
+            r = extraction.extract_rates(self.TIERED)
         self.assertEqual(r["money_market"], 0.05)
         self.assertIn("tiered", r["rate_tags"]["money_market"])
         self.assertIn("opening minimum", r["tier_notes"]["money_market"])
+
+    def test_default_reports_the_highest_advertised_rate(self):
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop(ri.TIER_RULE_ENV, None)
+            r = extraction.extract_rates(self.TIERED)
+        self.assertEqual(r["money_market"], 0.62)
+        self.assertIn("tiered", r["rate_tags"]["money_market"])
+        self.assertIn("$2,500 minimum to open", r["tier_notes"]["money_market"])
 
     def test_the_one_setting_changes_the_rate_taken_from_the_same_block(self):
         with mock.patch.dict(os.environ, {ri.TIER_RULE_ENV: "highest"}):
@@ -252,8 +270,12 @@ class TierExtractionTests(unittest.TestCase):
 
     def test_header_labelled_savings_table(self):
         r = extraction.extract_rates("Type Interest Rate APY Savings Accounts ($2,499 or less) 0.12% 0.12% Savings Accounts ($2,500 or more) 0.42% 0.42%")
-        self.assertEqual(r["savings"], 0.12)
-        self.assertIn("lowest balance tier", r["tier_notes"]["savings"])
+        self.assertEqual(r["savings"], 0.42)
+        self.assertIn("0.12% up to $2,499", r["tier_notes"]["savings"])
+        with mock.patch.dict(os.environ, {ri.TIER_RULE_ENV: "entry"}):
+            e = extraction.extract_rates("Type Interest Rate APY Savings Accounts ($2,499 or less) 0.12% 0.12% Savings Accounts ($2,500 or more) 0.42% 0.42%")
+        self.assertEqual(e["savings"], 0.12)
+        self.assertIn("lowest balance tier", e["tier_notes"]["savings"])
 
     def test_untiered_pages_are_unchanged(self):
         r = extraction.extract_rates("Savings 2.50% APY\nCD 12-month 4.00% APY\n")
@@ -423,7 +445,7 @@ class PushPathTests(unittest.TestCase):
 
     def test_the_column_check_is_made_once_per_process(self):
         fake, bodies = self.run_push(200, [harbor()])
-        self.assertEqual(len([g for g in fake.gets if "select=review_flags,tier_note" in g]), 1)
+        self.assertEqual(len([g for g in fake.gets if "select=review_flags,tier_note,market_zip,scope_state" in g]), 1)
         self.assertEqual(len(bodies), 2)
 
 
@@ -457,6 +479,349 @@ class NotPublishedPushTests(unittest.TestCase):
         self.assertEqual(len([g for g in fake.gets if "rate_not_published?select=id" in g]), 1)
 
 
+class TableExtractionTests(unittest.TestCase):
+    def test_extract_rates_reads_a_multi_product_table_page(self):
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop(ri.TIER_RULE_ENV, None)
+            r = extraction.extract_rates(SUMMIT_PAGE)
+        self.assertEqual((r["checking"], r["savings"], r["money_market"]), (0.15, 0.15, 0.50))
+        self.assertEqual(r["cd"], 3.51)
+        self.assertEqual({e["term"]: e["apy"] for e in r["cd_ladder"]}, {"6-month": 3.15, "7-month": 3.51, "12-month": 1.75})
+        self.assertIn("other products", r["tier_notes"]["checking"])
+        self.assertIn("tiered", r["rate_tags"]["money_market"])
+
+    def test_entry_rule_through_extract_rates(self):
+        with mock.patch.dict(os.environ, {ri.TIER_RULE_ENV: "entry"}):
+            r = extraction.extract_rates(SUMMIT_PAGE)
+        self.assertEqual(r["checking"], 0.08)
+
+    def test_a_table_wins_over_a_tier_block_for_the_same_product(self):
+        text = "Money Market $10,000 or less -- 0.05% APY $10,000.01 and over -- 0.99% APY\n" + SUMMIT_PAGE
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop(ri.TIER_RULE_ENV, None)
+            self.assertEqual(extraction.extract_rates(text)["money_market"], 0.50)
+
+    def test_a_page_with_no_table_is_unchanged(self):
+        r = extraction.extract_rates("Savings 2.50% APY\nCD 12-month 4.00% APY\n")
+        self.assertEqual((r["savings"], r["cd"]), (2.5, 4.0))
+        self.assertEqual(r["tier_notes"], {})
+
+
+SUMMIT_PAGE = SUMMIT_TABLES_TEXT = (
+    "Interest Rates\nCompare our deposit rates.\n"
+    "Checking\nProduct\tBalance Tiers to Obtain APY\tInterest Rate\tAPY\n"
+    "Choice Checking\t$0.01 and above\t0.08%\t0.08%\nGold Checking\tUp to $99,999.99\t0.06%\t0.06%\n\t$100,000 and above\t0.15%\t0.15%\n"
+    "Community Hero Checking\t$0.01 and above\t0.08%\t0.08%\n"
+    "Savings\nPersonal Savings\t$0.01 and above\t0.15%\t0.15%\nHSA Savings\t$0.01 - $4,999.99\t0.04%\t0.04%\n\t$5,000 and above\t0.10%\t0.10%\n"
+    "Money Market\nPersonal Money Market\tUnder $2,000\t0.00%\t0.00%\n\t$2,000 - $9,999.99\t0.10%\t0.10%\n\t$10,000 - $24,999.99\t0.15%\t0.15%\n\t$100,000 and above\t0.50%\t0.50%\n"
+    "Certificates of Deposit\nTerm\tInterest Rate\tAPY\n6 months\t3.11%\t3.15%\n7 months\t3.46%\t3.51%\n12 months\t1.73%\t1.75%\n")
+
+
+class _FakeLink:
+    def __init__(self, href, text):
+        self.href, self.text = href, text
+
+    async def get_attribute(self, name):
+        return self.href
+
+    async def inner_text(self):
+        return self.text
+
+
+class _RobotsResp:
+    def __init__(self, status, body):
+        self.status, self.body = status, body
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def text(self, errors=None):
+        return self.body
+
+
+class _RobotsSession:
+    def __init__(self, status=200, body="", raises=False):
+        self.status, self.body, self.raises, self.gets = status, body, raises, []
+
+    def get(self, url, **k):
+        self.gets.append(url)
+        if self.raises:
+            raise OSError("network down")
+        return _RobotsResp(self.status, self.body)
+
+
+class CrawlerHookTests(unittest.TestCase):
+    def setUp(self):
+        try:
+            import scrapers  # noqa: F401
+        except Exception as e:   # pragma: no cover
+            self.skipTest(f"scrapers not importable here: {e}")
+        self.s = sys.modules["scrapers"]
+        self.s._ROBOTS_CACHE.clear()
+        self.patches = [mock.patch.object(self.s, "aiohttp", mock.Mock(ClientTimeout=lambda total=None: total), create=True), mock.patch.object(self.s, "AIOHTTP_OK", True)]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        self.s._ROBOTS_CACHE.clear()
+
+    def run_async(self, coro):
+        import asyncio
+        return asyncio.run(coro)
+
+    # -- the links
+    def test_collect_rates_page_links_is_domain_locked_and_stricter_than_the_general_link_scan(self):
+        D = "https://www.summitbank.example"
+        links = [_FakeLink("/personal/checking-savings/interest-rates", "see rates"), _FakeLink("https://other.example/rates", "Rates"),
+                 _FakeLink("/open-account", "Open an account"), _FakeLink("#top", "see rates"), _FakeLink("mailto:a@b.example", "rates"),
+                 _FakeLink(D + "/rates#section", "Current rates"), _FakeLink("/mortgage-rates", "Mortgage rates"), _FakeLink("/personal/checking-savings/interest-rates", "see rates")]
+        out = self.run_async(self.s.collect_rates_page_links(links, D))
+        self.assertEqual(out, [D + "/personal/checking-savings/interest-rates", D + "/rates"])
+
+    def test_collect_rates_page_links_respects_the_limit(self):
+        D = "https://www.summitbank.example"
+        links = [_FakeLink(f"/rates/{i}", "rates") for i in range(10)]
+        self.assertEqual(len(self.run_async(self.s.collect_rates_page_links(links, D, limit=3))), 3)
+
+    # -- robots.txt
+    def test_robots_disallowed_link_is_not_followed(self):
+        sess = _RobotsSession(200, "User-agent: *\nDisallow: /personal/checking-savings/interest-rates\n")
+        self.assertFalse(self.run_async(self.s.robots_allows("https://www.summitbank.example/personal/checking-savings/interest-rates", sess)))
+        self.assertTrue(self.run_async(self.s.robots_allows("https://www.summitbank.example/personal/other", sess)))
+
+    def test_robots_allowing_everything(self):
+        sess = _RobotsSession(200, "User-agent: *\nDisallow:\n")
+        self.assertTrue(self.run_async(self.s.robots_allows("https://www.summitbank.example/rates", sess)))
+
+    def test_missing_robots_txt_means_no_restrictions(self):
+        for status in (404, 403, 410):
+            self.s._ROBOTS_CACHE.clear()
+            self.assertTrue(self.run_async(self.s.robots_allows("https://www.summitbank.example/rates", _RobotsSession(status))), status)
+
+    def test_unreadable_robots_txt_means_the_link_is_not_followed(self):
+        for sess in (_RobotsSession(500), _RobotsSession(503), _RobotsSession(raises=True)):
+            self.s._ROBOTS_CACHE.clear()
+            self.assertFalse(self.run_async(self.s.robots_allows("https://www.summitbank.example/rates", sess)))
+
+    def test_robots_is_fetched_once_per_origin(self):
+        sess = _RobotsSession(200, "User-agent: *\nDisallow: /private\n")
+        for path in ("/a", "/b", "/private/c"):
+            self.run_async(self.s.robots_allows("https://www.summitbank.example" + path, sess))
+        self.run_async(self.s.robots_allows("https://other.example/a", sess))
+        self.assertEqual(sess.gets, ["https://www.summitbank.example/robots.txt", "https://other.example/robots.txt"])
+
+    def test_a_url_that_is_not_http_is_refused(self):
+        self.assertFalse(self.run_async(self.s.robots_allows("javascript:void(0)", _RobotsSession(404))))
+        self.assertFalse(self.run_async(self.s.robots_allows("", _RobotsSession(404))))
+
+    def test_robots_rules_for_the_wildcard_agent_apply(self):
+        sess = _RobotsSession(200, "User-agent: googlebot\nDisallow: /\n\nUser-agent: *\nDisallow: /secret\n")
+        self.assertTrue(self.run_async(self.s.robots_allows("https://www.summitbank.example/rates", sess)))
+        self.assertFalse(self.run_async(self.s.robots_allows("https://www.summitbank.example/secret/x", sess)))
+
+
+class BreakerFlagTests(unittest.TestCase):
+    def test_values_produced_while_the_breaker_was_open_are_flagged(self):
+        s = {"bank_name": "Summit Bank", "bank_url": "https://www.summitbank.example", "checking_apy": 0.08, "breaker_skipped": True,
+             "provenance": {"checking": ri.make_source(ri.SEARCH, label="[Search] x")}}
+        row = storage.build_rate_observations([s], "run1", extra_cols=True)[0]
+        self.assertIn("circuit_breaker_search_only", row["review_flags"])
+        self.assertIn("search_only", row["review_flags"])
+
+    def test_no_flag_without_the_marker_or_for_a_manual_confirmation(self):
+        s = {"bank_name": "Summit Bank", "bank_url": "https://www.summitbank.example", "checking_apy": 0.08,
+             "provenance": {"checking": ri.make_source(ri.SEARCH, label="[Search] x")}}
+        self.assertNotIn("circuit_breaker_search_only", storage.build_rate_observations([s], "run1", extra_cols=True)[0]["review_flags"])
+        s.update(breaker_skipped=True, _edited=True)
+        self.assertNotIn("circuit_breaker_search_only", storage.build_rate_observations([s], "run1", extra_cols=True)[0]["review_flags"])
+
+
+class _RegResp:
+    def __init__(self, status=200, data=None):
+        self.status, self.data = status, data if data is not None else []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def json(self):
+        return self.data
+
+    async def text(self):
+        return ""
+
+
+class _RegAiohttp:
+    class ClientTimeout:
+        def __init__(self, total=None):
+            self.total = total
+
+    def __init__(self, prior):
+        self.prior, self.posts = prior, []
+        outer = self
+
+        class ClientSession:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            def get(self, url, **k):
+                return _RegResp(200, [outer.prior])
+
+            def post(self, url, **k):
+                import json
+                outer.posts.append(json.loads(k["data"]))
+                return _RegResp(201)
+
+        self.ClientSession = ClientSession
+
+
+class BankRegistryTests(unittest.TestCase):
+    """update_bank_registry feeds the circuit breaker: it must classify by the recorded provenance (it once called a removed helper)."""
+
+    def run_reg(self, result, prior_failures=0):
+        import asyncio
+        fake = _RegAiohttp({"known_rate_urls": [], "consecutive_failures": prior_failures})
+        bank = {"bank_name": "Summit Bank", "bank_url": "https://www.summitbank.example"}
+        with mock.patch.object(storage, "aiohttp", fake, create=True), mock.patch.object(storage, "AIOHTTP_OK", True), \
+                mock.patch.object(storage, "SUPABASE_URL", "https://db.example"), mock.patch.object(storage, "SUPABASE_KEY", "k" * 20):
+            ret = asyncio.run(storage.update_bank_registry(bank, result))
+        return ret, fake.posts[0]
+
+    def test_a_value_read_from_the_site_resets_the_count(self):
+        res = {"cd_apy": 4.0, "provenance": {"cd": ri.make_source(ri.SITE, url="https://www.summitbank.example/cd", verified=True)}}
+        ret, row = self.run_reg(res, prior_failures=3)
+        self.assertEqual((row["consecutive_failures"], row["needs_review"], row["last_successful_url"]), (0, False, "https://www.summitbank.example/cd"))
+        self.assertIsNone(ret)
+
+    def test_search_only_values_count_as_a_failure(self):
+        res = {"cd_apy": 4.0, "provenance": {"cd": ri.make_source(ri.SEARCH, label="[Search] x")}}
+        ret, row = self.run_reg(res, prior_failures=2)
+        self.assertEqual((row["consecutive_failures"], row["needs_review"]), (3, True))
+        self.assertEqual(ret, 3)
+
+    def test_a_skipped_bank_advances_its_count_so_the_next_probe_can_come(self):
+        res = {"cd_apy": None, "status": "Skipped", "breaker_skipped": True}
+        ret, row = self.run_reg(res, prior_failures=3)
+        self.assertEqual(row["consecutive_failures"], 4)    # 4 % PROBE_EVERY == 0: the breaker is no longer "open"
+
+    def test_an_old_result_without_provenance_uses_only_its_own_source(self):
+        res = {"cd_apy": 4.0, "source_url_cd": "https://www.summitbank.example/cd", "source_url": "https://www.summitbank.example/other"}
+        ret, row = self.run_reg(res)
+        self.assertEqual(row["last_successful_url"], "https://www.summitbank.example/cd")
+
+    def test_the_breaker_marks_the_row_skipped_not_found_and_says_which_bank(self):
+        self.assertIn('result["status"] = STATUS_SKIPPED', SCRAPERS_SRC)
+        self.assertIn("SKIPPED by the circuit breaker for {bank['bank_name']}", SCRAPERS_SRC)
+        self.assertIn("await update_bank_registry(bank, result)", SCRAPERS_SRC)
+        i = SCRAPERS_SRC.index('result["status"] = STATUS_SKIPPED')
+        j = SCRAPERS_SRC.index('crawl_state["results"].append(result)', i)
+        self.assertLess(i, j)
+
+
+class ScopeAndDateRowTests(unittest.TestCase):
+    TODAY = __import__("datetime").date(2026, 11, 17)
+
+    def result(self, scope="South Carolina", as_of="2026-03-01", raw="03/01/2026", state="SC", name="Summit Bank"):
+        return {"bank_name": name, "bank_url": "https://www.summitbank.example", "state": state, "checking_apy": 0.15,
+                "provenance": {"checking": ri.make_source(ri.SITE, url="https://www.summitbank.example/rates", verified=True)},
+                "rate_meta": {"checking": {"scope": scope, "scope_raw": "x", "zip": None, "as_of": as_of, "as_of_raw": raw, "as_of_order": "month/day/year" if as_of else None}}}
+
+    def row(self, results, i=0):
+        return storage.build_rate_observations(results, "run1", extra_cols=True, today=self.TODAY)[i]
+
+    def test_an_old_page_date_makes_the_value_low_and_flagged_but_kept(self):
+        r = self.row([self.result()])        # 261 days old
+        self.assertEqual((r["apy"], r["confidence"]), (0.15, "low"))
+        self.assertIn("stale_page_date", r["review_flags"])
+
+    def test_a_recent_page_date_keeps_high(self):
+        r = self.row([self.result(as_of="2026-11-01", raw="11/01/2026")])
+        self.assertEqual(r["confidence"], "high")
+        self.assertNotIn("stale_page_date", r["review_flags"])
+
+    def test_scope_and_date_are_in_the_note_with_the_raw_text(self):
+        r = self.row([self.result(as_of="2026-11-01", raw="11/01/2026")])
+        self.assertIn("scope: South Carolina; rates dated 11/01/2026 (read month/day/year)", r["tier_note"])
+        self.assertIn("regional_scope", r["review_flags"])
+
+    def test_an_unparsed_date_is_flagged_and_never_makes_a_value_stale(self):
+        r = self.row([self.result(as_of=None, raw="25/03/2026")])
+        self.assertIn("as_of_unparsed", r["review_flags"])
+        self.assertNotIn("stale_page_date", r["review_flags"])
+        self.assertEqual(r["confidence"], "high")
+
+    def test_a_search_value_is_not_made_stale_by_a_page_date(self):
+        res = self.result()
+        res["provenance"]["checking"] = ri.make_source(ri.SEARCH, label="[Search] x")
+        r = self.row([res])
+        self.assertNotIn("stale_page_date", r["review_flags"])
+
+    def test_the_note_joins_the_tier_note_and_the_scope(self):
+        res = self.result(as_of="2026-11-01", raw="11/01/2026")
+        res["tier_notes"] = {"checking": "tiered: Gold 0.15%"}
+        self.assertTrue(self.row([res])["tier_note"].startswith("tiered: Gold 0.15% | scope: South Carolina"))
+
+    def test_a_state_other_than_the_banks_home_state_is_flagged(self):
+        r = self.row([self.result(scope="Texas", as_of="2026-11-01", raw="11/01/2026", state="SC")])
+        self.assertIn("scope_differs_from_home_state", r["review_flags"])
+        self.assertNotIn("scope_differs_from_home_state", self.row([self.result(scope="South Carolina", as_of="2026-11-01", raw="11/01/2026")])["review_flags"])
+
+    def test_a_state_other_than_the_one_most_pages_of_the_run_state_is_flagged(self):
+        run = [self.result(scope="South Carolina", name="A"), self.result(scope="South Carolina", name="B"), self.result(scope="Texas", name="C")]
+        rows = storage.build_rate_observations(run, "run1", extra_cols=True, today=self.TODAY)
+        self.assertEqual([("scope_differs_from_run" in r["review_flags"]) for r in rows], [False, False, True])
+
+    def test_a_run_with_one_state_flags_nothing_against_the_run(self):
+        rows = storage.build_rate_observations([self.result(name="A"), self.result(name="B")], "run1", extra_cols=True, today=self.TODAY)
+        self.assertFalse(any("scope_differs_from_run" in r["review_flags"] for r in rows))
+
+    def test_first_class_market_columns(self):
+        res = self.result(scope="Texas", as_of="2026-11-01", raw="11/01/2026", state="TX")
+        res["rate_meta"]["checking"]["zip"] = "76109"
+        r = self.row([res])
+        self.assertEqual((r["market_zip"], r["scope_state"]), ("76109", "TX"))
+
+    def test_market_zip_falls_back_to_the_zip_the_run_asked_for(self):
+        res = self.result()
+        res["market_zip_used"] = "29201"
+        self.assertEqual(self.row([res])["market_zip"], "29201")
+        res["market_zip_used"] = "2920"
+        self.assertIsNone(self.row([res])["market_zip"])       # not five digits: never stored (the table would refuse it)
+
+    def test_no_scope_means_null_market_fields(self):
+        res = self.result()
+        res["rate_meta"] = {}
+        r = self.row([res])
+        self.assertEqual((r["market_zip"], r["scope_state"]), (None, None))
+
+    def test_scope_state_is_a_two_capital_code_or_null(self):
+        self.assertEqual(self.row([self.result(scope="South Carolina")])["scope_state"], "SC")
+        self.assertIsNone(self.row([self.result(scope="Atlantis")])["scope_state"])
+
+    def test_default_rows_have_no_market_columns(self):
+        r = storage.build_rate_observations([self.result()], "run1", today=self.TODAY)[0]
+        self.assertNotIn("market_zip", r)
+        self.assertNotIn("scope_state", r)
+
+    def test_the_crawler_keeps_the_page_meta_with_the_value(self):
+        self.assertIn("_meta = find_rate_page_meta(_judge)", SCRAPERS_SRC)
+        self.assertIn("rate_meta[k] = _meta", SCRAPERS_SRC)
+        self.assertIn('"rate_meta":                 {k: dict(v) for k, v in rate_meta.items()},', SCRAPERS_SRC)
+
+
 class SourceCodeRuleTests(unittest.TestCase):
     """Rules that live in the prompts and the scraper wiring (strings, because those paths need a browser and an API key)."""
 
@@ -475,6 +840,24 @@ class SourceCodeRuleTests(unittest.TestCase):
     def test_nerdwallet_is_not_among_the_aggregator_hosts_the_crawler_visits(self):
         urls = re.findall(r"https?://[^\s\"']+", SCRAPERS_SRC)
         self.assertFalse([u for u in urls if "nerdwallet" in u.lower()])
+
+    def test_followed_links_are_checked_against_robots_txt(self):
+        self.assertIn("if from_link and not await robots_allows(url, http_session):", SCRAPERS_SRC)
+        self.assertEqual(SCRAPERS_SRC.count("from_link=True)"), 3)      # detail links, rates links, general rate links
+        self.assertIn("async def visit(url, priority=False, from_link=False):", SCRAPERS_SRC)
+
+    def test_a_page_that_links_onward_to_rates_does_not_record_not_published(self):
+        self.assertIn("onward = [u for u in rates_page_links if u not in visited and u != url]", SCRAPERS_SRC)
+        i = SCRAPERS_SRC.index("            if not onward:\n                for _np, _ev in _np_found.items():")
+        self.assertGreater(i, 0)
+        self.assertNotIn("not_published.add(_np)\n                    _np_found", SCRAPERS_SRC)
+
+    def test_the_onward_rates_pages_are_followed_while_a_product_is_missing(self):
+        self.assertIn("if onward and not all(best[k] is not None for k in core_keys):", SCRAPERS_SRC)
+        self.assertIn("rates_page_links = await collect_rates_page_links(links, domain)", SCRAPERS_SRC)
+
+    def test_the_breaker_marks_its_results(self):
+        self.assertIn('result["breaker_skipped"] = True', SCRAPERS_SRC)
 
     def test_the_evidence_sentence_is_recorded_with_its_page(self):
         self.assertIn('np_evidence.setdefault(_np, {"text": _ev, "url": url})', SCRAPERS_SRC)
@@ -504,7 +887,7 @@ class SourceCodeRuleTests(unittest.TestCase):
             self.assertIn(line, SCRAPERS_SRC, line)
 
     def test_crawl_result_carries_the_integrity_fields(self):
-        for key in ('"provenance":', '"tier_notes":', '"not_published":', '"not_published_evidence":', '"identity":', '"source_url_money_market":'):
+        for key in ('"provenance":', '"tier_notes":', '"not_published":', '"not_published_evidence":', '"identity":', '"source_url_money_market":', '"market_zip_used":'):
             self.assertIn(key, SCRAPERS_SRC, key)
 
 
@@ -522,6 +905,22 @@ class ScrapersHelperTests(unittest.TestCase):
         e = res["provenance"]["money_market"]
         self.assertEqual((e["method"], e["label"]), ("search", "[Search] Third-party aggregator (bankrate.com)"))
         self.assertIsNone(e["url"])
+
+    def test_market_zip_from_the_row_then_the_run_setting_only_five_digits(self):
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop("RATE_RADAR_MARKET_ZIP", None)
+            self.assertIsNone(self.s.market_zip({}))
+            self.assertEqual(self.s.market_zip({"market_zip": "76109"}), "76109")
+            self.assertEqual(self.s.market_zip({"market_zip": " 76109-1234 "}), "76109")
+            self.assertIsNone(self.s.market_zip({"market_zip": "7610"}))
+            self.assertIsNone(self.s.market_zip({"market_zip": "abcde"}))
+        with mock.patch.dict(os.environ, {"RATE_RADAR_MARKET_ZIP": "29201"}):
+            self.assertEqual(self.s.market_zip({}), "29201")
+            self.assertEqual(self.s.market_zip({"market_zip": "76109"}), "76109")      # the row wins over the run setting
+            self.assertEqual(self.s.market_zip({"market_zip": "bad"}), "29201")
+
+    def test_the_market_zip_overrides_the_learned_and_branch_zip(self):
+        self.assertIn('bank_zip = market_zip(bank) or _health.get("zip_gate_zip") or get_bank_zip(bank)', SCRAPERS_SRC)
 
     def test_search_blocked(self):
         self.assertTrue(self.s._search_blocked({"not_published": ["all"]}, "cd"))

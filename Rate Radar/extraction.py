@@ -16,7 +16,7 @@ try:
 except ImportError:
     DATEUTIL_OK = False
 
-from rate_integrity import extract_tiered_products
+from rate_integrity import extract_tiered_products, extract_rate_tables, extract_table_cd_rows
 
 APY_PAT      = re.compile(r'(\d+\.\d+)\s*%\s*(?:APY|Annual\s+Percentage\s+Yield)', re.I)
 
@@ -587,6 +587,10 @@ def extract_rates(text):
     # Header-labeled tables ("APY" stated once, in the header, not per row) —
     # see _extract_header_table_cd_rows()'s docstring.
     cd_candidates.extend(_extract_header_table_cd_rows(text))
+    # CD rows of a product table: the term is in the first cell, the APY in the last
+    for _term, _apy in extract_table_cd_rows(text):
+        if 0.05 <= _apy <= 15:
+            cd_candidates.append((_apy, _term, "", 0, 0))
     if cd_candidates:
         def cd_score(c): return c[0] - (2.0 if JUMBO_PAT.search(c[2] or "") else 0.0)
         best_cd = max(cd_candidates, key=cd_score)
@@ -627,7 +631,11 @@ def extract_rates(text):
     # minimum, else the lowest tier: rate_integrity.TIER_RULE) wins, and the other
     # tiers go into tier_notes for the person reviewing the value.
     r["tier_notes"] = {}
-    for ptype, t in extract_tiered_products(text).items():
+    # multi-product rate tables ("Product | Balance Tiers to Obtain APY | Interest Rate | APY")
+    # are the strongest signal of all and win over a tier block for the same product
+    tiered = extract_tiered_products(text)
+    tiered.update(extract_rate_tables(text))
+    for ptype, t in tiered.items():
         if ptype not in ("checking", "savings", "high_yield_savings", "money_market"):
             continue
         r[ptype] = t["apy"]

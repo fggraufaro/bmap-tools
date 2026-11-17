@@ -1,14 +1,17 @@
 -- RR01 VERIFY. Run EACH query on its own in the Supabase SQL editor (select one, Run), after RR01_Apply.sql. All read-only. Send Session 3 every result.
 -- Expected numbers are stated BEFORE each query (pre-state read-only on 2026-11-17: public.rate_observations 1,049 rows in 58 runs; the row count grows as runs are saved, so it is compared with Query 1's own earlier value).
 
--- Query 1: the two new columns on public.rate_observations. EXPECTED: columns 20, review_flags 'text[]' not null default '{}', tier_note 'text' nullable; rows_with_flags 0 and rows_with_tier_note 0 until the new collector runs (the existing rows were not touched).
+-- Query 1: the four new columns on public.rate_observations. EXPECTED: columns 22, review_flags 'text[]' not null, tier_note 'text' nullable, market_zip 'text' nullable, scope_state 'text' nullable; rows_with_flags 0, rows_with_tier_note 0, rows_with_market_zip 0 and rows_with_scope_state 0 until the new collector runs (the existing rows were not touched).
 select (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'rate_observations') as columns,
        (select format_type(a.atttypid, a.atttypmod) || ' not_null=' || a.attnotnull from pg_attribute a where a.attrelid = 'public.rate_observations'::regclass and a.attname = 'review_flags') as review_flags,
        (select format_type(a.atttypid, a.atttypmod) || ' not_null=' || a.attnotnull from pg_attribute a where a.attrelid = 'public.rate_observations'::regclass and a.attname = 'tier_note') as tier_note,
        (select count(*) from public.rate_observations where cardinality(review_flags) > 0) as rows_with_flags, (select count(*) from public.rate_observations where tier_note is not null) as rows_with_tier_note,
+       (select format_type(a.atttypid, a.atttypmod) || ' not_null=' || a.attnotnull from pg_attribute a where a.attrelid = 'public.rate_observations'::regclass and a.attname = 'market_zip') as market_zip,
+       (select format_type(a.atttypid, a.atttypmod) || ' not_null=' || a.attnotnull from pg_attribute a where a.attrelid = 'public.rate_observations'::regclass and a.attname = 'scope_state') as scope_state,
+       (select count(*) from public.rate_observations where market_zip is not null) as rows_with_market_zip, (select count(*) from public.rate_observations where scope_state is not null) as rows_with_scope_state,
        (select count(*) from public.rate_observations) as rows;
 
--- Query 2: existing rows are unchanged. EXPECTED: constraints still 3 check + 1 primary key + 1 foreign key (checks on confidence, extraction_method, product_type), indexes 3 (pkey, bank, run).
+-- Query 2: existing rows are unchanged. EXPECTED: constraints 5 check (the 3 existing on confidence, extraction_method, product_type + the 2 new on market_zip and scope_state) + 1 primary key + 1 foreign key, indexes 3 (pkey, bank, run).
 select (select count(*) from pg_constraint c where c.conrelid = 'public.rate_observations'::regclass and c.contype = 'c') as check_constraints,
        (select count(*) from pg_constraint c where c.conrelid = 'public.rate_observations'::regclass and c.contype = 'p') as primary_keys,
        (select count(*) from pg_constraint c where c.conrelid = 'public.rate_observations'::regclass and c.contype = 'f') as foreign_keys,

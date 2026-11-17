@@ -25,6 +25,7 @@ from shared import (
     EXPORTS, FIELDS, SB_NUMERIC_FIELDS,
 )
 from extraction import extract_domain, _parse_term_months
+from rate_integrity import resolve, legacy_entry, SEARCH, LAST_KNOWN_GOOD
 
 
 def build_supabase_rows(results, run_id, run_date):
@@ -138,50 +139,32 @@ async def push_to_supabase(results, run_id, run_date):
 # write or the live dashboard, which still reads exclusively from
 # vw_rate_radar_latest.
 
-def _provenance(specific_url, general_url, note, product_label):
-    """Classify how one rate value was sourced. Mirrors, condition for
-    condition, the CASE logic already baked into vw_rate_radar_latest /
-    vw_rate_radar_history so the new tidy table and the legacy views never
-    disagree on the same crawl."""
-    su   = specific_url or ""
-    gen  = general_url or ""
-    note = (note or "").lower()
-    if "no fresh data found today" in note:
-        return "last_known_good"
-    if f"{product_label} from search" in note:
-        return "search"
-    if su.startswith("[Search]"):
-        return "search"
-    if "depositaccounts" in su.lower():
-        return "aggregator"
-    if su.startswith("http"):
-        return "site"
-    if su.startswith("[AI]") or gen.startswith("[AI]"):
-        return "ai_vision"
-    if gen.startswith("[Search]"):
-        return "search"
-    if gen.startswith("http"):
-        return "site"
-    return "search"
-
-
-def _confidence(provenance):
-    return {"site": "high", "ai_vision": "high", "aggregator": "medium",
-            "search": "low", "last_known_good": "low"}.get(provenance, "low")
-
-
-def build_rate_observations(results, run_id):
+def build_rate_observations(results, run_id, extra_cols=False):
     """Explode wide result dicts into tidy public.rate_observations rows.
+
+    Where a value came from, and how far it can be trusted, is decided by
+    rate_integrity.resolve() from the per-product provenance the crawler
+    RECORDED when it assigned the value (result["provenance"][product]); it is
+    never reconstructed from the free-text note or from the bank's general
+    source_url (that is how a money-market value read by AI vision from a
+    screenshot was once saved as site/high with the CD page as its source).
+    A result that predates per-value provenance (an old same-day cache entry)
+    falls back to rate_integrity.legacy_entry(), which uses only the product's
+    OWN source URL and a whole-word "<product> from search" note, and gives
+    "no source" (low) rather than borrowing another URL.
 
     A row with _edited=True (set by the verify UI's manual-save path — see
     rate_radar.py's manual_save()) means a person confirmed that value
     against the bank's own source, not that the crawler happened to read it
     off the bank's site — so it's forced to extraction_method='site' /
     confidence='high' / manually_verified=True here instead of running
-    through the automated _provenance() heuristic, which only recognizes
-    "site" when source_url_* itself already starts with http and would
-    otherwise misclassify a hand-typed confirmation (e.g. "confirmed by
-    phone") as low-confidence search data.
+    through the automated resolution, which only recognizes "site" when the
+    value was read from a page and would otherwise misclassify a hand-typed
+    confirmation (e.g. "confirmed by phone") as low-confidence data.
+
+    extra_cols=True adds review_flags (text[]) and tier_note (text); pass it
+    only when public.rate_observations has those columns (see
+    push_rate_observations(), which checks).
     """
     now_iso = datetime.now().isoformat()
     rows = []
@@ -193,12 +176,17 @@ def build_rate_observations(results, run_id):
         note       = r.get("note")
         source_url = r.get("source_url")
         rate_tags  = r.get("rate_tags") or {}   # Phase 5: {"savings": ["promo"], ...} from tag_rate_context()
+        prov       = r.get("provenance") or {}
+        tier_notes = r.get("tier_notes") or {}
+        identity   = r.get("identity")          # "ok" | "mismatch" | "unknown" | None (not checked)
+        not_pub    = set(r.get("not_published") or [])
+        bank_url   = r.get("bank_url")
         hys_apy    = r.get("high_yield_savings_apy")
         products = [
             ("checking",     r.get("checking_apy"),    r.get("source_url_checking"), None),
             ("savings",      r.get("savings_apy"),      r.get("source_url_savings"),  None),
             ("high_yield_savings", hys_apy,             r.get("source_url_high_yield_savings"), None),
-            ("money_market", r.get("money_market_apy"), None, None),
+            ("money_market", r.get("money_market_apy"), r.get("source_url_money_market"), None),
         ]
         # Phase 5 (part 3): a full CD ladder means one row per distinct term
         # instead of only the single highest rate — the ladder always includes
@@ -223,9 +211,18 @@ def build_rate_observations(results, run_id):
                 apy_val = float(str(apy).replace("%", "").replace(",", ""))
             except (ValueError, TypeError):
                 continue
-            provenance = "site" if edited else _provenance(specific_url, source_url, note, product_type)
+            entry = prov.get(product_type) or legacy_entry(product_type, specific_url, note)
+            method, conf, url, flags = resolve(entry, bank_url=bank_url, identity=identity, edited=edited)
+            if edited:
+                url = specific_url or source_url
+            # the bank says it does not publish this product's rate: only a value read from
+            # its own page may stand; a search / last-known value is dropped, not saved
+            if not edited and method in (SEARCH, LAST_KNOWN_GOOD) and (
+                    "all" in not_pub or product_type in not_pub
+                    or (product_type == "high_yield_savings" and "savings" in not_pub)):
+                continue
             tags = rate_tags.get(product_type, [])
-            rows.append({
+            row = {
                 "run_id":            run_id,
                 "bank_name":         str(bank_name),
                 "rssdid":            str(r["RSSDID"]) if r.get("RSSDID") not in ("", None) else None,
@@ -233,17 +230,45 @@ def build_rate_observations(results, run_id):
                 "term_months":       _parse_term_months(cd_term) if product_type == "cd" else None,
                 "apy":               apy_val,
                 "min_balance":       str(r["min_balance"]) if r.get("min_balance") not in ("", None) else None,
-                "source_url":        str(specific_url or source_url) if (specific_url or source_url) else None,
-                "extraction_method": provenance,
-                "confidence":        "high" if edited else _confidence(provenance),
+                "source_url":        str(url) if url else None,
+                "extraction_method": method,
+                "confidence":        conf,
                 "is_conditional":    "conditional" in tags,
                 "is_promo":          "promo" in tags,
                 "observed_at":       now_iso,
                 "manually_verified": edited,
                 "verified_by":       "rate-radar.html (manual save)" if edited else None,
                 "verified_at":       now_iso if edited else None,
-            })
+            }
+            if extra_cols:
+                row["review_flags"] = list(flags) + (["tiered"] if "tiered" in tags else [])
+                row["tier_note"]    = tier_notes.get(product_type) if product_type != "cd" else None
+            rows.append(row)
     return rows
+
+
+_RATE_OBS_EXTRA = "review_flags,tier_note"
+
+
+async def _rate_obs_has_extra_columns():
+    """True when public.rate_observations has the optional review_flags / tier_note
+    columns (an additive migration). Checked once per process; any failure means
+    "no", so the write keeps working before or after the migration."""
+    cached = crawl_state.get("_ro_extra_cols")
+    if cached is not None:
+        return cached
+    ok = False
+    if SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK:
+        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        try:
+            async with aiohttp.ClientSession(trust_env=True) as s:
+                async with s.get(f"{SUPABASE_URL}/rest/v1/rate_observations?select={_RATE_OBS_EXTRA}&limit=0",
+                                 headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)) as resp:
+                    ok = resp.status == 200
+        except Exception:
+            ok = False
+    crawl_state["_ro_extra_cols"] = ok
+    return ok
 
 
 async def push_rate_observations(results, run_id):
@@ -252,7 +277,7 @@ async def push_rate_observations(results, run_id):
     key into rate_radar_runs). Never raises."""
     if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
         return False
-    rows = build_rate_observations(results, run_id)
+    rows = build_rate_observations(results, run_id, extra_cols=await _rate_obs_has_extra_columns())
     if not rows:
         return False
     url = f"{SUPABASE_URL}/rest/v1/rate_observations"
@@ -277,6 +302,100 @@ async def push_rate_observations(results, run_id):
                 return False
     except Exception as e:
         crawl_state["log"].append(f"rate_observations push error: {type(e).__name__}: {e}")
+        return False
+
+
+# ── "Not published by the bank" outcome (public.rate_not_published) ───────────
+# A bank whose own pages say "inquire for rates" has no number to store, and
+# public.rate_observations.apy is NOT NULL, so the outcome gets its own small
+# additive table (one row per run, bank and product; product_type may be "all"):
+# the Hub can show "this bank does not publish its checking rate" next to the
+# rates, and a search value is never saved in its place.
+
+NOT_PUBLISHED_TABLE = "rate_not_published"
+NOT_PUBLISHED_PRODUCTS = ("checking", "savings", "high_yield_savings", "money_market", "cd", "all")
+
+
+def build_not_published_rows(results, run_id):
+    """One row per (bank, product) a bank's own pages said it does not publish a
+    rate for. A value a person confirmed in the verify UI (_edited) outranks the
+    statement, so those results give no row."""
+    now_iso = datetime.now().isoformat()
+    rows = []
+    for r in results:
+        bank_name = r.get("bank_name")
+        if not bank_name or r.get("_edited"):
+            continue
+        evidence = r.get("not_published_evidence") or {}
+        for product in sorted(set(r.get("not_published") or [])):
+            if product not in NOT_PUBLISHED_PRODUCTS:
+                continue
+            ev = evidence.get(product) or {}
+            rows.append({
+                "run_id":       run_id,
+                "bank_name":    str(bank_name),
+                "rssdid":       str(r["RSSDID"]) if r.get("RSSDID") not in ("", None) else None,
+                "product_type": product,
+                "evidence":     (ev.get("text") or None),
+                "source_url":   (ev.get("url") or None),
+                "observed_at":  now_iso,
+            })
+    return rows
+
+
+async def _not_published_table_exists():
+    """True when public.rate_not_published exists (an additive migration).
+    Checked once per process; any failure means "no" so nothing breaks before it."""
+    cached = crawl_state.get("_np_table")
+    if cached is not None:
+        return cached
+    ok = False
+    if SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK:
+        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        try:
+            async with aiohttp.ClientSession(trust_env=True) as s:
+                async with s.get(f"{SUPABASE_URL}/rest/v1/{NOT_PUBLISHED_TABLE}?select=id&limit=0",
+                                 headers=headers, timeout=aiohttp.ClientTimeout(total=SUPABASE_CALL_TIMEOUT_S)) as resp:
+                    ok = resp.status == 200
+        except Exception:
+            ok = False
+    crawl_state["_np_table"] = ok
+    return ok
+
+
+async def push_not_published(results, run_id):
+    """Write the not-published outcomes of this run. Same ordering rule as
+    push_rate_observations (after push_run_summary: run_id is a foreign key).
+    Never raises."""
+    if not (SUPABASE_URL and SUPABASE_KEY and AIOHTTP_OK):
+        return False
+    rows = build_not_published_rows(results, run_id)
+    if not rows:
+        return False
+    if not await _not_published_table_exists():
+        crawl_state["log"].append(
+            f"Not-published outcomes for {len(rows)} product(s) not saved: public.{NOT_PUBLISHED_TABLE} does not exist yet")
+        return False
+    url = f"{SUPABASE_URL}/rest/v1/{NOT_PUBLISHED_TABLE}?on_conflict=run_id,bank_name,product_type"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    try:
+        async with aiohttp.ClientSession(trust_env=True) as s:
+            async with s.post(url, headers=headers, data=json.dumps(rows),
+                              timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                if resp.status in (200, 201, 204):
+                    crawl_state["log"].append(
+                        f"Supabase: ✓ pushed {len(rows)} not-published outcome(s) to {NOT_PUBLISHED_TABLE} (run {run_id})")
+                    return True
+                body = (await resp.text())[:300]
+                crawl_state["log"].append(f"{NOT_PUBLISHED_TABLE} push failed ({resp.status}): {body}")
+                return False
+    except Exception as e:
+        crawl_state["log"].append(f"{NOT_PUBLISHED_TABLE} push error: {type(e).__name__}: {e}")
         return False
 
 

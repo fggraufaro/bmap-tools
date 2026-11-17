@@ -16,6 +16,8 @@ try:
 except ImportError:
     DATEUTIL_OK = False
 
+from rate_integrity import extract_tiered_products
+
 APY_PAT      = re.compile(r'(\d+\.\d+)\s*%\s*(?:APY|Annual\s+Percentage\s+Yield)', re.I)
 
 # Fix 3: two-pass savings — inline first (with CD cross-contamination guard), then next-line
@@ -614,6 +616,26 @@ def extract_rates(text):
             if term_key not in by_term or bucket_key(c) > bucket_key(by_term[term_key]):
                 by_term[term_key] = c
         r["cd_ladder"] = [{"term": c[1], "apy": c[0]} for c in by_term.values()] or None
+
+    # Tiered products ("$10,000 or less -- 0.05% APY", "$10,000.01 to $25,000 --
+    # 0.62% APY", or a table row "Savings Accounts ($2,499 or less) 0.12% 0.12%"
+    # with APY only in the header). The generic patterns above need the product
+    # word within 60 characters of "N.NN% APY", which a tiered block or a header-
+    # labelled table does not have, and when one DOES match it takes whichever
+    # tier is nearest or highest. A block of balance tiers is a stronger signal
+    # than either, so its rate (the tier that applies at the product's opening
+    # minimum, else the lowest tier: rate_integrity.TIER_RULE) wins, and the other
+    # tiers go into tier_notes for the person reviewing the value.
+    r["tier_notes"] = {}
+    for ptype, t in extract_tiered_products(text).items():
+        if ptype not in ("checking", "savings", "high_yield_savings", "money_market"):
+            continue
+        r[ptype] = t["apy"]
+        tags = [x for x in r["rate_tags"].get(ptype, []) if x != "tiered"] + ["tiered"]
+        if not _is_plausible(ptype, t["apy"]):
+            tags.append("implausible")
+        r["rate_tags"][ptype] = tags
+        r["tier_notes"][ptype] = t["note"]
 
     if not any([r["checking"], r["savings"], r["cd"], r["money_market"]]):
         apys = [float(v) for v in APY_PAT.findall(text) if 0.05 <= float(v) <= 15]

@@ -39,12 +39,16 @@ from extraction import (
     parse_json_object, _clean_cd_ladder, extract_rates_from_json,
     JSON_RATE_KEY_PAT,
 )
+from rate_integrity import (
+    SITE, AI_VISION, AGGREGATOR, SEARCH, LAST_KNOWN_GOOD, tier_rule,
+    make_source, verify_ai_values, check_identity, find_not_published, is_blocked_source,
+)
 from shared import (
     crawl_state, RATE_PATHS, BANK_EXTRA_URLS,
     CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PROBE_EVERY, _estimate_cost_usd,
 )
 from storage import (
-    fetch_last_known_good, push_to_supabase, push_rate_observations,
+    fetch_last_known_good, push_to_supabase, push_rate_observations, push_not_published,
     load_bank_url_config, _bank_health, _circuit_open,
     _content_hash, _extraction_cache_get, _extraction_cache_put,
     update_bank_registry, push_run_summary, auto_save,
@@ -841,6 +845,8 @@ Rules:
   never leave them null if checking/savings/high_yield_savings/cd/money_market has a value
 - DO NOT cross-assign rates between product types
 - If only one savings-type product exists, put it in whichever field describes it, leave the other null
+- Tiered rates: {tier_rule()}
+- Only report a rate for THIS bank (not a bank with a similar name) and only a number you actually saw in a result; if the bank's own page says to inquire or call for rates, return null for that product
 - If no rates found return all nulls with confidence "low"
 - Return ONLY the JSON"""
 
@@ -866,6 +872,12 @@ Rules:
         if not m:
             return None
         result = json.loads(m.group(0))
+        # Standing rule: NerdWallet's rate data is proprietary and is never
+        # collected. The prompt above already refuses it; this drops the whole
+        # result if the model cites it anyway.
+        if is_blocked_source(result.get("source_domain")) or is_blocked_source(result.get("source_note")):
+            crawl_state["log"].append("    [Search] result cited a blocked source (NerdWallet) — discarded")
+            return None
         cleaned = {
             "checking":          float(result["checking"])          if result.get("checking")          else None,
             "savings":           float(result["savings"])            if result.get("savings")           else None,
@@ -1086,10 +1098,11 @@ Critical rules:
   premium, or elite savings goes in "high_yield_savings". If the page shows only
   one of the two, populate that field and leave the other null — don't force a
   single high-yield product into "savings" just because there's no second one
-- For checking/savings/money_market: use the HIGHEST advertised APY for that product type
+- For checking/savings/money_market: {tier_rule()}
 - For CD: use the HIGHEST APY shown, record its term — AND list every term you see in cd_ladder
 - If a rate says "up to X%" use X
 - If you only see a promo banner with no rate table, return null for that field
+- Report ONLY numbers you can actually read on the page. If a product's rate is not legible, return null — never guess or estimate
 - Return ONLY the JSON object"""
 
         response = client.messages.create(
@@ -1175,6 +1188,15 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     source_urls = {}
     visited     = set()
     rate_tags   = {}   # accumulated tags across all pages
+    # Rate integrity (rate_integrity.py): where EACH product's value came from
+    # (recorded when the value is assigned, never reconstructed from a note),
+    # the tier note of a tiered value, what the bank says it does not publish,
+    # and whether the pages read name this bank at all.
+    prov          = {}        # {product: rate_integrity.make_source(...)}
+    tier_notes    = {}        # {product: "tiered: 0.05% up to $10,000 (...); other tiers: ..."}
+    not_published = set()     # product types a page says to inquire/call for, or "all"
+    np_evidence   = {}        # {product or "all": {"text": the sentence, "url": the page}}
+    identity_seen = set()     # per-page check_identity() results
     rebrand_hint = bank.get("_rebrand_hint")   # pre-populated from preflight if found
     bank_urls_cfg = crawl_state.get("_bank_urls_cfg") or BANK_EXTRA_URLS
     extra    = next((urls for k, urls in bank_urls_cfg.items() if k in base.replace('www.','').lower()), [])
@@ -1280,6 +1302,25 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
 
             text = await page.inner_text("body")
 
+            # Rate integrity: judge this page by its FULL text (textContent also
+            # holds accordion/tab blocks that innerText leaves out) — does it
+            # name this bank, and does it say the bank does not publish a rate?
+            try:
+                _title = await page.title()
+                _site = await page.evaluate(
+                    "() => (document.querySelector('meta[property=\"og:site_name\"]') || {}).content || ''")
+                _full = await page.evaluate("() => document.body ? document.body.textContent : ''")
+            except Exception:
+                _title = _site = _full = ""
+            _judge = _full or text
+            if len(_judge) >= 200:
+                identity_seen.add(check_identity(bank["bank_name"], base, _title, _site, _judge))
+            for _np, _ev in find_not_published(_judge).items():
+                # "inquire for rates" with no product named is only trusted on a rate-keyword page
+                if _np != "all" or is_rate_url:
+                    not_published.add(_np)
+                    np_evidence.setdefault(_np, {"text": _ev, "url": url})
+
             # Rebrand detection on page text
             if not rebrand_hint:
                 hint = detect_rebrand(text, bank["bank_name"])
@@ -1299,8 +1340,12 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             def merge_into_r(r2):
                 """Fill r's gaps from a second extraction pass."""
                 for k in list(r.keys()):
-                    if k != "rate_tags" and r[k] is None and r2.get(k) is not None:
+                    if k not in ("rate_tags", "tier_notes") and r[k] is None and r2.get(k) is not None:
                         r[k] = r2[k]
+                        # a tiered value brings its tier note along
+                        _n = (r2.get("tier_notes") or {}).get(k)
+                        if _n:
+                            r.setdefault("tier_notes", {})[k] = _n
                 for k, tags in r2.get("rate_tags", {}).items():
                     if k not in rate_tags:
                         rate_tags[k] = tags
@@ -1329,6 +1374,20 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                     if table_text.strip():
                         merge_into_r(extract_rates(table_text))
                 except: pass
+
+            # Rate integrity: accordion / tab / "more details" blocks are in the
+            # DOM's textContent but NOT in innerText (a real bank savings page
+            # measured 724 visible characters with no rates against 39,000 with
+            # 61 rates). Reading only the visible text is how those rates were
+            # missed and a screenshot guess was used instead, so on a rate page
+            # that is still missing a product, fill the gaps from the full text.
+            if is_rate_url and not all(r.get(k) for k in core_keys):
+                try:
+                    _hid = await harvest_hidden_text(page)
+                    if _hid:
+                        merge_into_r(extract_rates(_hid))
+                except Exception:
+                    pass
 
             # Fix 1: a min balance with no rate means we're ON the right page
             # but the rates haven't surfaced yet — dig before walking away.
@@ -1397,6 +1456,13 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                         best[k] = r[k]
                         if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                             source_urls[k] = url
+                            # read by the DOM extractor from this page's own text: the only source that can be "high"
+                            prov[k] = make_source(SITE, url=url, verified=True)
+                            _tn = (r.get("tier_notes") or {}).get(k)
+                            if _tn:
+                                tier_notes[k] = _tn
+                            else:
+                                tier_notes.pop(k, None)
             if r.get("cd_term") and not best["cd_term"]:
                 best["cd_term"] = r["cd_term"]
             if any(r.get(k) for k in ["checking", "savings", "cd", "money_market"]):
@@ -1500,6 +1566,24 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             except Exception as e:
                 crawl_state["log"].append(f"    [SE-rescue] error: {e}")
 
+    # Rate integrity: products the bank's own pages say it does not publish a rate
+    # for ("Interest Bearing: Inquire for Rates"). A product the site DID give a
+    # value for is published after all. No other source may fill the rest.
+    np_final = set()
+    for _p in not_published:
+        if _p == "all":
+            if not any((prov.get(k) or {}).get("method") == SITE for k in prov):
+                np_final.add("all")
+        elif _p == "savings":
+            if not any((prov.get(k) or {}).get("method") == SITE for k in ("savings", "high_yield_savings")):
+                np_final.add("savings")
+        elif (prov.get(_p) or {}).get("method") != SITE:
+            np_final.add(_p)
+
+    def _blocked(k):
+        """True when the bank says it does not publish this product's rate."""
+        return "all" in np_final or k in np_final or (k == "high_yield_savings" and "savings" in np_final)
+
     # ── Final DepositAccounts.com fallback ──────────────────────────────────
     count = sum(1 for k in ["checking", "savings", "cd", "money_market"] if best[k] is not None)
     if count < 4:
@@ -1510,9 +1594,12 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
             stale_flag = da.get("_stale_flag", "")
             for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "cd_ladder", "money_market", "min_balance"]:
                 if da.get(k) is not None and best.get(k) is None:
+                    if _blocked(k):
+                        continue
                     best[k] = da[k]
                     if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                         source_urls[k] = da.get("_source", "depositaccounts.com") + stale_flag
+                        prov[k] = make_source(AGGREGATOR, url=da.get("_source", "depositaccounts.com"))
 
     # ── AI Vision fallback for empty/partial results ────────────────────────
     # Also trigger if the only CD result is low-confidence "best found"
@@ -1569,13 +1656,31 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
                             pass
                     ai_result = await ai_vision_extract(page, v_url, bank["bank_name"])
                     if ai_result:
+                        # Rate integrity: a vision read is a reading of a picture, and a
+                        # picture of a long page is where numbers get guessed (one saved
+                        # run had it return a whole CD ladder that is on no page of the
+                        # bank). Check every number against the page's text: kept and
+                        # verified when it is there, DROPPED when the page shows rates
+                        # and this number is not among them, kept unverified (low)
+                        # only when the page has no readable text rates (image-only).
+                        try:
+                            _vtext = await page.evaluate("() => document.body ? document.body.textContent : ''")
+                        except Exception:
+                            _vtext = ""
+                        ai_result, _dropped, _ver = verify_ai_values(ai_result, _vtext)
+                        if _dropped:
+                            crawl_state["log"].append(
+                                f"    [AI] discarded {_dropped} — not found in the page text of {v_url.split('/')[-1] or 'home'}")
                         filled = 0
                         for k in ["checking", "savings", "high_yield_savings", "cd", "cd_term", "cd_ladder", "money_market", "min_balance"]:
                             if ai_result.get(k) is not None and best.get(k) is None:
+                                if _blocked(k):
+                                    continue
                                 best[k] = ai_result[k]
                                 filled += 1
                                 if k in ["checking", "savings", "high_yield_savings", "cd", "money_market"]:
                                     source_urls[k] = f"[AI] {v_url}"
+                                    prov[k] = make_source(AI_VISION, url=v_url, verified=_ver.get(k, False))
                         if zip_gate["used_on"] == v_url and any(
                                 ai_result.get(k) for k in ("checking", "savings", "cd", "money_market")):
                             zip_gate["recovered"] = True
@@ -1624,6 +1729,14 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
     if lbl: rate_parts.append(lbl)
     if rate_parts: parts.append(", ".join(rate_parts))
     if best["min_balance"]: parts.append(f"Min: {best['min_balance']}")
+    # Rate integrity notes: what a person reviewing this row needs to know
+    identity = "ok" if "ok" in identity_seen else "mismatch" if "mismatch" in identity_seen else "unknown"
+    if identity == "mismatch":
+        parts.append(f"⚠️ IDENTITY: no page read names '{bank['bank_name']}' — confirm these rates belong to this bank")
+    if np_final:
+        parts.append("Not published by the bank: " + ", ".join(sorted(np_final)))
+    for _k, _n in tier_notes.items():
+        parts.append(f"{_k} {_n}")
     if not parts: parts.append("Rates not publicly listed")
     unique_sources = list(dict.fromkeys(source_urls.values()))
     source_note = (" | Source: " + unique_sources[0]) if unique_sources else ""
@@ -1692,6 +1805,16 @@ async def crawl_bank(page, bank, timeout=12000, http_session=None):
         # tag_rate_context() — survives into build_rate_observations() instead
         # of only being rendered into the free-text note.
         "rate_tags":                 dict(rate_tags),
+        # Rate integrity: per-product provenance recorded at assignment (money
+        # market included), tier notes, "not published" products and the page
+        # identity check. build_rate_observations() reads these instead of
+        # guessing from source_url / note text.
+        "provenance":                {k: dict(v) for k, v in prov.items()},
+        "tier_notes":                dict(tier_notes),
+        "not_published":             sorted(np_final),
+        "not_published_evidence":    {p: np_evidence[p] for p in np_final if p in np_evidence},
+        "identity":                  identity,
+        "source_url_money_market":   source_urls.get("money_market", ""),
         # Enrichment fields from CSV
         "bank_type":                 bank.get("bank_type", ""),
         "branch_address":            bank.get("branch_address", ""),
@@ -2511,7 +2634,12 @@ async def run_crawler(banks):
                                                    ("cd","cd_apy"),("cd_term","cd_term"),
                                                    ("money_market","money_market_apy"),("min_balance","min_balance")]:
                                         if chat_result.get(k) is not None and not result.get(rk):
+                                            if k not in ("cd_term", "min_balance") and _search_blocked(result, k):
+                                                continue
                                             result[rk] = chat_result[k]
+                                            if k not in ("cd_term", "min_balance"):
+                                                # a chat-bot answer cannot be checked against a page: unverified, low
+                                                result.setdefault("provenance", {})[k] = make_source(SEARCH, label="[Chat] live chat")
                                     if chat_result.get("promo_note"):
                                         result["note"] = (result.get("note","") + " | 💬 Chat: " + chat_result["promo_note"]).strip(" |")
                                     new_count = sum(1 for k in ["checking_apy","savings_apy","cd_apy"] if result.get(k))
@@ -2524,12 +2652,21 @@ async def run_crawler(banks):
 
                     # Merge any preflight data into gaps left by browser crawl
                     if pre:
+                        # Rate integrity: a search value records ITS OWN source (never the
+                        # first page the crawler read), is never "high", and never
+                        # overrides a product the bank says it does not publish.
+                        _psrc = classify_source(bank.get("bank_url",""), pre.get("_source_type",""),
+                                                pre.get("_source_domain",""), pre.get("_source_note",""))
                         for k, rk in [("checking","checking_apy"),("savings","savings_apy"),
                                        ("high_yield_savings","high_yield_savings_apy"),
                                        ("cd","cd_apy"),("cd_term","cd_term"),
                                        ("money_market","money_market_apy")]:
                             if pre.get(k) is not None and not result.get(rk):
+                                if _search_blocked(result, k):
+                                    continue
                                 result[rk] = pre[k]
+                                if k != "cd_term":
+                                    _record_search(result, k, _psrc)
                                 result["note"] = (result.get("note","") +
                                     f" | {k} from search: {pre[k]}").strip(" |")
                         # Re-evaluate status
@@ -2565,13 +2702,20 @@ async def run_crawler(banks):
                             await asyncio.sleep(1)     # breathe between calls
                         if retry:
                             filled = []
+                            _rsrc = classify_source(bank.get("bank_url",""),
+                                                    retry.get("_source_type",""),
+                                                    retry.get("_source_domain",""),
+                                                    retry.get("_source_note",""))
                             for k, rk in [("checking","checking_apy"),("savings","savings_apy"),
                                            ("high_yield_savings","high_yield_savings_apy"),
                                            ("cd","cd_apy"),("cd_term","cd_term"),
                                            ("money_market","money_market_apy")]:
                                 if retry.get(k) is not None and not result.get(rk):
+                                    if _search_blocked(result, k):
+                                        continue
                                     result[rk] = retry[k]
                                     if rk != "cd_term":
+                                        _record_search(result, k, _rsrc)
                                         filled.append(f"{k}={retry[k]}")
                                         result["note"] = (result.get("note","") +
                                             f" | {k} from search retry: {retry[k]}").strip(" |")
@@ -2604,9 +2748,12 @@ async def run_crawler(banks):
                             for k in ["checking_apy","savings_apy","cd_apy",
                                      "cd_term","money_market_apy","min_balance"]:
                                 if hist.get(k) is not None:
+                                    if k not in ("cd_term","min_balance") and _search_blocked(result, k[:-4]):
+                                        continue   # the bank says it does not publish this product's rate
                                     result[k] = hist[k]
                                     if k not in ("cd_term","min_balance"):
                                         filled.append(k)
+                                        result.setdefault("provenance", {})[k[:-4]] = make_source(LAST_KNOWN_GOOD)
                             if filled:
                                 as_of = hist.get("run_date") or hist.get("crawled_at","earlier")
                                 result["note"] = (
@@ -2748,6 +2895,20 @@ async def run_crawler(banks):
                                 llm_input_tokens, llm_output_tokens, llm_web_searches,
                                 notes=run_notes)
         await push_rate_observations(crawl_state["results"], saved[0])
+        await push_not_published(crawl_state["results"], saved[0])
+
+
+def _record_search(result, product, src_label):
+    """Record that `product`'s value on this result came from the web search,
+    with the search's own source label — never the page the crawler read first."""
+    result.setdefault("provenance", {})[product] = make_source(SEARCH, label=f"[Search] {src_label}")
+
+
+def _search_blocked(result, product):
+    """True when the bank's own pages said it does not publish this product's
+    rate: a search value must not replace that honest answer."""
+    np = set(result.get("not_published") or [])
+    return "all" in np or product in np or (product == "high_yield_savings" and "savings" in np)
 
 
 def _build_result_from_preflight(bank, pre):
@@ -2793,6 +2954,10 @@ def _build_result_from_preflight(bank, pre):
         "source_url_savings":        f"[Search] {src}" if (pre.get("savings") or pre.get("high_yield_savings")) else "",
         "source_url_high_yield_savings": f"[Search] {src}" if pre.get("high_yield_savings") else "",
         "source_url_cd":             f"[Search] {src}" if pre.get("cd") else "",
+        "source_url_money_market":   f"[Search] {src}" if pre.get("money_market") else "",
+        # Rate integrity: every value here is a search value; record that per product.
+        "provenance":                {p: make_source(SEARCH, label=f"[Search] {src}")
+                                      for p in ("checking", "savings", "high_yield_savings", "cd", "money_market") if pre.get(p)},
         "crawled_at":                datetime.now().strftime("%Y-%m-%d %H:%M"),
         "bank_type":                 bank.get("bank_type",""),
         "branch_address":            bank.get("branch_address",""),
